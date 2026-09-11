@@ -56,7 +56,7 @@ import {
   getCliArgs,
   closeWindow,
 } from "./lib/tauri/commands";
-import { onFileChanged } from "./lib/tauri/events";
+import { onFileChanged, onSingleInstanceOpen } from "./lib/tauri/events";
 import { isDropOverTabBar, processFileDrop } from "./lib/dnd";
 import { dispatchFormat, type FormatAction } from "./lib/formatter";
 import { createSingleFlight } from "./lib/singleFlight";
@@ -88,6 +88,7 @@ const App: Component = () => {
   let unlistenFileChanged: (() => void) | null = null;
   let unlistenDragDrop: (() => void) | null = null;
   let unlistenCloseRequested: (() => void) | null = null;
+  let unlistenSingleInstance: (() => void) | null = null;
   let autoSaveTimer: number | null = null;
   let cancelAutomaticUpdateCheck: (() => void) | null = null;
 
@@ -326,6 +327,18 @@ const App: Component = () => {
       console.warn("CLI args check error:", e);
     }
 
+    try {
+      unlistenSingleInstance = await onSingleInstanceOpen(async (files) => {
+        if (Array.isArray(files)) {
+          for (const filePath of files) {
+            await loadFile(filePath);
+          }
+        }
+      });
+    } catch (e) {
+      console.warn("Single instance listener setup error:", e);
+    }
+
     cancelAutomaticUpdateCheck = scheduleAutomaticUpdateCheck();
     syncPlugins().catch((err) => console.warn("Plugin sync error:", err));
     syncCustomThemes().catch((err) => console.warn("Theme sync error:", err));
@@ -419,6 +432,7 @@ const App: Component = () => {
     unlistenFileChanged?.();
     unlistenDragDrop?.();
     unlistenCloseRequested?.();
+    unlistenSingleInstance?.();
     cancelAutomaticUpdateCheck?.();
     if (autoSaveTimer !== null) {
       clearInterval(autoSaveTimer);

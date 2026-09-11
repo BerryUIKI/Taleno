@@ -5,6 +5,7 @@ mod state;
 
 use state::AppState;
 use std::sync::Mutex;
+use tauri::{Emitter, Manager};
 
 /// Holds the file watcher so it doesn't get dropped.
 struct WatcherState {
@@ -13,12 +14,36 @@ struct WatcherState {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build());
+
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+            let files: Vec<String> = args
+                .into_iter()
+                .skip(1)
+                .filter(|arg| {
+                    let p = std::path::Path::new(arg);
+                    p.exists() && p.is_file()
+                })
+                .collect();
+            if !files.is_empty() {
+                let _ = app.emit("single-instance-open", files);
+            }
+        }));
+    }
+
+    builder
         .manage(AppState::default())
         .manage(WatcherState {
             _watcher: Mutex::new(None),

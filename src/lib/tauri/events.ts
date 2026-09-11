@@ -14,3 +14,14 @@ export async function onFileChanged(
     callback(event.payload);
   });
 }
+
+/**
+ * Listen for single-instance-open events when another instance is launched with file arguments.
+ */
+export async function onSingleInstanceOpen(
+  callback: (files: string[]) => void
+): Promise<UnlistenFn> {
+  return listen<string[]>("single-instance-open", (event) => {
+    callback(event.payload);
+  });
+}

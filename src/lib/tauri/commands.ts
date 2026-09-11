@@ -113,9 +113,13 @@ export async function toggleMaximizeWindow(): Promise<void> {
  */
 export async function closeWindow(): Promise<void> {
   try {
-    await getCurrentWindow().close();
-  } catch {
     await invoke<void>("close_window");
+  } catch {
+    try {
+      await getCurrentWindow().destroy();
+    } catch {
+      await getCurrentWindow().close();
+    }
   }
 }
 
