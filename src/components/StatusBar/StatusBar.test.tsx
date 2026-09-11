@@ -40,7 +40,7 @@ describe("StatusBar", () => {
     const themeButton = container.querySelector<HTMLButtonElement>('[data-status-section="theme"]');
 
     expect(versionBtn).toBeTruthy();
-    expect(versionBtn?.textContent).toContain("v0.1.8");
+    expect(versionBtn?.textContent).toContain("v0.1.9");
     expect(footer?.firstElementChild).toBe(versionBtn);
     expect(displayMode).toBeTruthy();
     expect(themeButton).toBeTruthy();

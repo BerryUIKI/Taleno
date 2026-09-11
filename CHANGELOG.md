@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.9] - 2026-09-03
+## [0.1.9] - 2026-09-11
+
+### Fixed
+- **Window Close Failure on Desktop**:
+  - Granted `"core:window:allow-destroy"` permission in capability configuration, resolving permission denial on window close in borderless mode.
+  - Ensured backend `close_window` command forcefully destroys the native window handle once unsaved changes confirmation is resolved.
+- **Single Instance Application Constraint**:
+  - Integrated `tauri-plugin-single-instance` to restrict application execution to a single instance.
+  - Automatically restores, unminimizes, and focuses the existing window when a second instance is launched.
+  - Forwards CLI file arguments to the running instance, seamlessly loading files in new tabs.
 
 ### Added
 - **Cross-Platform Mobile Support (iOS & Android)**:

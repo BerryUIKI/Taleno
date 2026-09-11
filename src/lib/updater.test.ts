@@ -110,10 +110,10 @@ describe("native updater", () => {
 
   it("checks updates in-place without opening a modal and highlights available updates", async () => {
     mocks.check.mockResolvedValue({
-      currentVersion: "0.1.8",
-      version: "0.1.9",
-      date: "2026-09-02T00:00:00Z",
-      body: "v0.1.9 release",
+      currentVersion: "0.1.9",
+      version: "0.1.10",
+      date: "2026-09-11T00:00:00Z",
+      body: "v0.1.10 release",
       downloadAndInstall: mocks.downloadAndInstall,
     });
 
