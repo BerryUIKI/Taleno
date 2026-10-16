@@ -7,16 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-- Unified title-bar dragging so window controls do not trigger native dragging or double-click maximization, and title clicks start only one drag operation.
-- Prefer Tauri's window destruction API after unsaved-change confirmation, with an asynchronous native close command as a fallback.
-
-## [0.1.9] - 2026-09-11
+## [0.1.9] - 2026-10-16
 
 ### Fixed
 - **Window Close Failure on Desktop**:
-  - Granted `"core:window:allow-destroy"` permission in capability configuration, resolving permission denial on window close in borderless mode.
-  - Ensured backend `close_window` command forcefully destroys the native window handle once unsaved changes confirmation is resolved.
+  - Unified title-bar dragging so window controls do not trigger native dragging or double-click maximization, and title clicks start only one drag operation.
+  - Prefer Tauri's window destruction API after unsaved-change confirmation, with an asynchronous native `close_window` command as a fallback.
+  - Granted the scoped `"core:window:allow-destroy"` permission for closing borderless windows.
 - **Single Instance Application Constraint**:
   - Integrated `tauri-plugin-single-instance` to restrict application execution to a single instance.
   - Automatically restores, unminimizes, and focuses the existing window when a second instance is launched.
