@@ -1,6 +1,8 @@
 import { render } from "solid-js/web";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { MenuBar } from "./MenuBar";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MenuBar, type MenuBarProps } from "./MenuBar";
+import { closeWindow, startDrag, toggleMaximizeWindow } from "../../lib/tauri/commands";
+import { t } from "../../i18n";
 
 vi.mock("@tauri-apps/plugin-shell", () => ({
   open: vi.fn(),
@@ -11,18 +13,85 @@ vi.mock("../../lib/tauri/commands", () => ({
   toggleMaximizeWindow: vi.fn(),
   closeWindow: vi.fn(),
   isWindowMaximized: vi.fn().mockResolvedValue(false),
-  startDrag: vi.fn(),
+  startDrag: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe("MenuBar Title Bar Quick Access", () => {
   let dispose: (() => void) | undefined;
   let container: HTMLDivElement | undefined;
 
+  beforeEach(() => vi.clearAllMocks());
+
   afterEach(() => {
     dispose?.();
     dispose = undefined;
     container?.remove();
     container = undefined;
+  });
+
+  const renderMenu = (overrides: Partial<MenuBarProps> = {}) => {
+    container = document.createElement("div");
+    document.body.append(container);
+    dispose = render(() => (
+      <MenuBar
+        homeVisible={true}
+        sidebarOpen={true}
+        onGoHome={vi.fn()}
+        onNewDocument={vi.fn()}
+        onOpenFile={vi.fn()}
+        onOpenFolder={vi.fn()}
+        onSaveFile={vi.fn()}
+        onExport={vi.fn()}
+        onToggleSidebar={vi.fn()}
+        onOpenQuickSwitcher={vi.fn()}
+        onOpenSearchModal={vi.fn()}
+        onOpenFindReplace={vi.fn()}
+        onOpenThemeSettings={vi.fn()}
+        onOpenRecent={vi.fn()}
+        {...overrides}
+      />
+    ), container);
+    return container;
+  };
+
+  it.each(["button", "svg", "line"])("routes clicks on the close %s through unsaved-change confirmation", (targetTag) => {
+    const onCloseWindow = vi.fn();
+    const menu = renderMenu({ onCloseWindow });
+    const button = Array.from(menu.querySelectorAll("button")).find(b => b.title === t("window.close"))!;
+    const target = targetTag === "button" ? button : button.querySelector(targetTag)!;
+
+    target.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0, detail: 1 }));
+    target.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, button: 0, detail: 1 }));
+    target.dispatchEvent(new MouseEvent("click", { bubbles: true, button: 0, detail: 1 }));
+    target.dispatchEvent(new MouseEvent("dblclick", { bubbles: true, button: 0, detail: 2 }));
+
+    expect(onCloseWindow).toHaveBeenCalledOnce();
+    expect(closeWindow).not.toHaveBeenCalled();
+    expect(startDrag).not.toHaveBeenCalled();
+    expect(toggleMaximizeWindow).not.toHaveBeenCalled();
+    expect(target.closest("[data-tauri-drag-region]")).toBeNull();
+  });
+
+  it("closes through the window wrapper when no confirmation callback is provided", () => {
+    const menu = renderMenu();
+    const button = Array.from(menu.querySelectorAll("button")).find(b => b.title === t("window.close"))!;
+
+    button.click();
+
+    expect(closeWindow).toHaveBeenCalledOnce();
+  });
+
+  it("starts one drag from the title and preserves double-click maximize", () => {
+    const menu = renderMenu();
+    const title = menu.querySelector("header > div:nth-child(2) span")!;
+
+    title.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+    expect(startDrag).toHaveBeenCalledOnce();
+    title.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 2 }));
+    expect(startDrag).toHaveBeenCalledOnce();
+
+    title.dispatchEvent(new MouseEvent("dblclick", { bubbles: true, button: 0 }));
+    expect(toggleMaximizeWindow).toHaveBeenCalledOnce();
   });
 
   it("renders quick access buttons for plugins, themes, and language", () => {

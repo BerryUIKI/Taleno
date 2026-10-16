@@ -35,7 +35,7 @@ pub fn toggle_maximize_window(window: Window) -> Result<(), String> {
 
 /// Close and destroy the application window.
 #[tauri::command]
-pub fn close_window(window: Window) -> Result<(), String> {
+pub async fn close_window(window: Window) -> Result<(), String> {
     #[cfg(desktop)]
     {
         window.destroy().map_err(|e| e.to_string())

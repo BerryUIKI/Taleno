@@ -109,17 +109,13 @@ export async function toggleMaximizeWindow(): Promise<void> {
 }
 
 /**
- * Close the application window.
+ * Destroy the application window after the caller has resolved unsaved changes.
  */
 export async function closeWindow(): Promise<void> {
   try {
-    await invoke<void>("close_window");
+    await getCurrentWindow().destroy();
   } catch {
-    try {
-      await getCurrentWindow().destroy();
-    } catch {
-      await getCurrentWindow().close();
-    }
+    await invoke<void>("close_window");
   }
 }
 

@@ -172,30 +172,36 @@ export const MenuBar: Component<MenuBarProps> = (props) => {
     }
   };
 
+  const isInteractiveTarget = (e: MouseEvent) =>
+    e.target instanceof Element &&
+    e.target.closest("button, [role='button'], input, textarea, a, select, .no-drag, .menu-dropdown");
+
   const handleStartDrag = (e: MouseEvent) => {
     // Only drag on primary left click (button 0)
     if (e.button !== 0) return;
     // Don't drag if clicking buttons, menu dropdowns, links, or inputs
-    const target = e.target as HTMLElement;
-    if (target.closest("button, [role='button'], input, textarea, a, select, .no-drag, .menu-dropdown")) {
-      return;
-    }
+    if (isInteractiveTarget(e)) return;
     startDrag().catch((err) => console.warn("startDrag error:", err));
+  };
+
+  const handleTitleBarDoubleClick = (e: MouseEvent) => {
+    if (e.button !== 0 || isInteractiveTarget(e)) return;
+    void handleToggleMaximize();
   };
 
   return (
     <>
+      {/* Use one drag handler; Tauri drag attributes would also start native dragging. */}
       <header
-        data-tauri-drag-region
         class={`flex items-center justify-between pr-0 text-xs no-select select-none border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)] flex-shrink-0 z-40 relative menu-bar-container cursor-default ${
           isMacOS ? "h-9 pl-[78px]" : "h-8 pl-1.5"
         }`}
         style={{ color: "var(--color-text-secondary)" }}
         onMouseDown={handleStartDrag}
-        onDblClick={isMacOS ? undefined : handleToggleMaximize}
+        onDblClick={isMacOS ? undefined : handleTitleBarDoubleClick}
       >
         {/* Left: App Logo & Top-Level Menus (No drag on buttons) */}
-        <div class="flex items-center gap-0.5 pointer-events-auto" data-tauri-drag-region="false">
+        <div class="flex items-center gap-0.5 pointer-events-auto">
           {/* Sidebar toggle */}
           <button
             class="p-1.5 rounded hover:bg-[var(--color-hover)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors no-drag"
@@ -734,29 +740,27 @@ export const MenuBar: Component<MenuBarProps> = (props) => {
 
         {/* Center: Draggable Region with Document Title Breadcrumb */}
         <div
-          data-tauri-drag-region
           class="flex-1 flex items-center justify-center h-full px-4 text-xs text-[var(--color-text-secondary)] font-medium truncate cursor-default select-none"
-          onMouseDown={handleStartDrag}
         >
-          <div class="flex items-center gap-1.5 truncate" data-tauri-drag-region>
+          <div class="flex items-center gap-1.5 truncate">
             <Show
               when={hasDoc()}
-              fallback={<span class="opacity-60 font-normal" data-tauri-drag-region>Taleno</span>}
+              fallback={<span class="opacity-60 font-normal">Taleno</span>}
             >
-              <span class="text-[var(--color-text-primary)] font-semibold truncate" data-tauri-drag-region>
+              <span class="text-[var(--color-text-primary)] font-semibold truncate">
                 {doc().filename}
               </span>
               <Show when={doc().isDirty}>
-                <span class="text-[10px] text-[var(--color-accent)] font-bold" data-tauri-drag-region>●</span>
+                <span class="text-[10px] text-[var(--color-accent)] font-bold">●</span>
               </Show>
-              <span class="opacity-40 text-[10px]" data-tauri-drag-region>&bull;</span>
-              <span class="text-[11px] capitalize opacity-80" data-tauri-drag-region>{displayMode()}</span>
+              <span class="opacity-40 text-[10px]">&bull;</span>
+              <span class="text-[11px] capitalize opacity-80">{displayMode()}</span>
             </Show>
           </div>
         </div>
 
         {/* Right: Quick Action Icons + Window Control Buttons (Non-draggable) */}
-        <div class="flex items-center h-full pointer-events-auto flex-shrink-0" data-tauri-drag-region="false">
+        <div class="flex items-center h-full pointer-events-auto flex-shrink-0">
           {/* Quick Search Palette */}
           <button
             class="p-1.5 mr-0.5 rounded hover:bg-[var(--color-hover)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
@@ -828,7 +832,6 @@ export const MenuBar: Component<MenuBarProps> = (props) => {
                 class="w-11 h-full flex items-center justify-center hover:bg-[var(--color-hover)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
                 onClick={handleMinimize}
                 title={t("window.minimize")}
-                data-tauri-drag-region="false"
               >
                 <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                   <line x1="2" y1="8" x2="14" y2="8" />
@@ -840,7 +843,6 @@ export const MenuBar: Component<MenuBarProps> = (props) => {
               class="w-11 h-full flex items-center justify-center hover:bg-[var(--color-hover)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
               onClick={handleToggleMaximize}
               title={isMaximized() ? t("window.restore") : t("window.maximize")}
-              data-tauri-drag-region="false"
             >
               <Show
                 when={isMaximized()}
@@ -862,7 +864,6 @@ export const MenuBar: Component<MenuBarProps> = (props) => {
               class="w-11 h-full flex items-center justify-center hover:bg-[#e81123] text-[var(--color-text-secondary)] hover:text-white transition-colors"
               onClick={handleClose}
               title={t("window.close")}
-              data-tauri-drag-region="false"
             >
               <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                 <line x1="3.5" y1="3.5" x2="12.5" y2="12.5" />

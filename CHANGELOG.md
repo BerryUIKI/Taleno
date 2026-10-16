@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Unified title-bar dragging so window controls do not trigger native dragging or double-click maximization, and title clicks start only one drag operation.
+- Prefer Tauri's window destruction API after unsaved-change confirmation, with an asynchronous native close command as a fallback.
+
 ## [0.1.9] - 2026-09-11
 
 ### Fixed
