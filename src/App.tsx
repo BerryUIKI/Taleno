@@ -1,4 +1,4 @@
-import { Component, createSignal, Show, onMount, onCleanup } from "solid-js";
+import { Component, createSignal, Show, onMount, onCleanup, lazy, Suspense } from "solid-js";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -7,22 +7,34 @@ import { MobileShell } from "./components/Mobile/MobileShell";
 import { Sidebar } from "./components/Sidebar/Sidebar";
 import { TabBar } from "./components/Tabs/TabBar";
 import { QuickSwitcher } from "./components/QuickSwitcher/QuickSwitcher";
-import { SearchModal } from "./components/SearchModal/SearchModal";
 import { FindReplace } from "./components/FindReplace/FindReplace";
 import { EditorToolbar } from "./components/Toolbar/EditorToolbar";
 import { MarkdownView } from "./components/MarkdownView/MarkdownView";
-import { Editor } from "./components/Editor/Editor";
-import { CodeView } from "./components/CodeView/CodeView";
 import { StatusBar } from "./components/StatusBar/StatusBar";
 import { WelcomeHub } from "./components/Home/WelcomeHub";
-import { UpdateModal } from "./components/Updater/UpdateModal";
-import { SettingsModal } from "./components/Settings/SettingsModal";
 import { CloseConfirmModal } from "./components/Tabs/CloseConfirmModal";
 import type { SettingsTabId } from "./types/plugin";
 import { syncPlugins } from "./store/plugins";
 import { syncCustomThemes } from "./store/customThemes";
 import { scheduleAutomaticUpdateCheck } from "./lib/updater";
 import { isMobile } from "./lib/platform";
+
+// Lazy-loaded heavy components to optimize initial screen payload and cold startup
+const Editor = lazy(() =>
+  import("./components/Editor/Editor").then((m) => ({ default: m.Editor }))
+);
+const CodeView = lazy(() =>
+  import("./components/CodeView/CodeView").then((m) => ({ default: m.CodeView }))
+);
+const SettingsModal = lazy(() =>
+  import("./components/Settings/SettingsModal").then((m) => ({ default: m.SettingsModal }))
+);
+const UpdateModal = lazy(() =>
+  import("./components/Updater/UpdateModal").then((m) => ({ default: m.UpdateModal }))
+);
+const SearchModal = lazy(() =>
+  import("./components/SearchModal/SearchModal").then((m) => ({ default: m.SearchModal }))
+);
 import {
   currentDocument,
   setCurrentDocument,
@@ -588,11 +600,27 @@ const App: Component = () => {
       </Show>
 
       <Show when={displayMode() === "writing"}>
-        <Editor />
+        <Suspense
+          fallback={
+            <div class="h-full flex items-center justify-center text-xs text-[var(--color-text-secondary)]">
+              Loading editor...
+            </div>
+          }
+        >
+          <Editor />
+        </Suspense>
       </Show>
 
       <Show when={displayMode() === "code"}>
-        <CodeView />
+        <Suspense
+          fallback={
+            <div class="h-full flex items-center justify-center text-xs text-[var(--color-text-secondary)]">
+              Loading source view...
+            </div>
+          }
+        >
+          <CodeView />
+        </Suspense>
       </Show>
     </Show>
   );
@@ -738,11 +766,15 @@ const App: Component = () => {
       <QuickSwitcher onOpenFileByPath={loadFile} />
 
       {/* Global Workspace Search Modal (Ctrl+Shift+F) */}
-      <SearchModal
-        isOpen={searchModalOpen()}
-        onClose={() => setSearchModalOpen(false)}
-        onSelectResult={loadFile}
-      />
+      <Show when={searchModalOpen()}>
+        <Suspense fallback={null}>
+          <SearchModal
+            isOpen={searchModalOpen()}
+            onClose={() => setSearchModalOpen(false)}
+            onSelectResult={loadFile}
+          />
+        </Suspense>
+      </Show>
 
       {/* In-Document Find & Replace Toolbar (Ctrl+F / Ctrl+H) */}
       <FindReplace
@@ -751,11 +783,15 @@ const App: Component = () => {
       />
 
       {/* Settings Modal */}
-      <SettingsModal
-        isOpen={settingsOpen()}
-        initialTab={settingsTab()}
-        onClose={() => setSettingsOpen(false)}
-      />
+      <Show when={settingsOpen()}>
+        <Suspense fallback={null}>
+          <SettingsModal
+            isOpen={settingsOpen()}
+            initialTab={settingsTab()}
+            onClose={() => setSettingsOpen(false)}
+          />
+        </Suspense>
+      </Show>
 
       {/* Unsaved Changes Close Confirmation Dialog */}
       <CloseConfirmModal
@@ -767,7 +803,9 @@ const App: Component = () => {
       />
 
       {/* GitHub Releases Update Modal */}
-      <UpdateModal />
+      <Suspense fallback={null}>
+        <UpdateModal />
+      </Suspense>
     </div>
   );
 };
