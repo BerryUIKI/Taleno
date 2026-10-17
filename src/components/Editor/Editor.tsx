@@ -105,6 +105,8 @@ export const Editor: Component = () => {
     }
   };
 
+  let lastEmittedMarkdown: string | null = null;
+
   onMount(async () => {
     registerWritingFormatter(executeFormat);
 
@@ -123,8 +125,9 @@ export const Editor: Component = () => {
           }));
 
           ctx.get(listenerCtx).markdownUpdated((_: unknown, markdown: string) => {
+            lastEmittedMarkdown = markdown;
             if (markdown !== currentDocument().content) {
-              updateDocumentContent(markdown);
+              updateDocumentContent(markdown, { deferStats: true });
             }
           });
         })
@@ -144,6 +147,13 @@ export const Editor: Component = () => {
     const content = currentDocument().content;
     if (!editorInstance) return;
 
+    // Distinguish user-originated updates from external loads:
+    // If the store update originated from this editor's listener, bypass redundant
+    // document serialization and parser re-execution, preserving ProseMirror document and selection.
+    if (lastEmittedMarkdown !== null && content === lastEmittedMarkdown) {
+      return;
+    }
+
     try {
       editorInstance.action((ctx) => {
         const view = ctx.get(editorViewCtx);
@@ -153,6 +163,7 @@ export const Editor: Component = () => {
 
         const currentMd = serializer(view.state.doc);
         if (currentMd !== content) {
+          lastEmittedMarkdown = content;
           const parsedDoc = parser(content || "");
           if (parsedDoc) {
             const tr = view.state.tr.replaceWith(

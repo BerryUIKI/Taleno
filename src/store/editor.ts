@@ -47,16 +47,78 @@ export function cycleDisplayMode() {
   else setDisplayMode("reading");
 }
 
-export function updateDocumentContent(newContent: string) {
-  setCurrentDocument((prev) => {
-    const words = newContent.trim().split(/\s+/).filter(Boolean).length;
-    return {
+let wordCountTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Fast non-allocating word counter scanning characters without regex or array allocations.
+ */
+export function countWordsFast(text: string): number {
+  let count = 0;
+  let inWord = false;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    // ASCII whitespace: 32 (space), 9 (tab), 10 (LF), 13 (CR)
+    if (code <= 32) {
+      inWord = false;
+    } else if (!inWord) {
+      inWord = true;
+      count++;
+    }
+  }
+  return count;
+}
+
+export interface UpdateContentOptions {
+  deferStats?: boolean;
+}
+
+export function flushDeferredStats() {
+  if (wordCountTimer) {
+    clearTimeout(wordCountTimer);
+    wordCountTimer = null;
+    const content = currentDocument().content;
+    const words = countWordsFast(content);
+    setCurrentDocument((prev) => ({ ...prev, wordCount: words }));
+  }
+}
+
+export function updateDocumentContent(
+  newContent: string,
+  options?: UpdateContentOptions
+) {
+  const isDeferred = options?.deferStats ?? false;
+
+  if (isDeferred) {
+    setCurrentDocument((prev) => ({
+      ...prev,
+      content: newContent,
+      isDirty: prev.path !== null ? newContent !== prev.content || prev.isDirty : newContent.length > 0,
+    }));
+
+    if (wordCountTimer) clearTimeout(wordCountTimer);
+    wordCountTimer = setTimeout(() => {
+      const words = countWordsFast(newContent);
+      setCurrentDocument((prev) => {
+        if (prev.content === newContent && prev.wordCount !== words) {
+          return { ...prev, wordCount: words };
+        }
+        return prev;
+      });
+      wordCountTimer = null;
+    }, 150);
+  } else {
+    if (wordCountTimer) {
+      clearTimeout(wordCountTimer);
+      wordCountTimer = null;
+    }
+    const words = countWordsFast(newContent);
+    setCurrentDocument((prev) => ({
       ...prev,
       content: newContent,
       wordCount: words,
       isDirty: prev.path !== null ? newContent !== prev.content || prev.isDirty : newContent.length > 0,
-    };
-  });
+    }));
+  }
 }
 
 export function updateDocumentRendering(
@@ -91,6 +153,10 @@ export function markSaved(result: OpenFileResponse) {
 }
 
 export function resetDocument() {
+  if (wordCountTimer) {
+    clearTimeout(wordCountTimer);
+    wordCountTimer = null;
+  }
   setCurrentDocument(emptyDocument);
 }
 
