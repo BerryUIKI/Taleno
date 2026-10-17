@@ -404,6 +404,26 @@ export const MenuBar: Component<MenuBarProps> = (props) => {
             <Show when={activeMenu() === "edit"}>
               <div class="absolute left-0 top-full mt-1 w-56 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] p-1 shadow-xl text-[var(--color-text-primary)] text-xs z-50 animate-in fade-in zoom-in-95 duration-100">
                 <button
+                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={displayMode() === "reading" || openTabs().length === 0}
+                  onClick={() => { closeMenus(); dispatchFormat("undo"); }}
+                >
+                  <span>{t("edit.undo")}</span>
+                  <kbd class="text-[10px] text-[var(--color-text-secondary)] font-mono">Ctrl+Z</kbd>
+                </button>
+
+                <button
+                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={displayMode() === "reading" || openTabs().length === 0}
+                  onClick={() => { closeMenus(); dispatchFormat("redo"); }}
+                >
+                  <span>{t("edit.redo")}</span>
+                  <kbd class="text-[10px] text-[var(--color-text-secondary)] font-mono">Ctrl+Y</kbd>
+                </button>
+
+                <div class="my-1 border-t border-[var(--color-border)]" />
+
+                <button
                   class="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--color-hover)] transition-colors text-left"
                   onClick={() => { closeMenus(); props.onOpenFindReplace(); }}
                 >
@@ -422,7 +442,8 @@ export const MenuBar: Component<MenuBarProps> = (props) => {
                 <div class="my-1 border-t border-[var(--color-border)]" />
 
                 <button
-                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left"
+                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={displayMode() === "reading" || openTabs().length === 0}
                   onClick={() => { closeMenus(); dispatchFormat("bold"); }}
                 >
                   <span class="font-bold">{t("edit.bold")}</span>
@@ -430,7 +451,8 @@ export const MenuBar: Component<MenuBarProps> = (props) => {
                 </button>
 
                 <button
-                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left"
+                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={displayMode() === "reading" || openTabs().length === 0}
                   onClick={() => { closeMenus(); dispatchFormat("italic"); }}
                 >
                   <span class="italic font-serif">{t("edit.italic")}</span>
@@ -438,7 +460,8 @@ export const MenuBar: Component<MenuBarProps> = (props) => {
                 </button>
 
                 <button
-                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left"
+                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={displayMode() === "reading" || openTabs().length === 0}
                   onClick={() => { closeMenus(); dispatchFormat("strikethrough"); }}
                 >
                   <span class="line-through">{t("edit.strikethrough")}</span>
@@ -446,7 +469,8 @@ export const MenuBar: Component<MenuBarProps> = (props) => {
                 </button>
 
                 <button
-                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left"
+                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={displayMode() === "reading" || openTabs().length === 0}
                   onClick={() => { closeMenus(); dispatchFormat("code_inline"); }}
                 >
                   <span class="font-mono text-[11px]">{t("edit.codeBlock")}</span>
@@ -454,7 +478,8 @@ export const MenuBar: Component<MenuBarProps> = (props) => {
                 </button>
 
                 <button
-                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left"
+                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={displayMode() === "reading" || openTabs().length === 0}
                   onClick={() => { closeMenus(); dispatchFormat("paragraph"); }}
                 >
                   <span>{t("edit.paragraph")}</span>
@@ -462,7 +487,8 @@ export const MenuBar: Component<MenuBarProps> = (props) => {
                 </button>
 
                 <button
-                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left"
+                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={displayMode() === "reading" || openTabs().length === 0}
                   onClick={() => { closeMenus(); dispatchFormat("h1"); }}
                 >
                   <span class="font-semibold">{t("edit.heading1")}</span>
@@ -470,7 +496,8 @@ export const MenuBar: Component<MenuBarProps> = (props) => {
                 </button>
 
                 <button
-                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left"
+                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={displayMode() === "reading" || openTabs().length === 0}
                   onClick={() => { closeMenus(); dispatchFormat("h2"); }}
                 >
                   <span class="font-semibold">{t("edit.heading2")}</span>
@@ -478,18 +505,60 @@ export const MenuBar: Component<MenuBarProps> = (props) => {
                 </button>
 
                 <button
-                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left"
+                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={displayMode() === "reading" || openTabs().length === 0}
+                  onClick={() => { closeMenus(); dispatchFormat("bullet_list"); }}
+                >
+                  <span>{t("edit.bulletList")}</span>
+                </button>
+
+                <button
+                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={displayMode() === "reading" || openTabs().length === 0}
+                  onClick={() => { closeMenus(); dispatchFormat("ordered_list"); }}
+                >
+                  <span>{t("edit.numberedList")}</span>
+                </button>
+
+                <button
+                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={displayMode() === "reading" || openTabs().length === 0}
+                  onClick={() => { closeMenus(); dispatchFormat("task_list"); }}
+                >
+                  <span>{t("edit.taskList")}</span>
+                </button>
+
+                <button
+                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={displayMode() === "reading" || openTabs().length === 0}
+                  onClick={() => { closeMenus(); dispatchFormat("blockquote"); }}
+                >
+                  <span>{t("edit.blockquote")}</span>
+                </button>
+
+                <button
+                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={displayMode() === "reading" || openTabs().length === 0}
                   onClick={() => { closeMenus(); dispatchFormat("table"); }}
                 >
                   <span>{t("edit.table")}</span>
                 </button>
 
                 <button
-                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left"
+                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={displayMode() === "reading" || openTabs().length === 0}
                   onClick={() => { closeMenus(); dispatchFormat("link"); }}
                 >
                   <span>{t("edit.link")}</span>
                   <kbd class="text-[10px] text-[var(--color-text-secondary)] font-mono">Ctrl+K</kbd>
+                </button>
+
+                <button
+                  class="w-full flex items-center justify-between px-2.5 py-1 rounded hover:bg-[var(--color-hover)] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={displayMode() === "reading" || openTabs().length === 0}
+                  onClick={() => { closeMenus(); dispatchFormat("image"); }}
+                >
+                  <span>{t("edit.image")}</span>
                 </button>
               </div>
             </Show>

@@ -20,6 +20,9 @@ import {
   wrapInBlockquoteCommand,
   wrapInBulletListCommand,
   wrapInOrderedListCommand,
+  toggleLinkCommand,
+  insertImageCommand,
+  linkSchema,
 } from "@milkdown/preset-commonmark";
 import {
   gfm,
@@ -98,6 +101,73 @@ export const Editor: Component = () => {
           case "table":
             commands.call(insertTableCommand.key);
             break;
+          case "link": {
+            const view = ctx.get(editorViewCtx);
+            if (!view) break;
+            const { state, dispatch } = view;
+            const { from, to, empty } = state.selection;
+            if (empty) {
+              const defaultText = "Link Text";
+              const defaultHref = "https://example.com";
+              const linkType = linkSchema.type(ctx);
+              const tr = state.tr.insertText(defaultText, from, to);
+              tr.addMark(from, from + defaultText.length, linkType.create({ href: defaultHref }));
+              dispatch(tr);
+            } else {
+              commands.call(toggleLinkCommand.key, { href: "https://example.com" });
+            }
+            break;
+          }
+          case "image": {
+            commands.call(insertImageCommand.key, {
+              src: "https://example.com/image.png",
+              alt: "Alt Text",
+            });
+            break;
+          }
+          case "task_list": {
+            const view = ctx.get(editorViewCtx);
+            if (!view) break;
+            const { state, dispatch } = view;
+            const { $from } = state.selection;
+            let listItemDepth = -1;
+            for (let d = $from.depth; d > 0; d--) {
+              if ($from.node(d).type.name === "list_item") {
+                listItemDepth = d;
+                break;
+              }
+            }
+            if (listItemDepth > 0) {
+              const node = $from.node(listItemDepth);
+              const pos = $from.before(listItemDepth);
+              const newChecked = node.attrs.checked == null ? false : null;
+              const tr = state.tr.setNodeMarkup(pos, undefined, {
+                ...node.attrs,
+                checked: newChecked,
+              });
+              dispatch(tr);
+            } else {
+              commands.call(wrapInBulletListCommand.key);
+              const updatedView = ctx.get(editorViewCtx);
+              if (updatedView) {
+                const updatedState = updatedView.state;
+                const { $from: updatedFrom } = updatedState.selection;
+                for (let d = updatedFrom.depth; d > 0; d--) {
+                  if (updatedFrom.node(d).type.name === "list_item") {
+                    const node = updatedFrom.node(d);
+                    const pos = updatedFrom.before(d);
+                    const tr = updatedState.tr.setNodeMarkup(pos, undefined, {
+                      ...node.attrs,
+                      checked: false,
+                    });
+                    updatedView.dispatch(tr);
+                    break;
+                  }
+                }
+              }
+            }
+            break;
+          }
         }
       });
     } catch (err) {
