@@ -46,7 +46,7 @@ jobs:
         run: cargo test --manifest-path src-tauri/Cargo.toml --verbose
 
   test-frontend:
-    name: Frontend Typecheck & Build
+    name: Frontend Test, Lint & Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -55,18 +55,19 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run TypeScript typecheck
-        run: pnpm tsc --noEmit
+      - name: Run Linter / TypeScript verification
+        run: pnpm lint
+
+      - name: Run Frontend Tests
+        run: pnpm test
 
       - name: Run Vite production build
         run: pnpm build
