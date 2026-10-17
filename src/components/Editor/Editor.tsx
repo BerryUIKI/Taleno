@@ -34,8 +34,9 @@ import {
 import { listener, listenerCtx } from "@milkdown/plugin-listener";
 import { nord } from "@milkdown/theme-nord";
 import "@milkdown/theme-nord/style.css";
+import { TextSelection } from "@milkdown/kit/prose/state";
 import { currentDocument, updateDocumentContent } from "../../store/editor";
-import { registerWritingFormatter, type FormatAction } from "../../lib/formatter";
+import { registerWritingFormatter, registerWritingMatchRevealer, type FormatAction } from "../../lib/formatter";
 
 export const Editor: Component = () => {
   let containerRef!: HTMLDivElement;
@@ -105,8 +106,53 @@ export const Editor: Component = () => {
     }
   };
 
+  const revealMatchInWriting = (start: number, end: number, line?: number): boolean => {
+    if (!editorInstance) return false;
+    try {
+      let revealed = false;
+      editorInstance.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        if (!view) return;
+
+        let currentPos = 0;
+        let targetFrom = -1;
+        let targetTo = -1;
+
+        view.state.doc.descendants((node, pos) => {
+          if (node.isText && node.text) {
+            const textLen = node.text.length;
+            if (targetFrom === -1 && currentPos + textLen >= start) {
+              const offsetInNode = Math.max(0, start - currentPos);
+              targetFrom = pos + offsetInNode;
+              const endOffsetInNode = Math.min(textLen, Math.max(offsetInNode, end - currentPos));
+              targetTo = pos + endOffsetInNode;
+            }
+            currentPos += textLen;
+          }
+        });
+
+        if (targetFrom !== -1 && targetTo !== -1 && targetTo >= targetFrom) {
+          const selection = TextSelection.create(view.state.doc, targetFrom, targetTo);
+          const tr = view.state.tr.setSelection(selection).scrollIntoView();
+          view.dispatch(tr);
+          view.focus();
+          revealed = true;
+        } else if (line !== undefined) {
+          const tr = view.state.tr.scrollIntoView();
+          view.dispatch(tr);
+          revealed = true;
+        }
+      });
+      return revealed;
+    } catch (err) {
+      console.warn("Writing revealMatch error:", err);
+      return false;
+    }
+  };
+
   onMount(async () => {
     registerWritingFormatter(executeFormat);
+    registerWritingMatchRevealer(revealMatchInWriting);
 
     try {
       editorInstance = await MilkdownEditor.make()
@@ -171,6 +217,7 @@ export const Editor: Component = () => {
 
   onCleanup(async () => {
     registerWritingFormatter(null);
+    registerWritingMatchRevealer(null);
     if (editorInstance) {
       try {
         await editorInstance.destroy();

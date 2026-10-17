@@ -708,6 +708,12 @@ const App: Component = () => {
               </Show>
 
               {renderViewport()}
+
+              {/* In-Document Find & Replace Toolbar (Ctrl+F / Ctrl+H) anchored in viewport */}
+              <FindReplace
+                isOpen={findReplaceOpen()}
+                onClose={() => setFindReplaceOpen(false)}
+              />
             </main>
           </div>
         </div>
@@ -742,12 +748,6 @@ const App: Component = () => {
         isOpen={searchModalOpen()}
         onClose={() => setSearchModalOpen(false)}
         onSelectResult={loadFile}
-      />
-
-      {/* In-Document Find & Replace Toolbar (Ctrl+F / Ctrl+H) */}
-      <FindReplace
-        isOpen={findReplaceOpen()}
-        onClose={() => setFindReplaceOpen(false)}
       />
 
       {/* Settings Modal */}
