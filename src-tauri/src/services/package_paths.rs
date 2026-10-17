@@ -106,11 +106,11 @@ fn publish(root: &Path, stage: &Path, target: &Path) -> Result<(), String> {
     let previous = backup.path().join("previous");
     let existed = target.try_exists().map_err(|e| e.to_string())?;
     if existed {
-        std::fs::rename(&target, &previous).map_err(|e| e.to_string())?;
+        std::fs::rename(target, &previous).map_err(|e| e.to_string())?;
     }
     if let Err(err) = std::fs::rename(stage, target) {
         if existed {
-            if let Err(rollback) = std::fs::rename(&previous, &target) {
+            if let Err(rollback) = std::fs::rename(&previous, target) {
                 let recovery = backup.keep();
                 return Err(format!(
                     "Install failed: {err}; rollback failed: {rollback}. Previous installation preserved at {}",

@@ -108,9 +108,9 @@ fn start_watching_file(
     watcher_state: tauri::State<'_, WatcherState>,
 ) -> Result<(), String> {
     let mut watchers = watcher_state._watcher.lock().map_err(|e| e.to_string())?;
-    if !watchers.contains_key(&path) {
-        let watcher = services::watcher::watch_file(app_handle, path.clone())?;
-        watchers.insert(path, watcher);
+    if let std::collections::hash_map::Entry::Vacant(e) = watchers.entry(path.clone()) {
+        let watcher = services::watcher::watch_file(app_handle, path)?;
+        e.insert(watcher);
     }
     Ok(())
 }

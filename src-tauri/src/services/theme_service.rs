@@ -92,13 +92,13 @@ pub async fn read_theme_css(app_handle: &AppHandle, theme_id: &str) -> Result<St
 
 fn read_theme_css_from_dir(themes_dir: &Path, theme_id: &str) -> Result<String, String> {
     validate_theme_id(theme_id)?;
-    let theme_dir = package_paths::contained(&themes_dir, theme_id)?;
+    let theme_dir = package_paths::contained(themes_dir, theme_id)?;
 
     if !theme_dir.exists() {
         return Err(format!("Theme '{}' does not exist", theme_id));
     }
 
-    let manifest_path = package_paths::contained(&themes_dir, &format!("{theme_id}/theme.json"))?;
+    let manifest_path = package_paths::contained(themes_dir, &format!("{theme_id}/theme.json"))?;
     let entry_file = if manifest_path.exists() {
         fs::read_to_string(&manifest_path)
             .ok()
@@ -109,7 +109,7 @@ fn read_theme_css_from_dir(themes_dir: &Path, theme_id: &str) -> Result<String, 
         "theme.css".to_string()
     };
 
-    let css_path = package_paths::contained(&themes_dir, &format!("{theme_id}/{entry_file}"))?;
+    let css_path = package_paths::contained(themes_dir, &format!("{theme_id}/{entry_file}"))?;
     if !css_path.exists() {
         return Err(format!(
             "Stylesheet '{}' not found for theme '{}'",

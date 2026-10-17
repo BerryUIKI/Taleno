@@ -92,7 +92,11 @@ mod tests {
         let _ = fs::create_dir_all(&temp_dir).await;
 
         let file1 = temp_dir.join("note1.md");
-        let _ = fs::write(&file1, "# First Document\nContains unique_keyword_xyz inside.").await;
+        let _ = fs::write(
+            &file1,
+            "# First Document\nContains unique_keyword_xyz inside.",
+        )
+        .await;
 
         let results = search_workspace(
             "unique_keyword_xyz".to_string(),
