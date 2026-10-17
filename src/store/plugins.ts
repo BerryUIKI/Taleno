@@ -11,52 +11,17 @@ import { pluginRuntime } from "../lib/plugins/runtime";
 
 const STORAGE_KEY_PLUGINS = "Taleno_plugins_state";
 
-const BUILTIN_FALLBACK_PLUGINS: PluginManifest[] = [
-  {
-    id: "sample-timestamp",
-    name: "Timestamp Inserter",
-    version: "1.0.0",
-    description:
-      "Inserts the current ISO 8601 timestamp at cursor position with a single command.",
-    author: "Taleno Team",
-    enabled: true,
-    tags: ["utilities", "editor", "official"],
-    permissions: ["editor:write", "commands"],
-  },
-  {
-    id: "wordcount-pro",
-    name: "Word Count Pro",
-    version: "1.2.0",
-    description:
-      "Advanced real-time document statistics, reading time estimates, and character breakdowns.",
-    author: "Taleno Team",
-    enabled: true,
-    tags: ["analytics", "statusbar", "official"],
-    permissions: ["editor:read", "commands"],
-  },
-  {
-    id: "callout-boxes",
-    name: "Markdown Callouts",
-    version: "1.0.4",
-    description:
-      "GitHub & Obsidian styled callout alert blocks (NOTE, TIP, IMPORTANT, WARNING, CAUTION).",
-    author: "Community",
-    enabled: false,
-    tags: ["editor", "styling"],
-    permissions: ["editor:write", "commands"],
-  },
-  {
-    id: "katex-macros",
-    name: "KaTeX Math Macros",
-    version: "1.1.0",
-    description:
-      "Custom LaTeX macro definitions, shorthand operators, and enhanced mathematical formatting.",
-    author: "Community",
-    enabled: false,
-    tags: ["math", "katex"],
-    permissions: ["editor:write", "commands"],
-  },
-];
+export const [plugins, setPlugins] = createSignal<PluginManifest[]>([]);
+export const [pluginFilterQuery, setPluginFilterQuery] = createSignal("");
+export const [isReloadingPlugins, setIsReloadingPlugins] = createSignal(false);
+export const [pluginErrors, setPluginErrors] = createSignal<Record<string, string>>({});
+
+// Marketplace signals
+export const [pluginSubTab, setPluginSubTab] = createSignal<PluginSubTabId>("installed");
+export const [marketplacePlugins, setMarketplacePlugins] = createSignal<RemotePlugin[]>([]);
+export const [isFetchingMarketplace, setIsFetchingMarketplace] = createSignal(false);
+export const [marketplaceError, setMarketplaceError] = createSignal<string | null>(null);
+export const [busyPluginIds, setBusyPluginIds] = createSignal<string[]>([]);
 
 const loadSavedState = (): Record<string, boolean> => {
   try {
@@ -79,19 +44,6 @@ const savePluginState = (items: PluginManifest[]) => {
   }
 };
 
-export const [plugins, setPlugins] = createSignal<PluginManifest[]>(
-  BUILTIN_FALLBACK_PLUGINS
-);
-export const [pluginFilterQuery, setPluginFilterQuery] = createSignal("");
-export const [isReloadingPlugins, setIsReloadingPlugins] = createSignal(false);
-
-// Marketplace signals
-export const [pluginSubTab, setPluginSubTab] = createSignal<PluginSubTabId>("installed");
-export const [marketplacePlugins, setMarketplacePlugins] = createSignal<RemotePlugin[]>([]);
-export const [isFetchingMarketplace, setIsFetchingMarketplace] = createSignal(false);
-export const [marketplaceError, setMarketplaceError] = createSignal<string | null>(null);
-export const [busyPluginIds, setBusyPluginIds] = createSignal<string[]>([]);
-
 /**
  * Synchronize and scan plugins from backend and initialize active ones.
  */
@@ -101,38 +53,30 @@ export const syncPlugins = async () => {
     let diskPlugins: PluginManifest[] = [];
 
     try {
-      diskPlugins = (await listPlugins()) as PluginManifest[];
+      diskPlugins = await listPlugins();
     } catch {
       diskPlugins = [];
     }
 
-    // Merge disk plugins and built-ins
-    const allPluginsMap = new Map<string, PluginManifest>();
+    const mapped: PluginManifest[] = diskPlugins.map((item) => ({
+      ...item,
+      enabled: savedState[item.id] ?? item.enabled ?? false,
+    }));
 
-    for (const item of BUILTIN_FALLBACK_PLUGINS) {
-      allPluginsMap.set(item.id, {
-        ...item,
-        enabled: savedState[item.id] ?? item.enabled,
-      });
-    }
+    setPlugins(mapped);
+    savePluginState(mapped);
 
-    for (const item of diskPlugins) {
-      allPluginsMap.set(item.id, {
-        ...item,
-        enabled: savedState[item.id] ?? item.enabled ?? true,
-      });
-    }
-
-    const merged = Array.from(allPluginsMap.values());
-    setPlugins(merged);
-    savePluginState(merged);
-
-    // Boot active plugins in runtime
-    for (const p of merged) {
+    const errors: Record<string, string> = {};
+    for (const p of mapped) {
       if (p.enabled) {
-        await pluginRuntime.loadPlugin(p);
+        try {
+          await pluginRuntime.loadPlugin(p);
+        } catch (err: any) {
+          errors[p.id] = err?.message || String(err);
+        }
       }
     }
+    setPluginErrors(errors);
   } catch (err) {
     console.warn("[PluginsStore] Failed to sync plugins:", err);
   }
@@ -153,9 +97,26 @@ export const togglePlugin = async (id: string) => {
   savePluginState(updated);
 
   if (nextEnabled) {
-    await pluginRuntime.loadPlugin(target);
+    try {
+      await pluginRuntime.loadPlugin(target);
+      setPluginErrors((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    } catch (err: any) {
+      setPluginErrors((prev) => ({
+        ...prev,
+        [id]: err?.message || String(err),
+      }));
+    }
   } else {
     await pluginRuntime.unloadPlugin(id);
+    setPluginErrors((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   }
 };
 
@@ -269,6 +230,11 @@ export const uninstallMarketplacePlugin = async (pluginId: string) => {
   markPluginBusy(pluginId);
   try {
     await pluginRuntime.unloadPlugin(pluginId);
+    setPluginErrors((prev) => {
+      const next = { ...prev };
+      delete next[pluginId];
+      return next;
+    });
     await uninstallPlugin(pluginId);
     await syncPlugins();
   } catch (err) {
