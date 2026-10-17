@@ -56,20 +56,20 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
         <div class="px-4 py-2 flex items-center justify-between border-b border-[var(--color-border)]">
           <h2 class="font-bold text-sm tracking-tight">
             <Show when={props.view === "files"}>
-              <span>📁 {t("menu.file")} & 工作区</span>
+              <span>📁 {t("mobile.filesAndWorkspace")}</span>
             </Show>
             <Show when={props.view === "outline"}>
-              <span>📑 文档大纲 (TOC)</span>
+              <span>📑 {t("mobile.outlineTitle")}</span>
             </Show>
             <Show when={props.view === "settings"}>
-              <span>⚙️ 偏好设置 & 主题</span>
+              <span>⚙️ {t("mobile.preferencesTitle")}</span>
             </Show>
           </h2>
 
           <button
             class="p-1.5 rounded-full hover:bg-[var(--color-hover)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-xs"
             onClick={props.onClose}
-            aria-label="Close"
+            aria-label={t("dialogs.close")}
           >
             ✕
           </button>
@@ -83,7 +83,7 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
             <Show when={tabs().length > 0}>
               <div class="space-y-1.5">
                 <span class="text-[11px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
-                  已打开的文档 ({tabs().length})
+                  {t("mobile.openDocuments")} ({tabs().length})
                 </span>
                 <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
                   <For each={tabs()}>
@@ -109,6 +109,7 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
                             e.stopPropagation();
                             closeTab(tab.id);
                           }}
+                          aria-label={t("file.closeTab")}
                         >
                           ✕
                         </button>
@@ -123,7 +124,7 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
             <div class="space-y-1.5 pt-2">
               <div class="flex items-center justify-between">
                 <span class="text-[11px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
-                  工作区文件树
+                  {t("mobile.workspaceTree")}
                 </span>
                 <button
                   class="text-xs text-[var(--color-accent)] font-medium hover:underline"
@@ -132,7 +133,7 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
                     props.onClose();
                   }}
                 >
-                  + 新建笔记
+                  {t("mobile.newNote")}
                 </button>
               </div>
 
@@ -153,7 +154,7 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
               when={doc().toc && doc().toc.length > 0}
               fallback={
                 <div class="py-8 text-center text-xs text-[var(--color-text-secondary)]">
-                  当前文档暂无标题大纲 (H1~H6)
+                  {t("mobile.noOutline")}
                 </div>
               }
             >
@@ -185,7 +186,7 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
             {/* Color Mode (Light / Dark / System) */}
             <div class="space-y-2">
               <span class="text-[11px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
-                外观颜色模式
+                {t("mobile.colorMode")}
               </span>
               <div class="grid grid-cols-3 gap-2">
                 <button
@@ -197,7 +198,7 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
                   onClick={() => setTheme("light")}
                 >
                   <span>☀️</span>
-                  <span>浅色</span>
+                  <span>{t("view.lightTheme")}</span>
                 </button>
                 <button
                   class={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
@@ -208,7 +209,7 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
                   onClick={() => setTheme("dark")}
                 >
                   <span>🌙</span>
-                  <span>深色</span>
+                  <span>{t("view.darkTheme")}</span>
                 </button>
                 <button
                   class={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
@@ -219,7 +220,7 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
                   onClick={() => setTheme("system")}
                 >
                   <span>⚙️</span>
-                  <span>跟随系统</span>
+                  <span>{t("view.systemTheme")}</span>
                 </button>
               </div>
             </div>
@@ -227,7 +228,7 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
             {/* Markdown Theme Presets */}
             <div class="space-y-2 pt-2">
               <span class="text-[11px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
-                排版主题预设
+                {t("mobile.markdownThemePresets")}
               </span>
               <div class="grid grid-cols-3 gap-2">
                 <button
@@ -267,7 +268,7 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
             <div class="space-y-2 pt-2">
               <div class="flex items-center justify-between">
                 <span class="text-[11px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
-                  字号大小
+                  {t("mobile.fontSize")}
                 </span>
                 <span class="text-xs font-bold text-[var(--color-accent)]">{fontSize()}px</span>
               </div>
