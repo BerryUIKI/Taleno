@@ -23,6 +23,7 @@ import { syncPlugins } from "./store/plugins";
 import { syncCustomThemes } from "./store/customThemes";
 import { scheduleAutomaticUpdateCheck } from "./lib/updater";
 import { isMobile } from "./lib/platform";
+import { revealMatchAt } from "./lib/formatter";
 import {
   currentDocument,
   setCurrentDocument,
@@ -132,12 +133,30 @@ const App: Component = () => {
   };
 
   // Load a file by path
-  const loadFile = async (path: string) => {
+  const loadFile = async (path: string, lineNumber?: number, _lineContent?: string) => {
     try {
       flushPendingEdits();
       const result = await openFile(path);
       addOrSwitchTab(documentFromResponse(result));
       setHomeVisible(false);
+      await startWatchingFile(path);
+
+      if (lineNumber !== undefined && lineNumber > 0) {
+        setTimeout(() => {
+          let start = 0;
+          let end = 0;
+          const lines = result.content.split("\n");
+          if (lineNumber <= lines.length) {
+            let offset = 0;
+            for (let i = 0; i < lineNumber - 1; i++) {
+              offset += lines[i].length + 1; // newline
+            }
+            start = offset;
+            end = offset + lines[lineNumber - 1].length;
+          }
+          revealMatchAt(start, end, lineNumber);
+        }, 50);
+      }
       setFileError("");
     } catch (err) {
       console.error("Failed to open file:", err);
@@ -767,6 +786,12 @@ const App: Component = () => {
               </Show>
 
               {renderViewport()}
+
+              {/* In-Document Find & Replace Toolbar (Ctrl+F / Ctrl+H) anchored in viewport */}
+              <FindReplace
+                isOpen={findReplaceOpen()}
+                onClose={() => setFindReplaceOpen(false)}
+              />
             </main>
           </div>
         </div>
@@ -801,12 +826,6 @@ const App: Component = () => {
         isOpen={searchModalOpen()}
         onClose={() => setSearchModalOpen(false)}
         onSelectResult={loadFile}
-      />
-
-      {/* In-Document Find & Replace Toolbar (Ctrl+F / Ctrl+H) */}
-      <FindReplace
-        isOpen={findReplaceOpen()}
-        onClose={() => setFindReplaceOpen(false)}
       />
 
       {/* Settings Modal */}

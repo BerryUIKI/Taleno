@@ -132,4 +132,89 @@ describe("CloseConfirmModal", () => {
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
+
+  it("does not trigger discard on bare 'd' key", () => {
+    const onDiscard = vi.fn();
+    container = document.createElement("div");
+    document.body.append(container);
+
+    dispose = render(
+      () => (
+        <CloseConfirmModal
+          isOpen={true}
+          filename="Untitled.md"
+          onSave={vi.fn()}
+          onDiscard={onDiscard}
+          onCancel={vi.fn()}
+        />
+      ),
+      container
+    );
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "d" }));
+    expect(onDiscard).not.toHaveBeenCalled();
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "D" }));
+    expect(onDiscard).not.toHaveBeenCalled();
+  });
+
+  it("triggers discard on Alt+D or Cmd+D", () => {
+    const onDiscard = vi.fn();
+    container = document.createElement("div");
+    document.body.append(container);
+
+    dispose = render(
+      () => (
+        <CloseConfirmModal
+          isOpen={true}
+          filename="Untitled.md"
+          onSave={vi.fn()}
+          onDiscard={onDiscard}
+          onCancel={vi.fn()}
+        />
+      ),
+      container
+    );
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "d", altKey: true }));
+    expect(onDiscard).toHaveBeenCalledTimes(1);
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "d", metaKey: true }));
+    expect(onDiscard).toHaveBeenCalledTimes(2);
+  });
+
+  it("honors the focused action button when Enter is pressed", () => {
+    const onSave = vi.fn();
+    const onDiscard = vi.fn();
+    const onCancel = vi.fn();
+    container = document.createElement("div");
+    document.body.append(container);
+
+    dispose = render(
+      () => (
+        <CloseConfirmModal
+          isOpen={true}
+          filename="Untitled.md"
+          onSave={onSave}
+          onDiscard={onDiscard}
+          onCancel={onCancel}
+        />
+      ),
+      container
+    );
+
+    const cancelBtn = container.querySelector<HTMLButtonElement>('[data-action="cancel"]');
+    cancelBtn?.focus();
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onSave).not.toHaveBeenCalled();
+
+    const discardBtn = container.querySelector<HTMLButtonElement>('[data-action="discard"]');
+    discardBtn?.focus();
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(onDiscard).toHaveBeenCalledTimes(1);
+    expect(onSave).not.toHaveBeenCalled();
+  });
 });

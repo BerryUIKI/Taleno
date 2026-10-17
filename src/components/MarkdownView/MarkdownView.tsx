@@ -1,5 +1,6 @@
-import { Component, createEffect, createSignal, onCleanup, Show } from "solid-js";
+import { Component, createEffect, createSignal, onMount, onCleanup, Show } from "solid-js";
 import { renderMarkdown, type RenderResult } from "../../lib/tauri/commands";
+import { registerReadingMatchRevealer } from "../../lib/formatter";
 
 export interface MarkdownViewProps {
   html: string;
@@ -11,10 +12,39 @@ export interface MarkdownViewProps {
 }
 
 export const MarkdownView: Component<MarkdownViewProps> = (props) => {
+  let containerRef!: HTMLDivElement;
   const [renderedHtml, setRenderedHtml] = createSignal(
     props.content === props.renderedContent ? props.html : ""
   );
   let renderVersion = 0;
+
+  const revealMatchInReading = (start: number, end: number): boolean => {
+    if (!containerRef) return false;
+    const text = props.content.substring(start, end).trim();
+    if (!text) return false;
+
+    const walker = document.createTreeWalker(containerRef, NodeFilter.SHOW_TEXT);
+    let node: Node | null;
+    while ((node = walker.nextNode())) {
+      const nodeText = node.nodeValue || "";
+      const idx = nodeText.toLowerCase().indexOf(text.toLowerCase());
+      if (idx !== -1) {
+        const range = document.createRange();
+        range.setStart(node, idx);
+        range.setEnd(node, Math.min(nodeText.length, idx + text.length));
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+        (node.parentElement as HTMLElement)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        return true;
+      }
+    }
+    return false;
+  };
+
+  onMount(() => {
+    registerReadingMatchRevealer(revealMatchInReading);
+  });
 
   createEffect(() => {
     const content = props.content;
@@ -43,6 +73,7 @@ export const MarkdownView: Component<MarkdownViewProps> = (props) => {
 
   onCleanup(() => {
     renderVersion += 1;
+    registerReadingMatchRevealer(null);
   });
 
   return (
@@ -71,6 +102,7 @@ export const MarkdownView: Component<MarkdownViewProps> = (props) => {
 
       {/* Rendered markdown content */}
       <div
+        ref={containerRef}
         class="markdown-body max-w-4xl mx-auto px-8 py-6"
         innerHTML={renderedHtml()}
       />

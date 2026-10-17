@@ -1,6 +1,6 @@
 import { Component, createMemo, onMount, onCleanup } from "solid-js";
 import { currentDocument, updateDocumentContent } from "../../store/editor";
-import { registerCodeFormatter, registerCodeInserter, type FormatAction } from "../../lib/formatter";
+import { registerCodeFormatter, registerCodeMatchRevealer, registerCodeInserter, type FormatAction } from "../../lib/formatter";
 
 export const CodeView: Component = () => {
   let textareaRef!: HTMLTextAreaElement;
@@ -132,6 +132,21 @@ export const CodeView: Component = () => {
     }
   };
 
+  const revealMatchInCode = (start: number, end: number, line?: number): boolean => {
+    const textarea = textareaRef;
+    if (!textarea) return false;
+
+    textarea.focus();
+    textarea.setSelectionRange(start, end);
+
+    const val = textarea.value;
+    const lineIndex = line !== undefined ? line - 1 : val.substring(0, start).split("\n").length - 1;
+    const lineHeight = 24;
+    const targetScroll = Math.max(0, lineIndex * lineHeight - textarea.clientHeight / 3);
+    textarea.scrollTop = targetScroll;
+    return true;
+  };
+
   const insertTextInCode = (text: string): boolean => {
     const textarea = textareaRef;
     if (!textarea) return false;
@@ -150,11 +165,13 @@ export const CodeView: Component = () => {
 
   onMount(() => {
     registerCodeFormatter(executeCodeFormat);
+    registerCodeMatchRevealer(revealMatchInCode);
     registerCodeInserter(insertTextInCode);
   });
 
   onCleanup(() => {
     registerCodeFormatter(null);
+    registerCodeMatchRevealer(null);
     registerCodeInserter(null);
   });
 
