@@ -443,6 +443,35 @@ On mobile viewports (screen width < 768px):
 - **Android Storage Access Framework**: Scoped storage isolation is maintained via Android `content://` URIs and app-private internal storage directories.
 - **Atomic Operations**: The Rust `FileService` maintains crash-resilient atomic writes (`.tmp` write -> flush -> atomic rename) within resolved mobile sandbox directory boundaries.
 
+---
+
+## 11. Feature & Platform Implementation Status Matrix
+
+### 11.1 Core Feature Implementation Pathways
+
+| Component | Technology & Implementation Path | Architecture Details | Verification Status |
+| :--- | :--- | :--- | :---: |
+| **Markdown WYSIWYG Editor** | Milkdown v7 + ProseMirror | In-place editing, ProseMirror transactions, history stack | ✅ Production Ready |
+| **GFM AST Parser** | Rust `pulldown-cmark` crate (`services/parser.rs`) | Zero-copy AST traversal, slugified heading anchors | ✅ Production Ready |
+| **Syntax Highlighting** | Rust `syntect` crate (`services/highlighter.rs`) | Sublime syntax definitions, language badges, copy button | ✅ Production Ready |
+| **Diagram Containers** | Rust parser HTML wrapper (`services/parser.rs`) | Fenced `mermaid` code transformed into `.mermaid-diagram` container | ✅ Production Ready |
+| **Math Block Containers** | Rust parser HTML wrapper (`services/parser.rs`) | `math`/`katex` and `$$...$$` rendered into styled `.math-block` | ✅ Production Ready |
+| **Workspace Search** | Rust async recursive walker (`commands/search.rs`) | `tokio::fs` directory recursion, case-insensitive line matches | ✅ Production Ready |
+| **Crash-Safe File I/O** | Rust atomic tempfile writer (`services/fs_service.rs`) | `<filename>.tmp` write + buffer flush + atomic `fs::rename` | ✅ Production Ready |
+| **Plugin Runtime** | Sandboxed `TalenoPluginContext` | Isolated storage, lifecycle hooks, identifier-derived data path (`com.berryuiki.taleno/plugins/`) | ✅ Production Ready |
+| **Theme Runtime** | CSS variable token injector | Hot CSS variable overrides on `:root` via `theme.json` + `theme.css` | ✅ Production Ready |
+| **Cloud Synchronization** | *None (Intentionally omitted)* | 100% local-first architecture; zero telemetry or cloud lock-in | ⛔ Out of Scope |
+
+### 11.2 Target Platform Support Matrix
+
+| Platform | Target Architecture | Distribution Formats | Verification Status | Known Limitations & Notes |
+| :--- | :--- | :--- | :---: | :--- |
+| **Windows** | x86_64, aarch64 | NSIS Installer (`.exe`), WiX MSI (`.msi`) | ✅ Verified | Fully tested on Windows 10/11 local host and CI runners. |
+| **macOS** | Apple Silicon (`aarch64`), Intel (`x86_64`) | Apple Disk Image (`.dmg`), App Bundle (`.app`) | ⚠️ CI Verified | Compiles cleanly in GitHub Actions CI. Code signing and notarization require Apple Developer certificate (see [macOS Signing](MACOS_RELEASE_SIGNING.md)). |
+| **Linux** | x86_64, aarch64 | AppImage, Debian Package (`.deb`), RPM Package (`.rpm`) | ⚠️ CI Verified | Built in CI matrix. Requires system `webkit2gtk-4.1` and `gtk3` runtime libraries. |
+| **Android** | arm64-v8a, armeabi-v7a, x86_64 | Android Package (`.apk`), App Bundle (`.aab`) | 🔄 In Progress | Responsive single-column UI, navigation drawer, and visual viewport virtual keyboard scrolling implemented. Physical device hardware testing and SAF scoped storage validation pending. |
+| **iOS** | arm64 | iOS App Archive (`.ipa`) | 🔄 In Progress | Responsive mobile shell and safe-area insets implemented. Physical device testing and security-scoped bookmark sandbox validation pending. |
+
 
 
 

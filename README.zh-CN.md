@@ -8,7 +8,7 @@
 
 **一款 Typora 风格、本地优先、极速响应的 Markdown 阅读与原位所见即所得编辑器。**
 
-<span style="font-size: 13px;">v0.1.6 已发布 · AGPL-3.0 开源</span>
+<span style="font-size: 13px;">v0.1.9 已发布 · AGPL-3.0 开源</span>
 
 [![Website](https://img.shields.io/badge/website-berryuiki.github.io%2FTaleno-4895ef.svg?style=for-the-badge)](https://berryuiki.github.io/Taleno/)
 [![Release](https://img.shields.io/badge/release-latest-4361ee.svg?style=for-the-badge)](https://github.com/BerryUIKI/Taleno/releases/latest)
@@ -94,10 +94,10 @@
 | 📂 **工作区与多标签** | 支持多文档分标签浏览、侧边栏递归文件目录管理与快捷切换器 (<kbd>Ctrl+P</kbd>) | ✅ 已就绪 |
 | 🌈 **代码块语法高亮** | 基于 Rust `syntect` 高性能着色，带语言标签与一键复制按钮 | ✅ 已就绪 |
 | 📑 **动态大纲目录** | 提取各级标题生成层次化文档大纲，点击平滑滚动定位 | ✅ 已就绪 |
-| 📊 **Mermaid 图表与数学公式** | 支持流程图、时序图、类图与 LaTeX / KaTeX 数学公式渲染 | ✅ 已就绪 |
-| 🔍 **Ripgrep 全局搜索** | 极速全工作区全文检索 (<kbd>Ctrl+Shift+F</kbd>) 与单文档查找替换 (<kbd>Ctrl+F</kbd> / <kbd>Ctrl+H</kbd>) | ✅ 已就绪 |
+| 📊 **Mermaid 图表与数学公式排版** | 基于容器布局的流程图、时序图 (`mermaid`) 与衬线 LaTeX 数学公式 (`math`/`katex`/`$$`) 渲染 | ✅ 已就绪 |
+| 🔍 **Rust 原生全局搜索** | 基于 Rust 后端递归检索 (`src-tauri/src/commands/search.rs`)，带行匹配定位 (<kbd>Ctrl+Shift+F</kbd>) 与单文档查找替换 (<kbd>Ctrl+F</kbd> / <kbd>Ctrl+H</kbd>) | ✅ 已就绪 |
 | 📤 **独立 HTML 导出** | 一键将任意 Markdown 导出为自包含、离线样式的独立网页 (<kbd>Ctrl+E</kbd>) | ✅ 已就绪 |
-| 🧩 **插件系统与扩展能力** | 模块化插件引擎，支持 `%APPDATA%` 目录扫描、热重载、JS 安全沙箱运行时与首选项管理子菜单 (<kbd>Ctrl+Shift+X</kbd>) | ✅ 已就绪 |
+| 🧩 **插件系统与扩展能力** | 模块化插件引擎，支持标准应用数据目录扫描 (`plugins/`)、热重载、JS 安全沙箱运行时与首选项管理子菜单 (<kbd>Ctrl+Shift+X</kbd>) | ✅ 已就绪 |
 
 *后续规划详见 [路线图](docs/ROADMAP.md)。*
 
@@ -266,7 +266,7 @@ Taleno 站在这些杰出开源项目的肩膀上：
 - [pulldown-cmark](https://github.com/pulldown-cmark/pulldown-cmark) — 零拷贝 GFM AST 解析
 - [syntect](https://github.com/trishume/syntect) — 代码语法高亮
 - [notify](https://github.com/notify-rs/notify) — 文件系统监听
-- [ripgrep](https://github.com/BurntSushi/ripgrep) — 全文搜索
+- [tokio](https://tokio.rs) — 异步运行时与文件检索
 - [Mermaid](https://mermaid.js.org) — 图表渲染
 - [KaTeX](https://katex.org) — 数学公式渲染
 - [Tailwind CSS](https://tailwindcss.com) — 原子化样式方案
