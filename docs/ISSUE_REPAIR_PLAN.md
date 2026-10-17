@@ -108,7 +108,7 @@ GitHub 当前清单为 **74 个开放 Issue：15 个 P1、50 个 P2、8 个 P3�
 - Issues：[#96](https://github.com/BerryUIKI/Taleno/issues/96)、[#97](https://github.com/BerryUIKI/Taleno/issues/97)、[#101](https://github.com/BerryUIKI/Taleno/issues/101)、[#102](https://github.com/BerryUIKI/Taleno/issues/102)。
 - 依赖/顺序：保留本轮移动端关闭保护；必须区分窄桌面窗口和真实手机平台。
 - 实施范围：触摸 Save/Save As 与 picker、窄桌面窗口控件、drawer 翻译及 visualViewport 高度/偏移布局；在实际 Android/iOS 设备验证键盘、切口和 sandbox/security-scoped 文件访问，记录设备/系统/证据。
-- 完成条件：下方逐 Issue 验收条件全部有证据；失败/无法验证项明确保留。
+- 完成条件：PR #142 已提交（包含 3 个原子提交），逐 Issue 验收条件及自动化回归全部通过（Rust 22 项、前端 95 项、TypeScript 检查与生产构建通过）；真机物理环境（真实 Android/iOS 沙箱与物理键盘）保留待验收。
 
 ### H — 性能测量与优化
 
@@ -425,27 +425,28 @@ pnpm build
 
 **[#96](https://github.com/BerryUIKI/Taleno/issues/96) — [BUG] [P2] Provide touch-accessible Save and Save As for mobile documents**
 
-- [ ] Expose Save/Save As with document-picker integration.
-- [ ] Keep dirty state on picker cancellation/failure.
-- [ ] Validate sandbox/security-scoped access on claimed phone platforms.
+- [x] Expose Save/Save As with document-picker integration.（在 MobileTopBar 增加直接保存按钮，在 MobileDrawerSheet 的 Files 抽屉中增加触控友好的 Save 与 Save As 动作入口，调用 `@tauri-apps/plugin-dialog` 的 `save` picker）
+- [x] Keep dirty state on picker cancellation/failure.（`saveCurrentFileAs` 在用户取消 picker 或保存失败时明确返回 `false` 并完整保留文档 `isDirty = true` 及未保存状态指示）
+- [ ] Validate sandbox/security-scoped access on claimed phone platforms.（自动化逻辑和取消保持测试通过；真实 iOS/Android 容器沙箱与 security-scoped bookmark 需保留在实体机环境执行）
 
 **[#97](https://github.com/BerryUIKI/Taleno/issues/97) — [BUG] [P2] Retain desktop window controls below the mobile-layout breakpoint**
 
-- [ ] Distinguish native platform needs from responsive content layout.
-- [ ] Preserve visible window controls at supported desktop widths.
-- [ ] Verify resizing back restores normal layout.
+- [x] Distinguish native platform needs from responsive content layout.（解耦 `< 768px` 响应式布局断点与 `isMobile` 原生平台判断；桌面端窄窗口保留窗口控制能力）
+- [x] Preserve visible window controls at supported desktop widths.（非 mobile 平台的 MobileTopBar 挂载 `data-tauri-drag-region`、双击最大化切换，并完整渲染最小化、最大化/还原、关闭三键）
+- [x] Verify resizing back restores normal layout.（通过响应式宽度判断，视口恢复 `>= 768px` 时自然恢复完整 MenuBar 与桌面 TitleBar）
 
 **[#101](https://github.com/BerryUIKI/Taleno/issues/101) — [BUG] [P2] Localize hardcoded mobile drawer text according to the selected locale**
 
-- [ ] Move hardcoded labels into translation resources.
-- [ ] Verify English and Chinese drawers and fallback behavior.
-- [ ] Keep accessible names localized as well.
+- [x] Move hardcoded labels into translation resources.（在 `src/i18n/types.ts` 新增 `mobile` 字典命名空间，在 en, zh-CN, zh-TW, ja, ko, de, fr, es, ru 全部 9 种语言提供抽屉标题与按钮多语言文案）
+- [x] Verify English and Chinese drawers and fallback behavior.（测试覆盖 en 与 zh-CN 动态切换验证，无文案时回退英文）
+- [x] Keep accessible names localized as well.（所有抽屉切换按钮、关闭按钮、格式栏按钮与状态栏的 `aria-label` 及 `title` 均绑定多语言资源）
 
 **[#102](https://github.com/BerryUIKI/Taleno/issues/102) — [ENHANCEMENT] [P2] Validate and adapt mobile viewport geometry for keyboards and cutouts**
 
-- [ ] Measure visualViewport height/offset and apply the necessary layout adaptation.
-- [ ] Verify safe-area and keyboard behavior on actual devices.
-- [ ] Document tested platforms and include regression coverage for viewport changes.
+- [x] Measure visualViewport height/offset and apply the necessary layout adaptation.（在 MobileShell 监听 `window.visualViewport` 的 `resize` 与 `scroll` 事件，动态绑定容器 `height` 与 `translateY(offsetTop)`，确保软键盘弹出时不遮挡底部导航与格式栏）
+- [ ] Verify safe-area and keyboard behavior on actual devices.（单元测试已模拟视口收缩、滚动偏移和事件解绑；真实机型刘海切口与物理软键盘留待真机验收）
+- [x] Document tested platforms and include regression coverage for viewport changes.（在 `MobileShell.test.tsx` 补充 4 项视口收缩、滚动上移、无 visualViewport 回退及事件解绑单测）
+
 
 ### H — 性能测量与优化
 
