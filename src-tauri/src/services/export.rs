@@ -82,9 +82,18 @@ pub async fn export_to_html(markdown: &str, title: &str, output_path: &str) -> R
       pre {{ white-space: pre-wrap; }}
     }}
   </style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
 </head>
 <body>
   {}
+  <script type="module">
+    try {{
+      const {{ default: mermaid }} = await import('https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs');
+      mermaid.initialize({{ startOnLoad: true }});
+    }} catch (e) {{
+      console.warn("Mermaid load failed", e);
+    }}
+  </script>
 </body>
 </html>"#,
         title, body_html

@@ -47,12 +47,16 @@ export async function getActiveDocument(): Promise<OpenFileResponse | null> {
 }
 
 /**
- * Render markdown string to HTML with TOC and word count.
+ * Render markdown string to HTML with TOC and word count, with optional docPath for relative asset resolution.
  */
 export async function renderMarkdown(
-  markdown: string
+  markdown: string,
+  docPath?: string | null
 ): Promise<RenderResult> {
-  return invoke<RenderResult>("render_markdown", { markdown });
+  return invoke<RenderResult>("render_markdown", {
+    markdown,
+    docPath: docPath ?? null,
+  });
 }
 
 /**
