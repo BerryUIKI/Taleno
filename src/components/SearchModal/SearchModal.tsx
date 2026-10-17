@@ -13,6 +13,7 @@ export const SearchModal: Component<SearchModalProps> = (props) => {
   const [query, setQuery] = createSignal("");
   const [results, setResults] = createSignal<SearchMatch[]>([]);
   const [isSearching, setIsSearching] = createSignal(false);
+  const [isTruncated, setIsTruncated] = createSignal(false);
   let inputRef!: HTMLInputElement;
 
   const handleSearch = async (val: string) => {
@@ -20,15 +21,19 @@ export const SearchModal: Component<SearchModalProps> = (props) => {
     const ws = workspaceTree();
     if (!val.trim() || !ws?.path) {
       setResults([]);
+      setIsTruncated(false);
       return;
     }
 
     setIsSearching(true);
     try {
-      const matches = await searchWorkspace(val, ws.path);
-      setResults(matches);
+      const searchRes = await searchWorkspace(val, ws.path);
+      setResults(searchRes.matches);
+      setIsTruncated(searchRes.truncated);
     } catch (err) {
       console.error("Workspace search error:", err);
+      setResults([]);
+      setIsTruncated(false);
     } finally {
       setIsSearching(false);
     }
@@ -83,8 +88,15 @@ export const SearchModal: Component<SearchModalProps> = (props) => {
                 </div>
               }
             >
-              <div class="text-xs opacity-50 px-2 mb-1">
-                Found {results().length} match{results().length === 1 ? "" : "es"}
+              <div class="text-xs opacity-50 px-2 mb-1 flex items-center justify-between">
+                <span>
+                  Found {results().length} match{results().length === 1 ? "" : "es"}
+                </span>
+                <Show when={isTruncated()}>
+                  <span class="text-[11px] text-amber-500 font-medium">
+                    (Results capped at 100 matches)
+                  </span>
+                </Show>
               </div>
 
               <For each={results()}>

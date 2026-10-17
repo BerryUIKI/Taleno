@@ -10,10 +10,7 @@ pub async fn list_themes(app_handle: AppHandle) -> Result<Vec<ThemeManifest>, St
 
 /// Read the CSS stylesheet of an installed theme.
 #[tauri::command]
-pub async fn read_theme_css(
-    app_handle: AppHandle,
-    theme_id: String,
-) -> Result<String, String> {
+pub async fn read_theme_css(app_handle: AppHandle, theme_id: String) -> Result<String, String> {
     theme_service::read_theme_css(&app_handle, &theme_id).await
 }
 

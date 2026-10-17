@@ -36,9 +36,14 @@ export async function openFile(path: string): Promise<OpenFileResponse> {
  */
 export async function saveFile(
   path: string,
-  content: string
+  content: string,
+  expectedContent: string | null
 ): Promise<OpenFileResponse> {
-  return invoke<OpenFileResponse>("save_file", { path, content });
+  return invoke<OpenFileResponse>("save_file", { path, content, expectedContent });
+}
+
+export async function readFileBaseline(path: string): Promise<string | null> {
+  return invoke<string | null>("read_file_baseline", { path });
 }
 
 /**
@@ -77,8 +82,8 @@ export async function startWatchingFile(path: string): Promise<void> {
 /**
  * Stop watching the current file.
  */
-export async function stopWatchingFile(): Promise<void> {
-  return invoke<void>("stop_watching_file");
+export async function stopWatchingFile(path?: string): Promise<void> {
+  return invoke<void>("stop_watching_file", { path });
 }
 
 /**
@@ -168,10 +173,11 @@ export async function listDirectoryTree(path: string): Promise<FileEntry> {
  * Create a new file or folder.
  */
 export async function createEntry(
-  path: string,
+  parentPath: string,
+  name: string,
   isDirectory: boolean
 ): Promise<void> {
-  return invoke<void>("create_entry", { path, isDirectory });
+  return invoke<void>("create_entry", { parentPath, name, isDirectory });
 }
 
 /**
@@ -215,14 +221,19 @@ export interface SearchMatch {
   match_end: number;
 }
 
+export interface WorkspaceSearchResult {
+  matches: SearchMatch[];
+  truncated: boolean;
+}
+
 /**
  * Perform workspace full-text search.
  */
 export async function searchWorkspace(
   query: string,
   rootPath: string
-): Promise<SearchMatch[]> {
-  return invoke<SearchMatch[]>("search_workspace", {
+): Promise<WorkspaceSearchResult> {
+  return invoke<WorkspaceSearchResult>("search_workspace", {
     query,
     rootPath,
   });

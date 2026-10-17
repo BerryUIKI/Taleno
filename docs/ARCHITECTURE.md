@@ -221,7 +221,7 @@ src-tauri/
     │   └── workspace.rs      # Directory traversal and file tree commands
     ├── models/               # Domain data structures (Serde-enabled)
     │   ├── mod.rs
-    │   ├── document.rs       # FileEntry, DocumentMeta
+    │   ├── document.rs       # FileEntry node representation
     │   ├── file_item.rs      # File tree node representation
     │   ├── payload.rs        # IPC response/request wrappers
     │   ├── plugin.rs         # PluginManifest and metadata models

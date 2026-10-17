@@ -8,7 +8,7 @@ Welcome to the Taleno developer documentation! This guide covers the prerequisit
 
 Before setting up Taleno locally, ensure your environment meets the following requirements:
 
-- **Node.js**: `v20.0.0` or higher (LTS recommended)
+- **Node.js**: `^22.22.2 || ^24.15.0 || >=26.0.0` (Node 24 LTS recommended; required by jsdom 30+ ESM dependency chain)
 - **Package Manager**: `pnpm` `v9.0.0` or higher (`corepack enable && corepack prepare pnpm@latest --activate`)
 - **Rust Toolchain**: `v1.85.0` or higher (Rust 2024 edition compatible)
   - Install via [rustup.rs](https://rustup.rs/): `rustup update stable`
@@ -107,7 +107,7 @@ Taleno/
 | `pnpm test:e2e` | Run end-to-end desktop test suite via **Playwright**. |
 | `cargo test --manifest-path src-tauri/Cargo.toml` | Execute Rust unit and integration test suites. |
 | `cargo clippy --manifest-path src-tauri/Cargo.toml` | Run Rust linter and static analysis checks. |
-| `pnpm lint` | Run ESLint and Prettier code formatting checks. |
+| `pnpm lint` | Run strict TypeScript compiler verification without emitting assets (`tsc --noEmit`). |
 
 ---
 
@@ -214,7 +214,31 @@ export async function calculateStats(content: string): Promise<WordCountResult> 
 
 ---
 
-## 8. Code Style & Conventions
+## 8. Testing Strategy & Coverage
+
+Taleno maintains a multi-tiered automated verification strategy:
+
+### 8.1. Rust Unit & Integration Tests
+- **Scope**: Atomic file operations, parent directory path containment, manifest validation, crash recovery rollback, zero-copy markdown parsing, syntect syntax highlighting, and filesystem watchers.
+- **Run command**: `cargo test --manifest-path src-tauri/Cargo.toml`
+- **Lint & style**: `cargo fmt --manifest-path src-tauri/Cargo.toml --check` and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`.
+
+### 8.2. Frontend Unit & Integration Tests (Vitest)
+- **Scope**: Reactive signals and stores, document integrity guards, tab management, format actions, internationalization, updater guards, and component rendering in simulated jsdom environments.
+- **Run command**: `pnpm test`
+- **Prerequisites**: Node.js `^22.22.2 || ^24.15.0 || >=26.0.0`.
+
+### 8.3. Browser End-to-End Tests (Playwright)
+- **Scope**: Complete user journeys including document creation, live ProseMirror typing, word counting, dirty state indicators, tab switching, unsaved changes close protection modal, and display mode transitions (Writing, Reading, Code).
+- **Run command**: `pnpm test:e2e`
+- **Prerequisites**: Node.js `^22.22.2 || ^24.15.0 || >=26.0.0`, Chromium installed via `pnpm exec playwright install chromium`.
+- **Browser vs Native Coverage**:
+  - *Browser E2E (`pnpm test:e2e`)*: Verifies DOM reactivity, editor state, tab isolation, and modal flows via mock IPC bridge in Chromium.
+  - *Native Desktop Verification*: Native OS file pickers, system shell operations, OS window management, updater downloads, and mobile sandbox / visualViewport interactions require native desktop builds (`pnpm tauri dev` / `pnpm tauri build`) or physical device testing.
+
+---
+
+## 9. Code Style & Conventions
 
 - **TypeScript**:
   - Strict mode enabled (`"strict": true` in `tsconfig.json`).
@@ -228,13 +252,13 @@ export async function calculateStats(content: string): Promise<WordCountResult> 
 
 ---
 
-## 9. Debugging Tips
+## 10. Debugging Tips
 
-### 9.1. Frontend & WebView DevTools
+### 10.1. Frontend & WebView DevTools
 - In development mode (`pnpm tauri dev`), right-click anywhere in the app window and select **Inspect Element** to open DevTools.
 - Alternatively, toggle DevTools programmatically or press `F12` (on Windows/Linux) or `Option+Cmd+I` (on macOS).
 
-### 9.2. Rust Backend Logging
+### 10.2. Rust Backend Logging
 - Taleno includes structured logging via the `tracing` or `log` crate.
 - View real-time backend logs directly in your terminal where `pnpm tauri dev` is running.
 - Set log level via environment variables:
@@ -242,6 +266,6 @@ export async function calculateStats(content: string): Promise<WordCountResult> 
   RUST_LOG=Taleno=debug,tauri=info pnpm tauri dev
   ```
 
-### 9.3. Tauri IPC Debugging
+### 10.3. Tauri IPC Debugging
 - Log IPC payloads in the frontend console by inspecting `window.__TAURI_INTERNALS__` if needed.
 - Write unit tests for command handlers directly in Rust using mock state containers.
