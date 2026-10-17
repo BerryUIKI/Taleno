@@ -143,41 +143,43 @@ pnpm build
 
 ### A — 工具链与自动验证
 
+交付 PR：[Rust 卫生检查与格式 #134](https://github.com/BerryUIKI/Taleno/pull/134)、[前端测试环境与 CI #135](https://github.com/BerryUIKI/Taleno/pull/135)、[Playwright 端到端旅程 #136](https://github.com/BerryUIKI/Taleno/pull/136)。
+
 **[#118](https://github.com/BerryUIKI/Taleno/issues/118) — [BUG] [P2] Align the documented Node requirement with locked frontend-test dependencies**
 
-- [ ] Declare a supported Node/package-manager range and align docs/CI.
-- [ ] Use clear unsupported-runtime errors.
-- [ ] Verify frozen-lockfile setup and tests on the selected supported runtime.
+- [x] Declare a supported Node/package-manager range and align docs/CI.（package.json engines 声明 `^22.22.2 || ^24.15.0 || >=26.0.0`，packageManager 声明 pnpm@10.5.2，同步 README 与 DEVELOPMENT.md）
+- [x] Use clear unsupported-runtime errors.（scripts/check-node-version.js 与 vite.config.ts 双重校验，在 Node 20.18.0 下明确报告不兼容原因，防止出现底层 jsdom ESM 异常；附单元测试 src/test/nodeVersion.test.ts）
+- [x] Verify frozen-lockfile setup and tests on the selected supported runtime.（Node 24 环境通过 23 个测试文件 / 94 项测试）
 
 **[#119](https://github.com/BerryUIKI/Taleno/issues/119) — [BUG] [P2] Make the documented pnpm lint command runnable**
 
-- [ ] Implement the intended lint/format tooling or correct obsolete instructions.
-- [ ] Keep CI and local verification consistent.
-- [ ] Verify the documented command from a clean dependency installation.
+- [x] Implement the intended lint/format tooling or correct obsolete instructions.（package.json 定义 lint: "tsc --noEmit"，更正 DEVELOPMENT.md 中过时的 ESLint 描述）
+- [x] Keep CI and local verification consistent.（本地与 CI 均严格执行 pnpm lint）
+- [x] Verify the documented command from a clean dependency installation.（本地与 CI 干净环境执行通过）
 
 **[#120](https://github.com/BerryUIKI/Taleno/issues/120) — [BUG] [P2] Provide a runnable Playwright end-to-end test setup**
 
-- [ ] Supply dependencies/configuration and actual app journeys.
-- [ ] Include document-integrity paths rather than only rendering smoke checks.
-- [ ] Document native vs browser coverage and runtime prerequisites.
+- [x] Supply dependencies/configuration and actual app journeys.（引入 @playwright/test，配置 playwright.config.ts 与 e2e/helpers/mockTauri.ts，完成 3 项真实端到端测试）
+- [x] Include document-integrity paths rather than only rendering smoke checks.（e2e/document-integrity.spec.ts 覆盖新建文档、输入编辑、字数统计、未保存修改关闭拦截弹窗 Cancel/Discard 以及三模式内容切换）
+- [x] Document native vs browser coverage and runtime prerequisites.（docs/DEVELOPMENT.md 第 8 节详细记录浏览器端到端与原生系统验收范围边界和前置条件）
 
 **[#121](https://github.com/BerryUIKI/Taleno/issues/121) — [CI] [P2] Run frontend unit tests in the repository's CI workflow**
 
-- [ ] Run tests on a compatible pinned runtime.
-- [ ] Make test failures fail CI.
-- [ ] Add desired-behavior coverage for the reviewed document-integrity bugs.
+- [x] Run tests on a compatible pinned runtime.（CI 使用 Node 24 运行）
+- [x] Make test failures fail CI.（test-frontend job 新增 pnpm test 步骤，失败直接阻断 CI）
+- [x] Add desired-behavior coverage for the reviewed document-integrity bugs.（回归覆盖 #54~#68 各项完整性测试）
 
 **[#116](https://github.com/BerryUIKI/Taleno/issues/116) — [REFACTOR] [P3] Resolve baseline Rust warnings that fail strict Clippy**
 
-- [ ] Remove or intentionally use the dead model.
-- [ ] Use idiomatic result checks.
-- [ ] Pass strict Clippy without broad warning suppression.
+- [x] Remove or intentionally use the dead model.（移除未构造的死代码 DocumentMeta，更新架构文档）
+- [x] Use idiomatic result checks.（plugin_service.rs 中替换为 idiomatic .is_ok()）
+- [x] Pass strict Clippy without broad warning suppression.（cargo clippy --all-targets -- -D warnings 0 警告通过）
 
 **[#117](https://github.com/BerryUIKI/Taleno/issues/117) — [REFACTOR] [P3] Normalize baseline Rust formatting so cargo fmt check passes**
 
-- [ ] Apply formatting without behavior changes.
-- [ ] Re-run fmt check and Rust tests.
-- [ ] Consider a CI check to prevent drift.
+- [x] Apply formatting without behavior changes.（执行 cargo fmt 格式化全部 Rust 源码）
+- [x] Re-run fmt check and Rust tests.（cargo fmt --check 与 cargo test 22 项测试通过）
+- [x] Consider a CI check to prevent drift.（.github/workflows/ci.yml 新增 clippy 和 cargo fmt --check 门禁）
 
 ### B — 搜索服务边界
 
