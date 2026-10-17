@@ -245,65 +245,69 @@ pnpm build
 
 ### D — 搜索、对话框与键盘导航
 
+> **PR**：[#139](https://github.com/BerryUIKI/Taleno/pull/139)
+> **Commits**：`093247a`, `27248c8`, `0fe31ab`, `f105d61`
+
 **[#74](https://github.com/BerryUIKI/Taleno/issues/74) — [BUG] [P2] Navigate and highlight actual matches for Find Next and Previous**
 
-- [ ] Use mode-specific match navigation in Writing, Code and Reading.
-- [ ] Keep counter, selection and visible match consistent.
-- [ ] Cover wraparound and changes to the query/content.
+- [x] Use mode-specific match navigation in Writing, Code and Reading.（在 `src/lib/formatter.ts` 实现统一 `revealMatchAt` 分发器：Writing 模式映射 ProseMirror `TextSelection` 并调用 `scrollIntoView()`；Code 模式设置 `<textarea>` 字符选区范围并计算行高滚动居中；Reading 模式通过 `TreeWalker` 匹配 DOM 文本节点建立 `Range` 选区并调用 `scrollIntoView({ block: "center" })`）
+- [x] Keep counter, selection and visible match consistent.（`FindReplace.tsx` 动态计算当前匹配序号与总数，每次切换上下匹配即时高亮并更新计数器）
+- [x] Cover wraparound and changes to the query/content.（支持首尾回绕循环导航；匹配结果随输入实时更新并重置索引；附带单元测试 `src/components/FindReplace/FindReplace.test.tsx`）
 
 **[#75](https://github.com/BerryUIKI/Taleno/issues/75) — [BUG] [P2] Use consistent regex replacement semantics for Replace One and Replace All**
 
-- [ ] Share explicit replacement semantics.
-- [ ] Test capture groups, dollar escapes and zero-width patterns.
-- [ ] Display invalid-regex feedback rather than silently treating it as no matches.
+- [x] Share explicit replacement semantics.（单项替换与全部替换采用一致的正则替换逻辑；纯文本模式自动转义特殊字符并采用字符串字面量替换，防止普通 `$` 符号意外触发分组扩展）
+- [x] Test capture groups, dollar escapes and zero-width patterns.（支持 `$1`、`$2` 捕获组扩展与 `$$` 转义；对 `^`、`$`、`\b` 等零宽断言进行 `lastIndex` 步进推进避免死循环；`FindReplace.test.tsx` 包含捕获组及纯文本转义测试）
+- [x] Display invalid-regex feedback rather than silently treating it as no matches.（捕获正则语法异常并设置 `regexError` 响应式信号，在查找栏醒目展示红底错误提示框并为输入框增加警告边框，阻断无效执行）
 
 **[#76](https://github.com/BerryUIKI/Taleno/issues/76) — [BUG] [P2] Focus search inputs each time their conditionally rendered dialogs open**
 
-- [ ] Focus after the input exists on every open.
-- [ ] Restore prior editor focus when closing.
-- [ ] Verify reopening and keyboard-only invocation.
+- [x] Focus after the input exists on every open.（`FindReplace`、`SearchModal`、`QuickSwitcher` 与 `CloseConfirmModal` 每次打开时通过 `createEffect` 自动聚焦并选中首个输入框或默认按钮）
+- [x] Restore prior editor focus when closing.（打开时记录 `previousActiveElement`，弹窗关闭或组件卸载时安全恢复先前焦点，避免键盘焦点丢失到 body）
+- [x] Verify reopening and keyboard-only invocation.（在 `SearchModal.test.tsx`、`QuickSwitcher.test.tsx` 与 `CloseConfirmModal.test.tsx` 中编写严格的失焦/恢复断言）
 
 **[#77](https://github.com/BerryUIKI/Taleno/issues/77) — [BUG] [P2] Respect focused actions and advertised shortcuts in the unsaved-close dialog**
 
-- [ ] Require the documented modifier for discard.
-- [ ] Honor focused button activation.
-- [ ] Manage initial/trapped/restored focus and suppress unrelated app actions while modal.
+- [x] Require the documented modifier for discard.（`CloseConfirmModal.tsx` 仅在检测到 `Alt+D` 或 `Meta+D` 时触发放弃修改，屏蔽单独按键 `d`/`D` 防止用户在误触时意外丢失未保存工作）
+- [x] Honor focused button activation.（回车键激活时优先尊重当前聚焦按钮的对应动作，未聚焦按钮时默认执行安全保存）
+- [x] Manage initial/trapped/restored focus and suppress unrelated app actions while modal.（实现 `Tab`/`Shift+Tab` 循环焦点陷阱，阻止背景全局快捷键冒泡，关闭时恢复触发元素焦点）
 
 **[#78](https://github.com/BerryUIKI/Taleno/issues/78) — [BUG] [P2] Expose document tabs with keyboard navigation and tab semantics**
 
-- [ ] Implement appropriate tablist/tab/selected semantics.
-- [ ] Provide predictable keyboard navigation and focus indicators.
-- [ ] Keep close actions separately accessible.
+- [x] Implement appropriate tablist/tab/selected semantics.（`TabBar.tsx` 标签栏容器赋予 `role="tablist"`，各文档标签赋予 `role="tab"` 与 `aria-selected`；未选中项设置 `tabindex="-1"`，选中项设置 `tabindex="0"`）
+- [x] Provide predictable keyboard navigation and focus indicators.（支持 `ArrowLeft`、`ArrowRight`、`Home`、`End` 水平循环导航切换标签，外加明确的主题强调色焦点环视觉提示）
+- [x] Keep close actions separately accessible.（标签关闭按钮赋予明确的 `aria-label="Close tab: <filename>"`，支持 Tab 独立聚焦并保持可点击）
 
 **[#79](https://github.com/BerryUIKI/Taleno/issues/79) — [BUG] [P2] Make workspace search results keyboard-selectable**
 
-- [ ] Use accessible controls/list semantics.
-- [ ] Support selection, activation and visible focus.
-- [ ] Preserve dialog focus behavior and announce result state.
+- [x] Use accessible controls/list semantics.（`SearchModal.tsx` 容器设为 `role="dialog"` 与 `aria-modal="true"`，搜索输入框赋予 `role="combobox"`、`aria-autocomplete="list"` 与 `aria-activedescendant`，结果列表赋予 `role="listbox"`，结果项赋予 `role="option"` 与 `aria-selected`）
+- [x] Support selection, activation and visible focus.（支持 `ArrowDown`、`ArrowUp`、`Home`、`End` 键盘光标选中及 `Enter` 确认打开，附带高亮边框背景视觉指示并自动滚动视图居中）
+- [x] Preserve dialog focus behavior and announce result state.（结果列表标注匹配统计，焦点限制在弹窗内，关闭后恢复前置焦点）
 
 **[#80](https://github.com/BerryUIKI/Taleno/issues/80) — [BUG] [P2] Position the Find panel inside the document viewport instead of over app chrome**
 
-- [ ] Anchor it to the intended viewport or a non-overlapping overlay region.
-- [ ] Verify normal and narrow desktop widths.
-- [ ] Keep keyboard focus and dismissal accessible.
+- [x] Anchor it to the intended viewport or a non-overlapping overlay region.（将 `<FindReplace>` 从全局顶层移动至主文档视口容器 `<main class="flex-1 overflow-hidden relative">` 内，采用视口相对定位 `top-3 right-6`，彻底消除对标题栏、应用菜单和标签栏的遮挡）
+- [x] Verify normal and narrow desktop widths.（查找面板限制最大宽度 `max-w-[calc(100vw-3rem)]`，在紧凑视口下自适应截断）
+- [x] Keep keyboard focus and dismissal accessible.（支持 `Esc` 快捷关闭、关闭按钮点击以及 Enter/Shift+Enter 前后查找）
 
 **[#81](https://github.com/BerryUIKI/Taleno/issues/81) — [BUG] [P2] Discard obsolete workspace search responses**
 
-- [ ] Use request identities/cancellation and sensible debouncing.
-- [ ] Ignore responses after close or query clearing.
-- [ ] Cover out-of-order completion and failures.
+- [x] Use request identities/cancellation and sensible debouncing.（采用单调递增 `currentRequestId` 与 150ms 防抖，仅当异步结果返回时的请求 ID 与当前 ID 一致且弹窗处于开启状态时才采纳结果）
+- [x] Ignore responses after close or query clearing.（关闭弹窗、清空输入框或组件卸载时立即递增请求 ID 并清除定时器，抛弃所有正在进行的旧请求回调）
+- [x] Cover out-of-order completion and failures.（在 `SearchModal.test.tsx` 中模拟慢请求与快请求乱序完成，严格验证旧慢请求被丢弃且仅显示最新快请求结果）
 
 **[#82](https://github.com/BerryUIKI/Taleno/issues/82) — [BUG] [P2] Navigate to the selected workspace search result's line and match**
 
-- [ ] Pass match location through selection/navigation.
-- [ ] Reveal the selected match in supported editor modes.
-- [ ] Cover multiple results in the same file.
+- [x] Pass match location through selection/navigation.（`SearchModal` 选择回调传递 `filePath`、`lineNumber` 与 `lineContent`）
+- [x] Reveal the selected match in supported editor modes.（`App.tsx` 中的 `loadFile` 接收行号参数，在文档加载和 Tab 激活后延迟 50ms 自动换算字符偏移并调用 `revealMatchAt`，在所有三模式中滚动并高亮该行匹配）
+- [x] Cover multiple results in the same file.（每次选择带具体行号的目标项独立导航）
 
 **[#83](https://github.com/BerryUIKI/Taleno/issues/83) — [ENHANCEMENT] [P3] Extend Quick Switcher to unopened workspace files**
 
-- [ ] Define tab/workspace candidate ordering clearly.
-- [ ] Use backend workspace discovery/indexing rather than frontend file I/O.
-- [ ] Retain open-tab switching and truthful UI wording.
+- [x] Define tab/workspace candidate ordering clearly.（`QuickSwitcher.tsx` 优先展示已打开标签，随后列出工作区内未打开的 Markdown/文本文件，并以 `[Workspace]` 徽章区分）
+- [x] Use backend workspace discovery/indexing rather than frontend file I/O.（复用 Rust 后端已构建的 `workspaceTree()` 内存结构进行递归提取，不发起多余的前端磁盘 I/O）
+- [x] Retain open-tab switching and truthful UI wording.（选中打开标签触发 `selectTab`，选中未打开工作区文件调用 `onOpenFileByPath`；提示文字同步更新为 "Search open tabs and workspace files..."；单元测试覆盖未打开文件搜索与去重）
+
 
 ### E — 资源、渲染与大纲
 
