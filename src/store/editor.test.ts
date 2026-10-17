@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   currentDocument,
   setCurrentDocument,
@@ -11,6 +11,9 @@ import {
   resetDocument,
   markExternallyModified,
   clearExternallyModified,
+  setLiveOutlineParser,
+  processLiveOutline,
+  cancelPendingLiveOutline,
 } from "./editor";
 
 describe("Editor Store", () => {
@@ -97,4 +100,90 @@ describe("Editor Store", () => {
     clearExternallyModified();
     expect(currentDocument().externallyModified).toBe(false);
   });
+
+  it("should update outline dynamically when live outline parsing completes", async () => {
+    setLiveOutlineParser(async (md) => ({
+      html: `<h1 id="live-header">${md}</h1>`,
+      toc: [{ level: 1, text: "Live Header", id: "live-header" }],
+      word_count: 2,
+    }));
+
+    updateDocumentContent("Live Header");
+    await processLiveOutline("Live Header");
+
+    const doc = currentDocument();
+    expect(doc.content).toBe("Live Header");
+    expect(doc.toc).toHaveLength(1);
+    expect(doc.toc[0].text).toBe("Live Header");
+    expect(doc.html).toContain("Live Header");
+
+    setLiveOutlineParser(null);
+  });
+
+  it("should discard obsolete parse responses when a newer version has started", async () => {
+    let resolveFirst: ((val: any) => void) | null = null;
+    const firstPromise = new Promise((resolve) => {
+      resolveFirst = resolve;
+    });
+
+    let callCount = 0;
+    setLiveOutlineParser(async (md) => {
+      callCount++;
+      if (callCount === 1) {
+        await firstPromise;
+        return {
+          html: "<p>First Stale Content</p>",
+          toc: [{ level: 1, text: "Stale", id: "stale" }],
+          word_count: 3,
+        };
+      }
+      return {
+        html: "<p>Second Fresh Content</p>",
+        toc: [{ level: 1, text: "Fresh", id: "fresh" }],
+        word_count: 3,
+      };
+    });
+
+    // Start first parse
+    updateDocumentContent("First Edit");
+    const firstTask = processLiveOutline("First Edit");
+    // Start second parse which increments liveParseVersion and updates document content
+    updateDocumentContent("Second Edit");
+    const secondTask = processLiveOutline("Second Edit");
+
+    // Second completes first
+    await secondTask;
+    expect(currentDocument().toc[0]?.text).toBe("Fresh");
+
+    // Now resolve first task (which is obsolete)
+    resolveFirst!({});
+    await firstTask;
+
+    // Document state should still reflect the fresh outline, not the stale one
+    expect(currentDocument().toc[0]?.text).toBe("Fresh");
+
+    setLiveOutlineParser(null);
+  });
+
+  it("should cancel pending outline timers on markSaved and resetDocument", () => {
+    updateDocumentContent("Pending edit");
+    // Calling markSaved cancels pending live outline
+    markSaved({
+      path: "/test/doc.md",
+      filename: "doc.md",
+      content: "Saved Note",
+      html: "<h1>Saved Note</h1>",
+      toc: [{ level: 1, text: "Saved Note", id: "saved-note" }],
+      word_count: 2,
+    });
+
+    expect(currentDocument().content).toBe("Saved Note");
+    expect(currentDocument().toc[0].text).toBe("Saved Note");
+
+    // Calling resetDocument also cancels pending live outline and resets state
+    resetDocument();
+    expect(currentDocument().content).toBe("");
+    expect(currentDocument().toc).toHaveLength(0);
+  });
 });
+

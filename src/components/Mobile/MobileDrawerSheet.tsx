@@ -1,5 +1,6 @@
 import { Component, Show, For } from "solid-js";
-import { currentDocument } from "../../store/editor";
+import { currentDocument, type TocEntry } from "../../store/editor";
+import { navigateToHeading } from "../../lib/headingNavigation";
 import { openTabs, activeTabId, selectTab, closeTab } from "../../store/files";
 import { theme, setTheme, cycleTheme, fontSize, setFontSize, markdownTheme, setMarkdownTheme } from "../../store/settings";
 import { Sidebar } from "../Sidebar/Sidebar";
@@ -17,13 +18,10 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
   const doc = () => currentDocument();
   const tabs = () => openTabs();
 
-  const scrollToHeading = (id: string) => {
+  const handleSelectHeading = (entry: TocEntry, index: number) => {
     props.onClose();
     setTimeout(() => {
-      const element = document.getElementById(id);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+      navigateToHeading(entry, index);
     }, 150);
   };
 
@@ -159,13 +157,13 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
             >
               <div class="space-y-1">
                 <For each={doc().toc}>
-                  {(item) => (
+                  {(item, index) => (
                     <button
                       class="w-full text-left py-2 px-3 rounded-lg hover:bg-[var(--color-hover)] text-xs transition-colors flex items-center gap-2 group"
                       style={{
                         "padding-left": `${Math.max(12, (item.level - 1) * 16 + 12)}px`,
                       }}
-                      onClick={() => scrollToHeading(item.id)}
+                      onClick={() => handleSelectHeading(item, index())}
                     >
                       <span class="text-[10px] font-bold text-[var(--color-accent)] opacity-70 group-hover:opacity-100">
                         H{item.level}

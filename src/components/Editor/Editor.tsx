@@ -34,12 +34,55 @@ import {
 import { listener, listenerCtx } from "@milkdown/plugin-listener";
 import { nord } from "@milkdown/theme-nord";
 import "@milkdown/theme-nord/style.css";
-import { currentDocument, updateDocumentContent } from "../../store/editor";
+import { currentDocument, updateDocumentContent, type TocEntry } from "../../store/editor";
 import { registerWritingFormatter, type FormatAction } from "../../lib/formatter";
+import { registerWritingHeadingRevealer } from "../../lib/headingNavigation";
 
 export const Editor: Component = () => {
   let containerRef!: HTMLDivElement;
   let editorInstance: MilkdownEditor | null = null;
+
+  const revealHeadingInWriting = (_entry: TocEntry, index: number): boolean => {
+    if (editorInstance) {
+      try {
+        let targetPos: number | null = null;
+        editorInstance.action((ctx) => {
+          const view = ctx.get(editorViewCtx);
+          if (!view) return;
+          let headingCount = 0;
+          view.state.doc.descendants((node, pos) => {
+            if (node.type.name === "heading") {
+              if (headingCount === index) {
+                targetPos = pos;
+                return false;
+              }
+              headingCount++;
+            }
+          });
+          if (targetPos !== null) {
+            const dom = view.nodeDOM(targetPos);
+            if (dom instanceof HTMLElement) {
+              dom.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          }
+        });
+        if (targetPos !== null) return true;
+      } catch {
+        // Fall back to DOM search
+      }
+    }
+
+    if (containerRef) {
+      const headings = containerRef.querySelectorAll(
+        "h1, h2, h3, h4, h5, h6"
+      );
+      if (headings[index]) {
+        headings[index].scrollIntoView({ behavior: "smooth", block: "start" });
+        return true;
+      }
+    }
+    return false;
+  };
 
   const executeFormat = (action: FormatAction) => {
     if (!editorInstance) return;
@@ -107,6 +150,7 @@ export const Editor: Component = () => {
 
   onMount(async () => {
     registerWritingFormatter(executeFormat);
+    registerWritingHeadingRevealer(revealHeadingInWriting);
 
     try {
       editorInstance = await MilkdownEditor.make()
@@ -171,6 +215,7 @@ export const Editor: Component = () => {
 
   onCleanup(async () => {
     registerWritingFormatter(null);
+    registerWritingHeadingRevealer(null);
     if (editorInstance) {
       try {
         await editorInstance.destroy();
