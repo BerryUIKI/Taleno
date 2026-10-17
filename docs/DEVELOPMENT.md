@@ -8,7 +8,7 @@ Welcome to the Taleno developer documentation! This guide covers the prerequisit
 
 Before setting up Taleno locally, ensure your environment meets the following requirements:
 
-- **Node.js**: `v20.0.0` or higher (LTS recommended)
+- **Node.js**: `^22.22.2 || ^24.15.0 || >=26.0.0` (Node 24 LTS recommended; required by jsdom 30+ ESM dependency chain)
 - **Package Manager**: `pnpm` `v9.0.0` or higher (`corepack enable && corepack prepare pnpm@latest --activate`)
 - **Rust Toolchain**: `v1.85.0` or higher (Rust 2024 edition compatible)
   - Install via [rustup.rs](https://rustup.rs/): `rustup update stable`
@@ -107,7 +107,7 @@ Taleno/
 | `pnpm test:e2e` | Run end-to-end desktop test suite via **Playwright**. |
 | `cargo test --manifest-path src-tauri/Cargo.toml` | Execute Rust unit and integration test suites. |
 | `cargo clippy --manifest-path src-tauri/Cargo.toml` | Run Rust linter and static analysis checks. |
-| `pnpm lint` | Run ESLint and Prettier code formatting checks. |
+| `pnpm lint` | Run strict TypeScript compiler verification without emitting assets (`tsc --noEmit`). |
 
 ---
 

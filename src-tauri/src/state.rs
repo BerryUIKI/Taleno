@@ -32,6 +32,9 @@ pub struct TocEntry {
 /// Global application state managed by Tauri.
 #[derive(Debug, Default)]
 pub struct AppState {
+    /// Keep watcher reads behind our read/save baseline publication.
+    pub document_io: tokio::sync::Mutex<()>,
+    pub disk_baselines: Mutex<std::collections::HashMap<String, String>>,
     /// The currently active document (if any)
     pub active_document: Mutex<Option<ActiveDocument>>,
     /// The workspace root folder (if any)

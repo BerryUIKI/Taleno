@@ -79,11 +79,14 @@ In a desktop document editor, unexpected power loss, application crashes, or ope
 Implement all document saves through an **Atomic File Write** service in Rust.
 
 ### Rationale
-- **Crash Resilience**: The file is first written to a temporary sibling file (`<filename>.tmp.Taleno`). Only after the write buffer is fully flushed and synced to disk does the OS atomically rename and replace the target file (`std::fs::rename`).
-- **Data Integrity**: If a failure occurs mid-write, the original document remains completely untouched and undamaged on disk.
+- **Atomic Replacement**: `fs_service.rs` exclusively creates a random `.taleno-save-*` sibling using `tempfile`, writes and flushes the complete UTF-8 Markdown, calls `sync_all` on the file, then replaces the destination using `NamedTempFile::persist`. Unrelated `<filename>.tmp` siblings are never reused or deleted. Only the operation's own staging file is cleaned up on failure.
+- **Conflict Protection**: Document saves compare the last read/written Markdown against disk before staging and immediately before replacement. Missing/modified destinations reject the save with `SAVE_CONFLICT`. New destinations require an absent baseline; explicit Overwrite captures a new baseline and still checks it. Taleno serializes its checked saves. Another process can still write in the final check/rename interval: this is optimistic concurrency, not a cross-process filesystem transaction.
+- **Durability**: Unix additionally synchronizes the parent directory after replacement. Windows uses tempfile's native replacement implementation without a portable parent-directory sync. Atomic visibility, file synchronization, and survival of hardware/power loss are different guarantees. No power-loss guarantee is inferred from unit tests, and Android SAF/iOS security-scoped document providers require separate device validation.
+- **Failure Semantics**: Write, file-sync, baseline-check and rename failures propagate to the caller and preserve unsaved frontend state. Before replacement the old target remains intact. A Unix directory-sync failure happens after replacement: the caller reports failure and retains dirty state even though the new bytes may already be visible. A retry may require re-reading the disk baseline.
 
 ### Consequences & Trade-offs
 - Requires write permissions in the target directory to create temporary sibling files.
+- Windows regression coverage includes existing-target replacement, sibling collisions, concurrent writers, rejected stale baselines, pre-rename failure cleanup and rename failure. Unix directory-sync error behavior and real power interruption remain native validation tasks.
 - Negligible disk I/O overhead on save, vastly outweighed by data safety guarantees.
 
 ---

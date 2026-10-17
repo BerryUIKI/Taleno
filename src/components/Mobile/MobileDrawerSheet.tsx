@@ -1,6 +1,6 @@
 import { Component, Show, For } from "solid-js";
 import { currentDocument } from "../../store/editor";
-import { openTabs, activeTabId, selectTab, closeTab } from "../../store/files";
+import { openTabs, activeTabId, selectTab } from "../../store/files";
 import { theme, setTheme, cycleTheme, fontSize, setFontSize, markdownTheme, setMarkdownTheme } from "../../store/settings";
 import { Sidebar } from "../Sidebar/Sidebar";
 import { t } from "../../i18n";
@@ -11,6 +11,7 @@ interface MobileDrawerSheetProps {
   onClose: () => void;
   onOpenFile: (path: string) => Promise<void>;
   onNewDocument: () => void;
+  onCloseTab?: (id: string) => void;
 }
 
 export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
@@ -107,7 +108,8 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
                           class="hover:opacity-75 ml-0.5 text-xs"
                           onClick={(e) => {
                             e.stopPropagation();
-                            closeTab(tab.id);
+                            props.onCloseTab?.(tab.id);
+                            props.onClose();
                           }}
                         >
                           ✕
