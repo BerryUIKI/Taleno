@@ -1,28 +1,58 @@
-import { Component, createSignal, createMemo, For, Show, onMount, onCleanup } from "solid-js";
+import { Component, createSignal, createMemo, For, Show, onMount } from "solid-js";
 import { openTabs, quickSwitcherOpen, setQuickSwitcherOpen, selectTab } from "../../store/files";
 import type { Tab } from "../../store/files";
+import { pluginRuntime, type PluginCommand } from "../../lib/plugins/runtime";
 
 export interface QuickSwitcherProps {
   onOpenFileByPath: (path: string) => void;
 }
 
-export const QuickSwitcher: Component<QuickSwitcherProps> = (props) => {
+export type QuickSwitcherItem =
+  | { type: "tab"; tab: Tab }
+  | { type: "command"; command: PluginCommand };
+
+export const QuickSwitcher: Component<QuickSwitcherProps> = (_props) => {
   const [query, setQuery] = createSignal("");
   const [selectedIndex, setSelectedIndex] = createSignal(0);
   let inputRef!: HTMLInputElement;
 
-  const filteredItems = createMemo(() => {
+  const filteredItems = createMemo<QuickSwitcherItem[]>(() => {
     const q = query().toLowerCase().trim();
     const tabs = openTabs();
-    if (!q) return tabs;
-    return tabs.filter((t) =>
-      t.document.filename.toLowerCase().includes(q) ||
-      (t.document.path && t.document.path.toLowerCase().includes(q))
-    );
+    const commands = pluginRuntime.getRegisteredCommands();
+
+    const tabItems: QuickSwitcherItem[] = tabs
+      .filter(
+        (t) =>
+          !q ||
+          t.document.filename.toLowerCase().includes(q) ||
+          (t.document.path && t.document.path.toLowerCase().includes(q))
+      )
+      .map((tab) => ({ type: "tab", tab }));
+
+    const commandItems: QuickSwitcherItem[] = commands
+      .filter(
+        (c) =>
+          !q ||
+          c.title.toLowerCase().includes(q) ||
+          c.id.toLowerCase().includes(q) ||
+          (c.shortcut && c.shortcut.toLowerCase().includes(q))
+      )
+      .map((command) => ({ type: "command", command }));
+
+    return [...tabItems, ...commandItems];
   });
 
-  const handleSelect = (tab: Tab) => {
-    selectTab(tab.id);
+  const handleSelect = (item: QuickSwitcherItem) => {
+    if (item.type === "tab") {
+      selectTab(item.tab.id);
+    } else {
+      try {
+        item.command.run();
+      } catch (err) {
+        console.error(`[PluginCommand] Execution error for ${item.command.id}:`, err);
+      }
+    }
     setQuickSwitcherOpen(false);
   };
 
@@ -66,7 +96,7 @@ export const QuickSwitcher: Component<QuickSwitcherProps> = (props) => {
               ref={inputRef}
               type="text"
               class="w-full bg-transparent outline-none text-sm placeholder:opacity-40"
-              placeholder="Search open documents by name... (Esc to close)"
+              placeholder="Search open documents or plugin commands... (Esc to close)"
               value={query()}
               onInput={(e) => {
                 setQuery(e.currentTarget.value);
@@ -81,12 +111,12 @@ export const QuickSwitcher: Component<QuickSwitcherProps> = (props) => {
               when={filteredItems().length > 0}
               fallback={
                 <div class="p-4 text-center text-xs opacity-50">
-                  No matching files found.
+                  No matching files or commands found.
                 </div>
               }
             >
               <For each={filteredItems()}>
-                {(tab, idx) => {
+                {(item, idx) => {
                   const isSelected = () => idx() === selectedIndex();
                   return (
                     <div
@@ -95,15 +125,33 @@ export const QuickSwitcher: Component<QuickSwitcherProps> = (props) => {
                         background: isSelected() ? "var(--color-hover)" : "transparent",
                         color: isSelected() ? "var(--color-accent)" : "var(--color-text-primary)",
                       }}
-                      onClick={() => handleSelect(tab)}
+                      onClick={() => handleSelect(item)}
                     >
-                      <div class="flex items-center gap-2 truncate">
-                        <span>📝</span>
-                        <span class="font-medium truncate">{tab.document.filename}</span>
-                      </div>
-                      <span class="opacity-40 truncate max-w-40 text-[10px]">
-                        {tab.document.path ?? "Unsaved"}
-                      </span>
+                      {item.type === "tab" ? (
+                        <>
+                          <div class="flex items-center gap-2 truncate">
+                            <span>📝</span>
+                            <span class="font-medium truncate">{item.tab.document.filename}</span>
+                          </div>
+                          <span class="opacity-40 truncate max-w-40 text-[10px]">
+                            {item.tab.document.path ?? "Unsaved"}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <div class="flex items-center gap-2 truncate">
+                            <span class="px-1.5 py-0.5 rounded bg-[var(--color-accent)]/10 text-[var(--color-accent)] font-mono text-[9px] font-semibold border border-[var(--color-accent)]/20 uppercase tracking-wider">
+                              Plugin
+                            </span>
+                            <span class="font-medium truncate">{item.command.title}</span>
+                          </div>
+                          <Show when={item.command.shortcut}>
+                            <span class="px-1.5 py-0.5 rounded bg-[var(--color-hover)] border border-[var(--color-border)] text-[10px] font-mono opacity-70">
+                              {item.command.shortcut}
+                            </span>
+                          </Show>
+                        </>
+                      )}
                     </div>
                   );
                 }}
