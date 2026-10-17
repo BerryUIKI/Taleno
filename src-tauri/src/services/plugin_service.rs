@@ -88,7 +88,7 @@ pub async fn ensure_plugins_dir(app_handle: &tauri::AppHandle) -> Result<PathBuf
         .is_none();
     if is_empty {
         let sample_dir = plugins_dir.join(SAMPLE_PLUGIN_DIR);
-        if let Ok(_) = fs::create_dir_all(&sample_dir).await {
+        if fs::create_dir_all(&sample_dir).await.is_ok() {
             let _ = fs::write(sample_dir.join("manifest.json"), SAMPLE_PLUGIN_MANIFEST).await;
             let _ = fs::write(sample_dir.join("main.js"), SAMPLE_PLUGIN_SCRIPT).await;
         }
