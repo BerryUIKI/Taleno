@@ -1,3 +1,4 @@
+use super::package_paths;
 use crate::models::theme::{RemoteTheme, ThemeManifest, ThemeRegistryResponse};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -21,6 +22,7 @@ pub fn ensure_themes_dir(app_handle: &AppHandle) -> Result<PathBuf, String> {
             .map_err(|e| format!("Failed to create themes directory: {}", e))?;
     }
 
+    package_paths::validate_root(&themes_dir)?;
     Ok(themes_dir)
 }
 
@@ -33,7 +35,10 @@ pub fn validate_theme_id(id: &str) -> Result<(), String> {
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
     {
-        return Err("Theme ID contains invalid characters. Only a-z, 0-9, '-', and '_' are allowed".to_string());
+        return Err(
+            "Theme ID contains invalid characters. Only a-z, 0-9, '-', and '_' are allowed"
+                .to_string(),
+        );
     }
     Ok(())
 }
@@ -49,16 +54,22 @@ pub fn scan_themes_dir(themes_dir: &Path) -> Result<Vec<ThemeManifest>, String> 
     if !themes_dir.exists() {
         return Ok(Vec::new());
     }
+    package_paths::validate_root(themes_dir)?;
 
-    let entries = fs::read_dir(themes_dir)
-        .map_err(|e| format!("Failed to read themes directory: {}", e))?;
+    let entries =
+        fs::read_dir(themes_dir).map_err(|e| format!("Failed to read themes directory: {}", e))?;
 
     let mut manifests = Vec::new();
 
     for entry in entries.flatten() {
         let path = entry.path();
-        if path.is_dir() {
-            let manifest_path = path.join("theme.json");
+        if path.is_dir() && !entry.file_name().to_string_lossy().starts_with('.') {
+            let folder = entry.file_name().to_string_lossy().into_owned();
+            let manifest_path =
+                match package_paths::contained(themes_dir, &format!("{folder}/theme.json")) {
+                    Ok(path) => path,
+                    Err(_) => continue,
+                };
             if manifest_path.exists() {
                 if let Ok(content) = fs::read_to_string(&manifest_path) {
                     if let Ok(manifest) = serde_json::from_str::<ThemeManifest>(&content) {
@@ -75,15 +86,19 @@ pub fn scan_themes_dir(themes_dir: &Path) -> Result<Vec<ThemeManifest>, String> 
 
 /// Read the CSS stylesheet source of an installed theme.
 pub async fn read_theme_css(app_handle: &AppHandle, theme_id: &str) -> Result<String, String> {
-    validate_theme_id(theme_id)?;
     let themes_dir = ensure_themes_dir(app_handle)?;
-    let theme_dir = themes_dir.join(theme_id);
+    read_theme_css_from_dir(&themes_dir, theme_id)
+}
+
+fn read_theme_css_from_dir(themes_dir: &Path, theme_id: &str) -> Result<String, String> {
+    validate_theme_id(theme_id)?;
+    let theme_dir = package_paths::contained(&themes_dir, theme_id)?;
 
     if !theme_dir.exists() {
         return Err(format!("Theme '{}' does not exist", theme_id));
     }
 
-    let manifest_path = theme_dir.join("theme.json");
+    let manifest_path = package_paths::contained(&themes_dir, &format!("{theme_id}/theme.json"))?;
     let entry_file = if manifest_path.exists() {
         fs::read_to_string(&manifest_path)
             .ok()
@@ -94,13 +109,15 @@ pub async fn read_theme_css(app_handle: &AppHandle, theme_id: &str) -> Result<St
         "theme.css".to_string()
     };
 
-    let css_path = theme_dir.join(&entry_file);
+    let css_path = package_paths::contained(&themes_dir, &format!("{theme_id}/{entry_file}"))?;
     if !css_path.exists() {
-        return Err(format!("Stylesheet '{}' not found for theme '{}'", entry_file, theme_id));
+        return Err(format!(
+            "Stylesheet '{}' not found for theme '{}'",
+            entry_file, theme_id
+        ));
     }
 
-    fs::read_to_string(&css_path)
-        .map_err(|e| format!("Failed to read theme CSS file: {}", e))
+    fs::read_to_string(&css_path).map_err(|e| format!("Failed to read theme CSS file: {}", e))
 }
 
 /// Open the native OS file explorer pointing to the themes directory.
@@ -197,6 +214,7 @@ pub async fn install_remote_theme(
     entry_file: &str,
 ) -> Result<ThemeManifest, String> {
     validate_theme_id(theme_id)?;
+    package_paths::validate_entry(entry_file)?;
     let themes_dir = ensure_themes_dir(app_handle)?;
 
     let base_url = if raw_base_url.ends_with('/') {
@@ -260,30 +278,18 @@ pub async fn install_remote_theme(
         .await
         .map_err(|e| format!("Failed to read theme CSS text: {}", e))?;
 
-    let temp_dir_name = format!(".tmp_install_theme_{}", theme_id);
-    let temp_dir = themes_dir.join(&temp_dir_name);
-    let target_dir = themes_dir.join(theme_id);
-
-    if temp_dir.exists() {
-        let _ = fs::remove_dir_all(&temp_dir);
+    package_paths::validate_entry(&parsed_manifest.entry_file)?;
+    if parsed_manifest.entry_file != entry_file {
+        return Err("Manifest entry does not match the downloaded stylesheet".into());
     }
-    fs::create_dir_all(&temp_dir)
-        .map_err(|e| format!("Failed to create temporary directory: {}", e))?;
-
-    let temp_manifest_path = temp_dir.join("theme.json");
-    let temp_css_path = temp_dir.join(entry_file);
-
-    fs::write(&temp_manifest_path, &manifest_text)
-        .map_err(|e| format!("Failed to write temporary theme manifest: {}", e))?;
-    fs::write(&temp_css_path, &css_text)
-        .map_err(|e| format!("Failed to write temporary theme stylesheet: {}", e))?;
-
-    if target_dir.exists() {
-        let _ = fs::remove_dir_all(&target_dir);
-    }
-
-    fs::rename(&temp_dir, &target_dir)
-        .map_err(|e| format!("Failed to move installed theme into place: {}", e))?;
+    package_paths::install(
+        &themes_dir,
+        theme_id,
+        "theme.json",
+        &manifest_text,
+        entry_file,
+        &css_text,
+    )?;
 
     Ok(parsed_manifest)
 }
@@ -292,19 +298,32 @@ pub async fn install_remote_theme(
 pub async fn uninstall_theme(app_handle: &AppHandle, theme_id: &str) -> Result<(), String> {
     validate_theme_id(theme_id)?;
     let themes_dir = ensure_themes_dir(app_handle)?;
-    let target_dir = themes_dir.join(theme_id);
+    let target_dir = package_paths::contained(&themes_dir, theme_id)?;
 
     if !target_dir.exists() {
         return Ok(());
     }
 
-    fs::remove_dir_all(&target_dir)
-        .map_err(|e| format!("Failed to delete theme directory: {}", e))
+    fs::remove_dir_all(&target_dir).map_err(|e| format!("Failed to delete theme directory: {}", e))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn refuses_traversing_stylesheet_from_manifest() {
+        let root = tempfile::tempdir().unwrap();
+        let folder = root.path().join("sample");
+        fs::create_dir(&folder).unwrap();
+        fs::write(root.path().join("outside.css"), "private").unwrap();
+        let manifest = serde_json::json!({
+            "id": "sample", "name": "Sample", "version": "1", "description": "", "author": "test",
+            "type": "dark", "accentColor": "", "backgroundColor": "", "textColor": "", "entryFile": "../outside.css"
+        });
+        fs::write(folder.join("theme.json"), manifest.to_string()).unwrap();
+        assert!(read_theme_css_from_dir(root.path(), "sample").is_err());
+    }
 
     #[test]
     fn test_validate_theme_id() {
