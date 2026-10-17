@@ -3894,6 +3894,7 @@ version = "0.1.9"
 dependencies = [
  "notify",
  "notify-debouncer-mini",
+ "percent-encoding",
  "pulldown-cmark",
  "reqwest 0.12.28",
  "serde",

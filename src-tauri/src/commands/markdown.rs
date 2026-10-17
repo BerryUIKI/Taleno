@@ -11,9 +11,9 @@ pub struct RenderResult {
 
 /// Render Markdown string to HTML with TOC and word count.
 #[tauri::command]
-pub fn render_markdown(markdown: &str) -> RenderResult {
+pub fn render_markdown(markdown: &str, doc_path: Option<&str>) -> RenderResult {
     RenderResult {
-        html: parser::markdown_to_html(markdown),
+        html: parser::markdown_to_html_with_path(markdown, doc_path),
         toc: parser::extract_toc(markdown),
         word_count: parser::count_words(markdown),
     }

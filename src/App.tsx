@@ -578,6 +578,7 @@ const App: Component = () => {
           content={doc().content}
           renderedContent={doc().renderedContent}
           html={doc().html}
+          docPath={doc().path}
           externallyModified={doc().externallyModified}
           onReload={reloadCurrentFile}
           onRendered={(sourceContent, result) => {

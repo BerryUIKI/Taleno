@@ -1,11 +1,36 @@
 import { Component, createMemo, onMount, onCleanup } from "solid-js";
-import { currentDocument, updateDocumentContent } from "../../store/editor";
+import { currentDocument, updateDocumentContent, type TocEntry } from "../../store/editor";
 import { registerCodeFormatter, type FormatAction } from "../../lib/formatter";
+import { registerCodeHeadingRevealer } from "../../lib/headingNavigation";
 
 export const CodeView: Component = () => {
   let textareaRef!: HTMLTextAreaElement;
   let lineGutterRef!: HTMLDivElement;
   let isComposing = false;
+
+  const revealHeadingInCode = (_entry: TocEntry, index: number): boolean => {
+    const textarea = textareaRef;
+    if (!textarea) return false;
+
+    const lines = textarea.value.split("\n");
+    let headingCount = 0;
+    let charIndex = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (/^#{1,6}\s+/.test(line)) {
+        if (headingCount === index) {
+          textarea.focus();
+          textarea.setSelectionRange(charIndex, charIndex + line.length);
+          const lineHeight = 24;
+          textarea.scrollTop = Math.max(0, i * lineHeight - 60);
+          return true;
+        }
+        headingCount++;
+      }
+      charIndex += line.length + 1;
+    }
+    return false;
+  };
 
   const content = () => currentDocument().content;
   const lines = createMemo(() => content().split("\n"));
@@ -134,10 +159,12 @@ export const CodeView: Component = () => {
 
   onMount(() => {
     registerCodeFormatter(executeCodeFormat);
+    registerCodeHeadingRevealer(revealHeadingInCode);
   });
 
   onCleanup(() => {
     registerCodeFormatter(null);
+    registerCodeHeadingRevealer(null);
   });
 
   const handleKeyDown = (e: KeyboardEvent) => {
