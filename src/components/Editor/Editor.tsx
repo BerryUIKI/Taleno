@@ -35,7 +35,7 @@ import { listener, listenerCtx } from "@milkdown/plugin-listener";
 import { nord } from "@milkdown/theme-nord";
 import "@milkdown/theme-nord/style.css";
 import { currentDocument, updateDocumentContent } from "../../store/editor";
-import { registerWritingFormatter, type FormatAction } from "../../lib/formatter";
+import { registerWritingFormatter, registerWritingInserter, type FormatAction } from "../../lib/formatter";
 
 export const Editor: Component = () => {
   let containerRef!: HTMLDivElement;
@@ -105,8 +105,28 @@ export const Editor: Component = () => {
     }
   };
 
+  const insertTextInWriting = (text: string): boolean => {
+    if (!editorInstance) return false;
+    try {
+      let inserted = false;
+      editorInstance.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        if (!view) return;
+        const { state } = view;
+        const tr = state.tr.insertText(text, state.selection.from, state.selection.to);
+        view.dispatch(tr);
+        inserted = true;
+      });
+      return inserted;
+    } catch (err) {
+      console.warn("Writing insertText error:", err);
+      return false;
+    }
+  };
+
   onMount(async () => {
     registerWritingFormatter(executeFormat);
+    registerWritingInserter(insertTextInWriting);
 
     try {
       editorInstance = await MilkdownEditor.make()
@@ -171,6 +191,7 @@ export const Editor: Component = () => {
 
   onCleanup(async () => {
     registerWritingFormatter(null);
+    registerWritingInserter(null);
     if (editorInstance) {
       try {
         await editorInstance.destroy();
