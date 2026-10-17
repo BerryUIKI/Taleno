@@ -74,4 +74,3 @@ pub fn start_drag(window: Window) -> Result<(), String> {
         Ok(())
     }
 }
-

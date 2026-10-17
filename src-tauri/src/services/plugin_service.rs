@@ -1,3 +1,4 @@
+use super::package_paths;
 use crate::models::plugin::{PluginManifest, PluginRegistryResponse, RemotePlugin};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -76,6 +77,7 @@ pub async fn ensure_plugins_dir(app_handle: &tauri::AppHandle) -> Result<PathBuf
             .map_err(|e| format!("Failed to create plugins directory: {}", e))?;
     }
 
+    package_paths::validate_root(&plugins_dir)?;
     // Check if directory is empty; if so, create the sample starter plugin
     let mut entries = fs::read_dir(&plugins_dir)
         .await
@@ -88,7 +90,7 @@ pub async fn ensure_plugins_dir(app_handle: &tauri::AppHandle) -> Result<PathBuf
         .is_none();
     if is_empty {
         let sample_dir = plugins_dir.join(SAMPLE_PLUGIN_DIR);
-        if let Ok(_) = fs::create_dir_all(&sample_dir).await {
+        if fs::create_dir_all(&sample_dir).await.is_ok() {
             let _ = fs::write(sample_dir.join("manifest.json"), SAMPLE_PLUGIN_MANIFEST).await;
             let _ = fs::write(sample_dir.join("main.js"), SAMPLE_PLUGIN_SCRIPT).await;
         }
@@ -108,6 +110,7 @@ pub async fn scan_plugins_in_dir(plugins_dir: &Path) -> Result<Vec<PluginManifes
     if !plugins_dir.exists() {
         return Ok(Vec::new());
     }
+    package_paths::validate_root(plugins_dir)?;
 
     let mut manifests = Vec::new();
     let mut entries = fs::read_dir(plugins_dir)
@@ -116,8 +119,13 @@ pub async fn scan_plugins_in_dir(plugins_dir: &Path) -> Result<Vec<PluginManifes
 
     while let Some(entry) = entries.next_entry().await.map_err(|e| e.to_string())? {
         let path = entry.path();
-        if path.is_dir() {
-            let manifest_path = path.join("manifest.json");
+        if path.is_dir() && !entry.file_name().to_string_lossy().starts_with('.') {
+            let folder = entry.file_name().to_string_lossy().into_owned();
+            let manifest_path =
+                match package_paths::contained(plugins_dir, &format!("{folder}/manifest.json")) {
+                    Ok(path) => path,
+                    Err(_) => continue,
+                };
             if manifest_path.is_file() {
                 if let Ok(content) = fs::read_to_string(&manifest_path).await {
                     if let Ok(manifest) = serde_json::from_str::<PluginManifest>(&content) {
@@ -147,7 +155,10 @@ pub async fn read_plugin_source_from_dir(
 ) -> Result<String, String> {
     validate_plugin_id(plugin_id)?;
     if !plugins_dir.exists() {
-        return Err(format!("Plugins directory does not exist: {}", plugins_dir.display()));
+        return Err(format!(
+            "Plugins directory does not exist: {}",
+            plugins_dir.display()
+        ));
     }
 
     let mut entries = fs::read_dir(plugins_dir)
@@ -156,18 +167,30 @@ pub async fn read_plugin_source_from_dir(
 
     while let Some(entry) = entries.next_entry().await.map_err(|e| e.to_string())? {
         let path = entry.path();
-        if path.is_dir() {
-            let manifest_path = path.join("manifest.json");
+        if path.is_dir() && !entry.file_name().to_string_lossy().starts_with('.') {
+            let folder = entry.file_name().to_string_lossy().into_owned();
+            let manifest_path =
+                match package_paths::contained(plugins_dir, &format!("{folder}/manifest.json")) {
+                    Ok(path) => path,
+                    Err(_) => continue,
+                };
             if manifest_path.is_file() {
                 if let Ok(content) = fs::read_to_string(&manifest_path).await {
                     if let Ok(manifest) = serde_json::from_str::<PluginManifest>(&content) {
                         if manifest.id == plugin_id {
                             let entry_name = manifest.main.unwrap_or_else(|| "main.js".to_string());
-                            let script_file = path.join(&entry_name);
+                            let script_file = package_paths::contained(
+                                plugins_dir,
+                                &format!("{folder}/{entry_name}"),
+                            )?;
                             if script_file.is_file() {
-                                return fs::read_to_string(&script_file)
-                                    .await
-                                    .map_err(|e| format!("Failed to read script {}: {}", script_file.display(), e));
+                                return fs::read_to_string(&script_file).await.map_err(|e| {
+                                    format!(
+                                        "Failed to read script {}: {}",
+                                        script_file.display(),
+                                        e
+                                    )
+                                });
                             } else {
                                 return Err(format!(
                                     "Plugin entry file '{}' not found in {}",
@@ -276,8 +299,6 @@ pub async fn install_remote_plugin(
     entry_file: &str,
 ) -> Result<PluginManifest, String> {
     validate_plugin_id(plugin_id)?;
-    let plugins_dir = ensure_plugins_dir(app_handle).await?;
-
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(15))
         .build()
@@ -290,6 +311,7 @@ pub async fn install_remote_plugin(
     } else {
         entry_file
     };
+    package_paths::validate_entry(script_name)?;
     let script_url = format!("{}/{}", base, script_name);
 
     // Download manifest and entry script
@@ -306,32 +328,20 @@ pub async fn install_remote_plugin(
         ));
     }
 
-    // Atomic install using temporary folder
-    let temp_folder = plugins_dir.join(format!(".tmp_install_{}", plugin_id));
-    let target_folder = plugins_dir.join(plugin_id);
-
-    if temp_folder.exists() {
-        let _ = fs::remove_dir_all(&temp_folder).await;
+    let manifest_entry = parsed_manifest.main.as_deref().unwrap_or("main.js");
+    package_paths::validate_entry(manifest_entry)?;
+    if manifest_entry != script_name {
+        return Err("Manifest entry does not match the downloaded entry".into());
     }
-    fs::create_dir_all(&temp_folder)
-        .await
-        .map_err(|e| format!("Failed to create temporary install folder: {}", e))?;
-
-    fs::write(temp_folder.join("manifest.json"), &manifest_content)
-        .await
-        .map_err(|e| format!("Failed to write manifest.json: {}", e))?;
-    fs::write(temp_folder.join(script_name), &script_content)
-        .await
-        .map_err(|e| format!("Failed to write {}: {}", script_name, e))?;
-
-    // If target exists, delete it first
-    if target_folder.exists() {
-        let _ = fs::remove_dir_all(&target_folder).await;
-    }
-
-    fs::rename(&temp_folder, &target_folder)
-        .await
-        .map_err(|e| format!("Failed to finalize plugin installation: {}", e))?;
+    let plugins_dir = ensure_plugins_dir(app_handle).await?;
+    package_paths::install(
+        &plugins_dir,
+        plugin_id,
+        "manifest.json",
+        &manifest_content,
+        script_name,
+        &script_content,
+    )?;
 
     Ok(parsed_manifest)
 }
@@ -343,7 +353,7 @@ pub async fn uninstall_plugin(
 ) -> Result<(), String> {
     validate_plugin_id(plugin_id)?;
     let plugins_dir = ensure_plugins_dir(app_handle).await?;
-    let target_folder = plugins_dir.join(plugin_id);
+    let target_folder = package_paths::contained(&plugins_dir, plugin_id)?;
 
     if target_folder.exists() {
         fs::remove_dir_all(&target_folder)
@@ -407,6 +417,20 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(source, script_content);
+
+        let mut manifest: serde_json::Value = serde_json::from_str(manifest_content).unwrap();
+        manifest["main"] = serde_json::json!("../private.js");
+        fs::write(root.join("private.js"), "must not read")
+            .await
+            .unwrap();
+        fs::write(plugin_folder.join("manifest.json"), manifest.to_string())
+            .await
+            .unwrap();
+        assert!(
+            read_plugin_source_from_dir(root, "test-plugin-id")
+                .await
+                .is_err()
+        );
 
         let _ = fs::remove_dir_all(&temp_dir).await;
     }
