@@ -180,7 +180,7 @@ Taleno keeps your documents as **pure Markdown on disk** — portable, diffable,
 ## 💻 Developer Setup
 
 ### Prerequisites
-* [Node.js](https://nodejs.org/) 20+
+* [Node.js](https://nodejs.org/) ^22.22.2 || ^24.15.0 || >=26.0.0 (Node 24 LTS recommended)
 * [pnpm](https://pnpm.io/) 9+
 * [Rust](https://rustup.rs/) 1.85+
 * [Tauri Prerequisites](https://v2.tauri.app/start/prerequisites/)
@@ -199,11 +199,11 @@ pnpm tauri dev
 
 ### Tests & Verification
 ```bash
+# Strict TypeScript type check and linter
+pnpm lint
+
 # Run all Rust unit tests
 cargo test --manifest-path src-tauri/Cargo.toml
-
-# Strict TypeScript type check
-pnpm tsc --noEmit
 
 # Run frontend unit tests (Vitest)
 pnpm test
