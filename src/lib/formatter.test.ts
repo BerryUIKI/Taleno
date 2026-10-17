@@ -23,6 +23,21 @@ describe("Formatter Dispatcher", () => {
     dispatchFormat("paragraph");
     expect(writingMock).toHaveBeenCalledWith("paragraph");
 
+    dispatchFormat("link");
+    expect(writingMock).toHaveBeenCalledWith("link");
+
+    dispatchFormat("image");
+    expect(writingMock).toHaveBeenCalledWith("image");
+
+    dispatchFormat("task_list");
+    expect(writingMock).toHaveBeenCalledWith("task_list");
+
+    dispatchFormat("undo");
+    expect(writingMock).toHaveBeenCalledWith("undo");
+
+    dispatchFormat("redo");
+    expect(writingMock).toHaveBeenCalledWith("redo");
+
     registerWritingFormatter(null);
     registerCodeFormatter(null);
   });
@@ -41,6 +56,15 @@ describe("Formatter Dispatcher", () => {
 
     dispatchFormat("italic");
     expect(codeMock).toHaveBeenCalledWith("italic");
+
+    dispatchFormat("undo");
+    expect(codeMock).toHaveBeenCalledWith("undo");
+
+    dispatchFormat("redo");
+    expect(codeMock).toHaveBeenCalledWith("redo");
+
+    dispatchFormat("task_list");
+    expect(codeMock).toHaveBeenCalledWith("task_list");
 
     registerWritingFormatter(null);
     registerCodeFormatter(null);

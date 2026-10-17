@@ -1,4 +1,4 @@
-import { Component, createSignal, Show, onMount, onCleanup } from "solid-js";
+import { Component, createSignal, createEffect, Show, onMount, onCleanup } from "solid-js";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -18,9 +18,13 @@ import { WelcomeHub } from "./components/Home/WelcomeHub";
 import { UpdateModal } from "./components/Updater/UpdateModal";
 import { SettingsModal } from "./components/Settings/SettingsModal";
 import { CloseConfirmModal } from "./components/Tabs/CloseConfirmModal";
+import { FileErrorBanner } from "./components/ErrorNotification/FileErrorBanner";
 import type { SettingsTabId } from "./types/plugin";
 import { syncPlugins } from "./store/plugins";
 import { syncCustomThemes } from "./store/customThemes";
+import { reportFileError, clearFileError } from "./store/fileErrors";
+import { exportDocumentWorkflow } from "./lib/exportWorkflow";
+import { openWorkspaceFolderWorkflow } from "./lib/workspaceWorkflow";
 import { scheduleAutomaticUpdateCheck } from "./lib/updater";
 import { isMobile } from "./lib/platform";
 import {
@@ -45,7 +49,16 @@ import {
   syncCurrentDocumentToTab,
   setWorkspaceTree,
 } from "./store/files";
-import { zenMode, setZenMode, focusMode, setFocusMode } from "./store/settings";
+import {
+  zenMode,
+  setZenMode,
+  focusMode,
+  setFocusMode,
+  increaseFontSize,
+  decreaseFontSize,
+  resetFontSize,
+  fontSize,
+} from "./store/settings";
 import {
   openFile,
   saveFile,
@@ -112,19 +125,15 @@ const App: Component = () => {
 
   // Handle opening a workspace folder
   const handleOpenFolder = async () => {
-    try {
-      const selected = await open({
-        directory: true,
-        multiple: false,
+    const res = await openWorkspaceFolderWorkflow();
+    if (res.success) {
+      setSidebarOpen(true);
+    } else if (res.error) {
+      reportFileError({
+        type: "open",
+        message: `Failed to open workspace folder: ${res.error}`,
+        path: res.path,
       });
-
-      if (selected && typeof selected === "string") {
-        const tree = await listDirectoryTree(selected);
-        setWorkspaceTree(tree);
-        setSidebarOpen(true);
-      }
-    } catch (err) {
-      console.error("Failed to open folder:", err);
     }
   };
 
@@ -147,9 +156,52 @@ const App: Component = () => {
       markSaved(result);
       addOrSwitchTab(docState);
       setHomeVisible(false);
+      clearFileError();
       await startWatchingFile(path);
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      reportFileError({
+        type: "open",
+        message: `Failed to open ${path}: ${message}`,
+        path,
+        canRetry: false,
+      });
       console.error("Failed to open file:", err);
+    }
+  };
+
+  // Save As workflow
+  const saveCurrentFileAs = async (): Promise<boolean> => {
+    const doc = currentDocument();
+    try {
+      const selected = await save({
+        defaultPath: doc.filename.endsWith(".md")
+          ? doc.filename
+          : `${doc.filename}.md`,
+        filters: [
+          { name: "Markdown", extensions: ["md", "markdown", "mdx", "txt"] },
+        ],
+      });
+
+      if (selected && typeof selected === "string") {
+        const result = await saveFile(selected, doc.content);
+        markSaved(result);
+        syncCurrentDocumentToTab();
+        clearFileError();
+        await startWatchingFile(selected);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      reportFileError({
+        type: "save",
+        message: `Failed to Save As: ${message}`,
+        path: doc.path || doc.filename,
+        canRetry: true,
+      });
+      console.error("Failed to save file as:", err);
+      return false;
     }
   };
 
@@ -161,27 +213,19 @@ const App: Component = () => {
         const result = await saveFile(doc.path, doc.content);
         markSaved(result);
         syncCurrentDocumentToTab();
+        clearFileError();
         return true;
       } else {
-        const selected = await save({
-          defaultPath: doc.filename.endsWith(".md")
-            ? doc.filename
-            : `${doc.filename}.md`,
-          filters: [
-            { name: "Markdown", extensions: ["md", "markdown", "mdx", "txt"] },
-          ],
-        });
-
-        if (selected && typeof selected === "string") {
-          const result = await saveFile(selected, doc.content);
-          markSaved(result);
-          syncCurrentDocumentToTab();
-          await startWatchingFile(selected);
-          return true;
-        }
-        return false;
+        return await saveCurrentFileAs();
       }
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      reportFileError({
+        type: "save",
+        message: `Failed to save ${doc.filename}: ${message}`,
+        path: doc.path || doc.filename,
+        canRetry: true,
+      });
       console.error("Failed to save file:", err);
       return false;
     }
@@ -276,17 +320,15 @@ const App: Component = () => {
   // Handle exporting the current document to standalone HTML
   const handleExport = async () => {
     const doc = currentDocument();
-    try {
-      const selected = await save({
-        defaultPath: `${doc.filename.replace(/\.md$/, "")}.html`,
-        filters: [{ name: "HTML Document", extensions: ["html"] }],
+    const result = await exportDocumentWorkflow(doc);
+    if (result.success && result.outputPath) {
+      alert(`Exported document successfully to:\n${result.outputPath}`);
+    } else if (result.error) {
+      reportFileError({
+        type: "export",
+        message: `Failed to export document: ${result.error}`,
+        path: doc.filename,
       });
-      if (selected && typeof selected === "string") {
-        await exportDocument(doc.content, doc.filename, selected);
-        alert(`Exported document successfully to:\n${selected}`);
-      }
-    } catch (err) {
-      console.error("Export error:", err);
     }
   };
 
@@ -342,6 +384,18 @@ const App: Component = () => {
     cancelAutomaticUpdateCheck = scheduleAutomaticUpdateCheck();
     syncPlugins().catch((err) => console.warn("Plugin sync error:", err));
     syncCustomThemes().catch((err) => console.warn("Theme sync error:", err));
+  });
+
+  // Synchronize Zen Mode with native window fullscreen state
+  createEffect(() => {
+    const isZen = zenMode();
+    try {
+      getCurrentWindow().setFullscreen(isZen).catch((err) => {
+        console.warn("Failed to toggle native fullscreen for Zen Mode:", err);
+      });
+    } catch {
+      // In web or mock test environment
+    }
   });
 
   // Set up auto-save interval (every 30 seconds for dirty files with path)
@@ -463,9 +517,24 @@ const App: Component = () => {
   const handleKeyDown = (e: KeyboardEvent) => {
     const isCmd = e.ctrlKey || e.metaKey;
 
+    if (e.key === "Escape" && zenMode()) {
+      e.preventDefault();
+      setZenMode(false);
+      return;
+    }
+
     if (e.key === "F11" || (isCmd && e.shiftKey && (e.key === "Z" || e.key === "z"))) {
       e.preventDefault();
       setZenMode((prev) => !prev);
+    } else if (isCmd && (e.key === "=" || e.key === "+")) {
+      e.preventDefault();
+      increaseFontSize();
+    } else if (isCmd && (e.key === "-" || e.key === "_")) {
+      e.preventDefault();
+      decreaseFontSize();
+    } else if (isCmd && e.shiftKey && e.key === "0") {
+      e.preventDefault();
+      resetFontSize();
     } else if (isCmd && e.shiftKey && (e.key === "F" || e.key === "f")) {
       e.preventDefault();
       setSearchModalOpen((prev) => !prev);
@@ -602,6 +671,18 @@ const App: Component = () => {
       class={`flex flex-col h-screen relative ${zenMode() ? "zen-mode" : ""} ${focusMode() ? "focus-mode" : ""}`}
       style={{ background: "var(--color-bg-primary)", color: "var(--color-text-primary)" }}
     >
+      {/* Floating Exit Button for Zen Mode */}
+      <Show when={zenMode()}>
+        <button
+          class="fixed top-3 right-4 z-50 px-3 py-1.5 rounded-full text-xs font-medium bg-[var(--color-bg-secondary)]/90 hover:bg-[var(--color-hover)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] border border-[var(--color-border)] shadow-md backdrop-blur-xs transition-all flex items-center gap-1.5 opacity-60 hover:opacity-100"
+          onClick={() => setZenMode(false)}
+          title="Exit Zen Mode (Esc)"
+        >
+          <span>✕</span>
+          <span>Exit Zen Mode (Esc)</span>
+        </button>
+      </Show>
+
       {/* 1. MOBILE PORTRAIT LAYOUT */}
       <Show when={isMobileViewport()}>
         <MobileShell
@@ -768,6 +849,12 @@ const App: Component = () => {
 
       {/* GitHub Releases Update Modal */}
       <UpdateModal />
+
+      {/* Recoverable File Operation Error Banner */}
+      <FileErrorBanner
+        onRetrySave={handleSaveFile}
+        onSaveAs={saveCurrentFileAs}
+      />
     </div>
   );
 };

@@ -1,17 +1,130 @@
 import { Component, createMemo, onMount, onCleanup } from "solid-js";
 import { currentDocument, updateDocumentContent } from "../../store/editor";
+import { fontSize } from "../../store/settings";
 import { registerCodeFormatter, type FormatAction } from "../../lib/formatter";
+
+export interface HistorySnapshot {
+  content: string;
+  selectionStart: number;
+  selectionEnd: number;
+}
+
+export interface DocumentHistory {
+  past: HistorySnapshot[];
+  future: HistorySnapshot[];
+}
+
+const documentHistories = new Map<string, DocumentHistory>();
+
+export function getCodeViewHistory(docKey: string): DocumentHistory {
+  let hist = documentHistories.get(docKey);
+  if (!hist) {
+    hist = { past: [], future: [] };
+    documentHistories.set(docKey, hist);
+  }
+  return hist;
+}
+
+export function clearCodeViewHistory(docKey?: string) {
+  if (docKey) {
+    documentHistories.delete(docKey);
+  } else {
+    documentHistories.clear();
+  }
+}
 
 export const CodeView: Component = () => {
   let textareaRef!: HTMLTextAreaElement;
   let lineGutterRef!: HTMLDivElement;
   let isComposing = false;
+  let typingTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const currentDocKey = () =>
+    currentDocument().path || currentDocument().filename || "untitled";
+
+  const recordSnapshot = (textarea: HTMLTextAreaElement) => {
+    const key = currentDocKey();
+    const hist = getCodeViewHistory(key);
+    const snapshot: HistorySnapshot = {
+      content: textarea.value,
+      selectionStart: textarea.selectionStart,
+      selectionEnd: textarea.selectionEnd,
+    };
+    const last = hist.past[hist.past.length - 1];
+    if (!last || last.content !== snapshot.content) {
+      hist.past.push(snapshot);
+      if (hist.past.length > 100) {
+        hist.past.shift();
+      }
+    }
+    hist.future = [];
+  };
+
+  const performUndo = (textarea: HTMLTextAreaElement): boolean => {
+    const key = currentDocKey();
+    const hist = getCodeViewHistory(key);
+    if (hist.past.length === 0) return false;
+
+    const currentSnapshot: HistorySnapshot = {
+      content: textarea.value,
+      selectionStart: textarea.selectionStart,
+      selectionEnd: textarea.selectionEnd,
+    };
+    hist.future.push(currentSnapshot);
+
+    const prev = hist.past.pop()!;
+    textarea.value = prev.content;
+    textarea.setSelectionRange(prev.selectionStart, prev.selectionEnd);
+    textarea.focus();
+    updateDocumentContent(prev.content);
+    return true;
+  };
+
+  const performRedo = (textarea: HTMLTextAreaElement): boolean => {
+    const key = currentDocKey();
+    const hist = getCodeViewHistory(key);
+    if (hist.future.length === 0) return false;
+
+    const currentSnapshot: HistorySnapshot = {
+      content: textarea.value,
+      selectionStart: textarea.selectionStart,
+      selectionEnd: textarea.selectionEnd,
+    };
+    hist.past.push(currentSnapshot);
+
+    const next = hist.future.pop()!;
+    textarea.value = next.content;
+    textarea.setSelectionRange(next.selectionStart, next.selectionEnd);
+    textarea.focus();
+    updateDocumentContent(next.content);
+    return true;
+  };
 
   const content = () => currentDocument().content;
   const lines = createMemo(() => content().split("\n"));
 
   const handleInput = (e: InputEvent & { currentTarget: HTMLTextAreaElement }) => {
-    updateDocumentContent(e.currentTarget.value);
+    const target = e.currentTarget;
+    if (!typingTimer) {
+      const key = currentDocKey();
+      const hist = getCodeViewHistory(key);
+      const prevContent = currentDocument().content;
+      const last = hist.past[hist.past.length - 1];
+      if (!last || last.content !== prevContent) {
+        hist.past.push({
+          content: prevContent,
+          selectionStart: target.selectionStart,
+          selectionEnd: target.selectionEnd,
+        });
+        hist.future = [];
+      }
+    }
+    if (typingTimer) clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => {
+      typingTimer = null;
+    }, 500);
+
+    updateDocumentContent(target.value);
   };
 
   const handleCompositionStart = () => {
@@ -32,6 +145,17 @@ export const CodeView: Component = () => {
   const executeCodeFormat = (action: FormatAction) => {
     const textarea = textareaRef;
     if (!textarea) return;
+
+    if (action === "undo") {
+      performUndo(textarea);
+      return;
+    }
+    if (action === "redo") {
+      performRedo(textarea);
+      return;
+    }
+
+    recordSnapshot(textarea);
 
     const val = textarea.value;
     const start = textarea.selectionStart;
@@ -142,10 +266,28 @@ export const CodeView: Component = () => {
 
   const handleKeyDown = (e: KeyboardEvent) => {
     if (isComposing) return;
+    const isCmd = e.ctrlKey || e.metaKey;
+
+    if (isCmd && (e.key === "z" || e.key === "Z")) {
+      e.preventDefault();
+      if (e.shiftKey) {
+        performRedo(textareaRef);
+      } else {
+        performUndo(textareaRef);
+      }
+      return;
+    }
+
+    if (isCmd && (e.key === "y" || e.key === "Y")) {
+      e.preventDefault();
+      performRedo(textareaRef);
+      return;
+    }
 
     if (e.key === "Tab") {
       e.preventDefault();
       const textarea = textareaRef;
+      recordSnapshot(textarea);
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
       const val = textarea.value;
@@ -156,6 +298,8 @@ export const CodeView: Component = () => {
     }
   };
 
+  const dynamicLineHeight = () => `${Math.round(fontSize() * 1.5)}px`;
+
   return (
     <div class="h-full flex overflow-hidden font-mono text-sm bg-[var(--color-editor-bg)] text-[var(--color-text-primary)]">
       {/* Line Numbers Gutter (Synced Scroll) */}
@@ -165,7 +309,7 @@ export const CodeView: Component = () => {
         aria-hidden="true"
       >
         {lines().map((_, i) => (
-          <div style={{ height: "24px", "line-height": "24px" }}>{i + 1}</div>
+          <div style={{ height: dynamicLineHeight(), "line-height": dynamicLineHeight() }}>{i + 1}</div>
         ))}
       </div>
 
@@ -173,11 +317,11 @@ export const CodeView: Component = () => {
       <div class="flex-1 relative h-full overflow-hidden">
         <textarea
           ref={textareaRef}
-          class="w-full h-full p-6 outline-none resize-none bg-transparent font-mono text-sm border-0 overflow-y-auto block select-text focus:ring-0"
+          class="w-full h-full p-6 outline-none resize-none bg-transparent font-mono text-sm border-0 overflow-y-auto block select-text focus:ring-0 code-view-textarea"
           style={{
             "box-sizing": "border-box",
-            "line-height": "24px",
-            "font-size": "14px",
+            "line-height": dynamicLineHeight(),
+            "font-size": `${fontSize()}px`,
             "font-family": "Consolas, 'Cascadia Code', 'Fira Code', Menlo, Monaco, 'Courier New', monospace",
             "white-space": "pre-wrap",
             "word-break": "break-word",
