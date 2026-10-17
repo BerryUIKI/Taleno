@@ -8,7 +8,7 @@
 
 **Typora スタイルのローカルファースト、超高速 Markdown リーダー & インプレース WYSIWYG エディター。**
 
-<span style="font-size: 13px;">v0.1.6 リリース · AGPL-3.0 オープンソース</span>
+<span style="font-size: 13px;">v0.1.9 リリース · AGPL-3.0 オープンソース</span>
 
 [![Website](https://img.shields.io/badge/website-berryuiki.github.io%2FTaleno-4895ef.svg?style=for-the-badge)](https://berryuiki.github.io/Taleno/)
 [![Release](https://img.shields.io/badge/release-latest-4361ee.svg?style=for-the-badge)](https://github.com/BerryUIKI/Taleno/releases/latest)
@@ -94,10 +94,10 @@ OS とパッケージを選択してください：
 | 📂 **ワークスペースとタブ** | 複数ドキュメントタブ、再帰ファイルツリー CRUD、クイックスイッチャー (<kbd>Ctrl+P</kbd>) | ✅ 完了 |
 | 🌈 **コードシンタックスハイライト** | `syntect` による高速ハイライト、言語タグとコピーボタン付き | ✅ 完了 |
 | 📑 **動的目次** | 見出しから階層アウトラインを生成、全モードでスムーズスクロール | ✅ 完了 |
-| 📊 **Mermaid & 数式** | フローチャート、シーケンス図、クラス図、KaTeX 数式レンダリング | ✅ 完了 |
-| 🔍 **Ripgrep 全文検索** | ワークスペース全体の高速全文検索 (<kbd>Ctrl+Shift+F</kbd>) とドキュメント内検索・置換 (<kbd>Ctrl+F</kbd> / <kbd>Ctrl+H</kbd>) | ✅ 完了 |
+| 📊 **Mermaid & 数式レイアウト** | フローチャート、シーケンス図 (`mermaid`) とセリフ体 LaTeX 数式 (`math`/`katex`/`$$`) のコンテナ描画 | ✅ 完了 |
+| 🔍 **Rust ネイティブ全文検索** | Rust バックエンド再帰検索 (`src-tauri/src/commands/search.rs`) による行マッチ抽出 (<kbd>Ctrl+Shift+F</kbd>) とドキュメント内検索・置換 (<kbd>Ctrl+F</kbd> / <kbd>Ctrl+H</kbd>) | ✅ 完了 |
 | 📤 **単体 HTML エクスポート** | 自己完結のオフライン HTML にワンクリックエクスポート (<kbd>Ctrl+E</kbd>) | ✅ 完了 |
-| 🧩 **プラグインシステムと拡張性** | モジュール式プラグインエンジン、`%APPDATA%` ディレクトリ検出、ホットリロード、JS サンドボックス実行環境と設定サブメニュー (<kbd>Ctrl+Shift+X</kbd>) | ✅ 完了 |
+| 🧩 **プラグインシステムと拡張性** | モジュール式プラグインエンジン、標準アプリデータディレクトリ走査 (`plugins/`)、ホットリロード、JS サンドボックス実行環境と設定サブメニュー (<kbd>Ctrl+Shift+X</kbd>) | ✅ 完了 |
 
 *今後の計画は[ロードマップ](docs/ROADMAP.md)をご覧ください。*
 
@@ -266,7 +266,7 @@ Taleno は以下の素晴らしいオープンソースプロジェクトの上�
 - [pulldown-cmark](https://github.com/pulldown-cmark/pulldown-cmark) — ゼロコピー GFM AST パーサー
 - [syntect](https://github.com/trishume/syntect) — コードシンタックスハイライト
 - [notify](https://github.com/notify-rs/notify) — ファイルシステム監視
-- [ripgrep](https://github.com/BurntSushi/ripgrep) — 全文検索
+- [tokio](https://tokio.rs) — 非同期ランタイムとファイル検索
 - [Mermaid](https://mermaid.js.org) — ダイアグラム
 - [KaTeX](https://katex.org) — 数式レンダリング
 - [Tailwind CSS](https://tailwindcss.com) — ユーティリティファーストなスタイリング

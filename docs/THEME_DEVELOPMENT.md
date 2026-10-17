@@ -11,11 +11,11 @@ Themes in Taleno are divided into two distinct categories:
 1. **Built-in Themes**:
    - Included by default with the software (e.g., `Taleno`, `GitHub`, `Solarized`).
    - Require no installation, ship bundled with the app binary, and **cannot be uninstalled** via the GUI.
-   - Serve as reliable, offline fallback presets.
+   - Serve as reliable, offline fallback presets configured in core CSS design tokens.
 2. **External Themes (Community Skins)**:
    - Developed by the community and hosted exclusively in the [`BerryUIKI/Taleno-Plugins`](https://github.com/BerryUIKI/Taleno-Plugins) repository.
    - Users can freely choose to **install**, **apply**, or **uninstall** them on demand via options within the theme settings GUI.
-   - Stored in `%APPDATA%/Taleno/themes/<theme-id>/` on the user's machine.
+   - Stored in the application data directory (`com.berryuiki.taleno`) on the user's machine.
 
 > [!IMPORTANT]
 > All external themes and community skins must be submitted to the [`BerryUIKI/Taleno-Plugins`](https://github.com/BerryUIKI/Taleno-Plugins) repository. Please **do not** submit external themes to the core `Taleno` software repository.
@@ -26,10 +26,13 @@ Themes in Taleno are divided into two distinct categories:
 
 Taleno uses a design-token-driven CSS architecture. When an active theme is applied, Taleno dynamically overrides design tokens without restarting the app, modifying configuration files, or triggering full DOM reconstructs.
 
-Themes are stored in the user application data directory:
-- **Windows**: `%APPDATA%/Taleno/themes/<theme-id>/`
-- **macOS**: `~/Library/Application Support/Taleno/themes/<theme-id>/`
-- **Linux**: `~/.config/Taleno/themes/<theme-id>/`
+Themes are stored in the user application data directory derived from Tauri's bundle identifier (`com.berryuiki.taleno`):
+- **Windows**: `%APPDATA%\com.berryuiki.taleno\themes\<theme-id>\`
+- **macOS**: `~/Library/Application Support/com.berryuiki.taleno/themes/<theme-id>/`
+- **Linux**: `~/.local/share/com.berryuiki.taleno/themes/<theme-id>/` (or `$XDG_DATA_HOME/com.berryuiki.taleno/themes/<theme-id>/`)
+
+> [!TIP]
+> **Prefer In-App Navigation**: You do not need to construct or memorize paths manually. In Taleno, navigate to **Settings ➔ Theme** and click **"Open Themes Folder"**. The app automatically opens the exact platform-resolved directory using native OS shell integration.
 
 ---
 
@@ -130,7 +133,7 @@ body {
 ## 3. Local Development & Testing
 
 1. In Taleno, navigate to **File ➔ Preferences ➔ Settings** (<kbd>Ctrl+,</kbd>) and select the **Theme** tab.
-2. Scroll to the **Custom & Community Themes** section and click **"Open Themes Folder"**.
+2. Scroll to the **Custom & Community Themes** section and click **"Open Themes Folder"** to reveal your local themes directory.
 3. Create a folder matching your theme ID (e.g. `my-custom-theme/`).
 4. Place your `theme.json` and `theme.css` in that folder.
 5. In Taleno, your theme will immediately appear under **Installed Themes**. Click **"Apply"** to test your styles in real time.

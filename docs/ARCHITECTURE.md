@@ -356,11 +356,12 @@ Taleno adheres to strict **least-privilege** security practices enabled by Tauri
 Taleno provides a local-first, sandboxed plugin system enabling users and developers to extend editor capabilities, register custom commands, and add workspace tooling without altering core binaries.
 
 ### 9.1 Storage & Discovery
-Plugins are stored in the platform-standard application data directory:
-- **Windows**: `%APPDATA%/Taleno/plugins/<plugin-id>/`
-- **macOS**: `~/Library/Application Support/Taleno/plugins/<plugin-id>/`
-- **Linux**: `~/.config/Taleno/plugins/<plugin-id>/`
+Plugins are stored in the platform application data directory resolved from Tauri's bundle identifier (`com.berryuiki.taleno`):
+- **Windows**: `%APPDATA%\com.berryuiki.taleno\plugins\<plugin-id>\`
+- **macOS**: `~/Library/Application Support/com.berryuiki.taleno/plugins/<plugin-id>/`
+- **Linux**: `~/.local/share/com.berryuiki.taleno/plugins/<plugin-id>/` (or `$XDG_DATA_HOME/com.berryuiki.taleno/plugins/<plugin-id>/`)
 
+Users can reveal this directory directly from **Settings ➔ Plugins ➔ "Open Plugins Folder"** via native shell integration.
 On startup, the Rust backend `plugin_service` verifies this directory exists and automatically writes a documented starter plugin (`sample-timestamp`) if empty.
 
 ### 9.2 Plugin Manifest (`manifest.json`)
@@ -409,7 +410,7 @@ All commands, UI elements, and event listeners registered through `ctx` are trac
 - Official plugin registry and community submission hub: [BerryUIKI/Taleno-Plugins](https://github.com/BerryUIKI/Taleno-Plugins).
 
 ### 9.6 Custom Themes & Skins Architecture
-- Custom themes are managed under `%APPDATA%/Taleno/themes/<theme-id>/`.
+- Custom themes are managed under the identifier-derived application data directory (e.g. `%APPDATA%\com.berryuiki.taleno\themes\<theme-id>\` on Windows), accessible via the **"Open Themes Folder"** button in Settings.
 - Themes provide a `theme.json` metadata file and a `theme.css` token override stylesheet that dynamically configures the CSS variables on `:root` without full DOM re-renders or application restarts.
 - For complete theme styling instructions and palette references, see [Theme Development Handbook](THEME_DEVELOPMENT.md).
 
@@ -441,6 +442,35 @@ On mobile viewports (screen width < 768px):
 - **iOS Sandbox**: All user documents and assets default to the app container's `Documents/` folder. External documents accessed via the iOS Files app or iCloud Drive utilize security-scoped bookmark URLs.
 - **Android Storage Access Framework**: Scoped storage isolation is maintained via Android `content://` URIs and app-private internal storage directories.
 - **Atomic Operations**: The Rust `FileService` maintains crash-resilient atomic writes (`.tmp` write -> flush -> atomic rename) within resolved mobile sandbox directory boundaries.
+
+---
+
+## 11. Feature & Platform Implementation Status Matrix
+
+### 11.1 Core Feature Implementation Pathways
+
+| Component | Technology & Implementation Path | Architecture Details | Verification Status |
+| :--- | :--- | :--- | :---: |
+| **Markdown WYSIWYG Editor** | Milkdown v7 + ProseMirror | In-place editing, ProseMirror transactions, history stack | ✅ Production Ready |
+| **GFM AST Parser** | Rust `pulldown-cmark` crate (`services/parser.rs`) | Zero-copy AST traversal, slugified heading anchors | ✅ Production Ready |
+| **Syntax Highlighting** | Rust `syntect` crate (`services/highlighter.rs`) | Sublime syntax definitions, language badges, copy button | ✅ Production Ready |
+| **Diagram Containers** | Rust parser HTML wrapper (`services/parser.rs`) | Fenced `mermaid` code transformed into `.mermaid-diagram` container | ✅ Production Ready |
+| **Math Block Containers** | Rust parser HTML wrapper (`services/parser.rs`) | `math`/`katex` and `$$...$$` rendered into styled `.math-block` | ✅ Production Ready |
+| **Workspace Search** | Rust async recursive walker (`commands/search.rs`) | `tokio::fs` directory recursion, case-insensitive line matches | ✅ Production Ready |
+| **Crash-Safe File I/O** | Rust atomic tempfile writer (`services/fs_service.rs`) | `<filename>.tmp` write + buffer flush + atomic `fs::rename` | ✅ Production Ready |
+| **Plugin Runtime** | Sandboxed `TalenoPluginContext` | Isolated storage, lifecycle hooks, identifier-derived data path (`com.berryuiki.taleno/plugins/`) | ✅ Production Ready |
+| **Theme Runtime** | CSS variable token injector | Hot CSS variable overrides on `:root` via `theme.json` + `theme.css` | ✅ Production Ready |
+| **Cloud Synchronization** | *None (Intentionally omitted)* | 100% local-first architecture; zero telemetry or cloud lock-in | ⛔ Out of Scope |
+
+### 11.2 Target Platform Support Matrix
+
+| Platform | Target Architecture | Distribution Formats | Verification Status | Known Limitations & Notes |
+| :--- | :--- | :--- | :---: | :--- |
+| **Windows** | x86_64, aarch64 | NSIS Installer (`.exe`), WiX MSI (`.msi`) | ✅ Verified | Fully tested on Windows 10/11 local host and CI runners. |
+| **macOS** | Apple Silicon (`aarch64`), Intel (`x86_64`) | Apple Disk Image (`.dmg`), App Bundle (`.app`) | ⚠️ CI Verified | Compiles cleanly in GitHub Actions CI. Code signing and notarization require Apple Developer certificate (see [macOS Signing](MACOS_RELEASE_SIGNING.md)). |
+| **Linux** | x86_64, aarch64 | AppImage, Debian Package (`.deb`), RPM Package (`.rpm`) | ⚠️ CI Verified | Built in CI matrix. Requires system `webkit2gtk-4.1` and `gtk3` runtime libraries. |
+| **Android** | arm64-v8a, armeabi-v7a, x86_64 | Android Package (`.apk`), App Bundle (`.aab`) | 🔄 In Progress | Responsive single-column UI, navigation drawer, and visual viewport virtual keyboard scrolling implemented. Physical device hardware testing and SAF scoped storage validation pending. |
+| **iOS** | arm64 | iOS App Archive (`.ipa`) | 🔄 In Progress | Responsive mobile shell and safe-area insets implemented. Physical device testing and security-scoped bookmark sandbox validation pending. |
 
 
 

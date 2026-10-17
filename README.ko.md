@@ -8,7 +8,7 @@
 
 **Typora 스타일의 로컬 우선, 초고속 Markdown 리더 및 인플레이스 WYSIWYG 편집기.**
 
-<span style="font-size: 13px;">v0.1.6 출시 · AGPL-3.0 오픈소스</span>
+<span style="font-size: 13px;">v0.1.9 출시 · AGPL-3.0 오픈소스</span>
 
 [![Website](https://img.shields.io/badge/website-berryuiki.github.io%2FTaleno-4895ef.svg?style=for-the-badge)](https://berryuiki.github.io/Taleno/)
 [![Release](https://img.shields.io/badge/release-latest-4361ee.svg?style=for-the-badge)](https://github.com/BerryUIKI/Taleno/releases/latest)
@@ -94,9 +94,10 @@ Taleno의 실제 모습 — 메뉴 바, 다중 탭, 아웃라인 사이드바, �
 | 📂 **워크스페이스와 탭** | 다중 문서 탭, 재귀 파일 트리 CRUD, 퀵 스위처 (<kbd>Ctrl+P</kbd>) | ✅ 완료 |
 | 🌈 **코드 신택스 하이라이팅** | `syntect` 기반 고속 하이라이팅, 언어 태그와 복사 버튼 제공 | ✅ 완료 |
 | 📑 **동적 목차** | 제목에서 계층적 아웃라인 생성, 모든 모드에서 부드러운 스크롤 | ✅ 완료 |
-| 📊 **Mermaid 다이어그램 & 수식** | 플로우차트, 시퀀스 다이어그램, 클래스 다이어그램, KaTeX 수식 렌더링 | ✅ 완료 |
-| 🔍 **Ripgrep 전체 텍스트 검색** | 워크스페이스 전체 고속 검색 (<kbd>Ctrl+Shift+F</kbd>) 및 문서 내 찾기/바꾸기 (<kbd>Ctrl+F</kbd> / <kbd>Ctrl+H</kbd>) | ✅ 완료 |
+| 📊 **Mermaid 다이어그램 & 수식 레이아웃** | 플로우차트, 시퀀스 다이어그램 (`mermaid`) 및 세리프체 LaTeX 수식 (`math`/`katex`/`$$`) 컨테이너 렌더링 | ✅ 완료 |
+| 🔍 **Rust 네이티브 전체 검색** | Rust 백엔드 재귀 검색 (`src-tauri/src/commands/search.rs`) 기반 라인 일치 추출 (<kbd>Ctrl+Shift+F</kbd>) 및 문서 내 찾기/바꾸기 (<kbd>Ctrl+F</kbd> / <kbd>Ctrl+H</kbd>) | ✅ 완료 |
 | 📤 **단독 HTML 내보내기** | 자체 포함 오프라인 HTML로 원클릭 내보내기 (<kbd>Ctrl+E</kbd>) | ✅ 완료 |
+| 🧩 **플러그인 시스템 및 확장성** | 모듈식 확장 엔진, 표준 앱 데이터 디렉터리 탐색 (`plugins/`), 핫 리로드, JS 샌드박스 런타임 및 환경설정 하위 메뉴 (<kbd>Ctrl+Shift+X</kbd>) | ✅ 완료 |
 
 *향후 계획은 [로드맵](docs/ROADMAP.md)을 참조하세요.*
 
@@ -263,7 +264,7 @@ Taleno는 다음과 같은 훌륭한 오픈소스 프로젝트 위에 서 있습
 - [pulldown-cmark](https://github.com/pulldown-cmark/pulldown-cmark) — 제로 카피 GFM AST 파서
 - [syntect](https://github.com/trishume/syntect) — 코드 신택스 하이라이팅
 - [notify](https://github.com/notify-rs/notify) — 파일 시스템 감시
-- [ripgrep](https://github.com/BurntSushi/ripgrep) — 전체 텍스트 검색
+- [tokio](https://tokio.rs) — 비동기 런타임 및 파일 검색
 - [Mermaid](https://mermaid.js.org) — 다이어그램
 - [KaTeX](https://katex.org) — 수식 렌더링
 - [Tailwind CSS](https://tailwindcss.com) — 유틸리티 우선 스타일링

@@ -22,7 +22,7 @@ Taleno uses a **local-first, sandboxed extensibility model** designed to keep ed
 │                        Rust Native Backend Core                        │
 │                                                                        │
 │   [Plugin Service (src-tauri/src/services/plugin_service.rs)]          │
-│   ├── Resolves `%APPDATA%/Taleno/plugins/` directory                   │
+│   ├── Resolves identifier-derived app_data_dir `plugins/` directory     │
 │   ├── Validates `manifest.json` schemas & reads scripts                │
 │   ├── Fetches online registry from `BerryUIKI/Taleno-Plugins`          │
 │   └── Performs crash-resilient atomic downloads & installations        │
@@ -33,11 +33,14 @@ Taleno uses a **local-first, sandboxed extensibility model** designed to keep ed
 
 ## 2. Plugin Directory & File Structure
 
-Plugins live in individual folders inside the platform application data directory:
+Plugins live in individual folders inside the application data directory resolved by Tauri's native `app_data_dir()` from the bundle identifier (`com.berryuiki.taleno`):
 
-- **Windows**: `%APPDATA%\Taleno\plugins\<plugin-id>\`
-- **macOS**: `~/Library/Application Support/Taleno/plugins/<plugin-id>/`
-- **Linux**: `~/.config/Taleno/plugins/<plugin-id>/`
+- **Windows**: `%APPDATA%\com.berryuiki.taleno\plugins\<plugin-id>\`
+- **macOS**: `~/Library/Application Support/com.berryuiki.taleno/plugins/<plugin-id>/`
+- **Linux**: `~/.local/share/com.berryuiki.taleno/plugins/<plugin-id>/` (or `$XDG_DATA_HOME/com.berryuiki.taleno/plugins/<plugin-id>/`)
+
+> [!TIP]
+> **Prefer In-App Navigation**: You do not need to construct or locate paths manually. In Taleno, navigate to **Settings ➔ Plugins** and click **"Open Plugins Folder"**. The app automatically opens the exact platform-resolved directory using native OS shell integration.
 
 A standard plugin must contain at minimum:
 
@@ -180,7 +183,7 @@ Taleno's architecture prioritizes user data protection and stability:
 
 1. Open Taleno.
 2. Navigate to **File ➔ Preferences ➔ Plugins** (<kbd>Ctrl+Shift+X</kbd>).
-3. Click the **"Open Plugins Folder"** button to reveal `%APPDATA%/Taleno/plugins/`.
+3. Click the **"Open Plugins Folder"** button to automatically reveal the application data `plugins/` directory in your native file manager.
 4. Create a new folder (e.g. `my-awesome-plugin`) and add `manifest.json` and `main.js`.
 5. Return to Taleno and click **"Reload Plugins"**.
 6. Your new plugin will immediately appear in the list! Toggle it on and verify execution in DevTools (<kbd>Ctrl+Shift+I</kbd>).

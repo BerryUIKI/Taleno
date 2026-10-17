@@ -79,11 +79,14 @@ In a desktop document editor, unexpected power loss, application crashes, or ope
 Implement all document saves through an **Atomic File Write** service in Rust.
 
 ### Rationale
-- **Crash Resilience**: The file is first written to a temporary sibling file (`<filename>.tmp.Taleno`). Only after the write buffer is fully flushed and synced to disk does the OS atomically rename and replace the target file (`std::fs::rename`).
-- **Data Integrity**: If a failure occurs mid-write, the original document remains completely untouched and undamaged on disk.
+- **Atomic Replacement**: The file is first written to a temporary sibling file (`<path>.tmp`). Only after userspace buffers are flushed does the OS atomically rename and replace the target file (`tokio::fs::rename`). On NTFS, APFS, and ext4, atomic rename guarantees readers see either the intact pre-existing file or the completed new file, preventing torn or partially written documents.
+- **Process Crash Resilience**: If an application crash or write error occurs mid-write, the original document remains completely untouched on disk.
+- **Durability Distinction**: Atomic file replacement via buffer flush and rename protects against process crashes and write interruptions; confirmed hardware power-loss durability requires synchronous disk barriers (`sync_all`/`sync_data`), which carries significant I/O latency on rotating media and is distinguished from atomic replacement.
+- **Platform Behavior & Failure Handling**: Temporary sibling files reside in the same parent directory to ensure rename operations stay within the same filesystem mount. If writing or renaming fails (e.g. read-only volume, permissions error, or disk quota exhaustion), an `FsError` is returned to the frontend, leaving the original target file undamaged and keeping the document dirty in the editor.
 
 ### Consequences & Trade-offs
-- Requires write permissions in the target directory to create temporary sibling files.
+- Requires write permissions in the target directory to create sibling `.tmp` files.
+- Same-volume requirement: temporary sibling files must share the target filesystem mount for POSIX atomic rename semantics.
 - Negligible disk I/O overhead on save, vastly outweighed by data safety guarantees.
 
 ---
