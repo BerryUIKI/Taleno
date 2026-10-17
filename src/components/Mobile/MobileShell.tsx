@@ -9,6 +9,9 @@ interface MobileShellProps {
   children: JSX.Element;
   onOpenFile: (path: string) => Promise<void>;
   onNewDocument: () => void;
+  onSaveFile?: () => void;
+  onSaveFileAs?: () => void;
+  onCloseWindow?: () => void;
   onOpenQuickSwitcher: () => void;
 }
 
@@ -59,6 +62,9 @@ export const MobileShell: Component<MobileShellProps> = (props) => {
         onOpenOutline={() => setActiveSheet("outline")}
         onOpenSettings={() => setActiveSheet("settings")}
         onNewDocument={props.onNewDocument}
+        onSaveFile={props.onSaveFile}
+        onSaveFileAs={props.onSaveFileAs}
+        onCloseWindow={props.onCloseWindow}
       />
 
       {/* 2. Main Document Content Viewport */}
@@ -91,6 +97,8 @@ export const MobileShell: Component<MobileShellProps> = (props) => {
         onClose={() => setActiveSheet(null)}
         onOpenFile={props.onOpenFile}
         onNewDocument={props.onNewDocument}
+        onSaveFile={props.onSaveFile}
+        onSaveFileAs={props.onSaveFileAs}
       />
     </div>
   );

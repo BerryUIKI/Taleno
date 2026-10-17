@@ -11,6 +11,8 @@ interface MobileDrawerSheetProps {
   onClose: () => void;
   onOpenFile: (path: string) => Promise<void>;
   onNewDocument: () => void;
+  onSaveFile?: () => Promise<void> | void;
+  onSaveFileAs?: () => Promise<void> | void;
 }
 
 export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
@@ -119,6 +121,50 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
                 </div>
               </div>
             </Show>
+
+            {/* Quick Document Actions: Save & Save As */}
+            <div class="flex items-center gap-2 pt-1">
+              <button
+                class={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-semibold transition-all ${
+                  doc().isDirty
+                    ? "bg-[var(--color-accent)] text-white border-transparent shadow-xs"
+                    : "bg-[var(--color-bg-secondary)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                }`}
+                onClick={async () => {
+                  if (props.onSaveFile) {
+                    await props.onSaveFile();
+                  }
+                }}
+                aria-label={t("file.save")}
+              >
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" />
+                </svg>
+                <span>{t("file.save")}</span>
+                <Show when={doc().isDirty}>
+                  <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                </Show>
+              </button>
+
+              <button
+                class="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] text-xs font-semibold hover:bg-[var(--color-hover)] transition-all"
+                onClick={async () => {
+                  if (props.onSaveFileAs) {
+                    await props.onSaveFileAs();
+                  }
+                }}
+                aria-label={t("file.saveAs")}
+              >
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" />
+                </svg>
+                <span>{t("file.saveAs")}</span>
+              </button>
+            </div>
 
             {/* Workspace File Tree */}
             <div class="space-y-1.5 pt-2">

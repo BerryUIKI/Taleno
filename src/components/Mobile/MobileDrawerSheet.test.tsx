@@ -75,10 +75,12 @@ describe("MobileDrawerSheet", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it("renders localized files and workspace sheet", () => {
+  it("renders localized files and workspace sheet with Save and Save As actions", () => {
     setLocale("en-US");
     container = document.createElement("div");
     document.body.append(container);
+    const onSaveFile = vi.fn();
+    const onSaveFileAs = vi.fn();
 
     dispose = render(
       () => (
@@ -87,6 +89,8 @@ describe("MobileDrawerSheet", () => {
           onClose={vi.fn()}
           onOpenFile={vi.fn()}
           onNewDocument={vi.fn()}
+          onSaveFile={onSaveFile}
+          onSaveFileAs={onSaveFileAs}
         />
       ),
       container
@@ -95,5 +99,17 @@ describe("MobileDrawerSheet", () => {
     expect(container.textContent).toContain("Files & Workspace");
     expect(container.textContent).toContain("Workspace Files");
     expect(container.textContent).toContain("+ New Note");
+
+    const saveBtn = container.querySelector('button[aria-label="Save"]');
+    const saveAsBtn = container.querySelector('button[aria-label="Save As..."]');
+
+    expect(saveBtn).not.toBeNull();
+    expect(saveAsBtn).not.toBeNull();
+
+    (saveBtn as HTMLButtonElement).click();
+    expect(onSaveFile).toHaveBeenCalledOnce();
+
+    (saveAsBtn as HTMLButtonElement).click();
+    expect(onSaveFileAs).toHaveBeenCalledOnce();
   });
 });

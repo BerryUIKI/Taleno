@@ -153,6 +153,34 @@ const App: Component = () => {
     }
   };
 
+  // Handle saving current document to new location/filename via native document picker
+  const saveCurrentFileAs = async (): Promise<boolean> => {
+    const doc = currentDocument();
+    try {
+      const selected = await save({
+        defaultPath: doc.filename.endsWith(".md")
+          ? doc.filename
+          : `${doc.filename}.md`,
+        filters: [
+          { name: "Markdown", extensions: ["md", "markdown", "mdx", "txt"] },
+        ],
+      });
+
+      if (selected && typeof selected === "string") {
+        const result = await saveFile(selected, doc.content);
+        markSaved(result);
+        syncCurrentDocumentToTab();
+        await startWatchingFile(selected);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error("Failed to save file as:", err);
+      return false;
+    }
+  };
+  const handleSaveFileAs = createSingleFlight(saveCurrentFileAs);
+
   // Handle saving the current file (atomic write)
   const saveCurrentFile = async (): Promise<boolean> => {
     const doc = currentDocument();
@@ -163,23 +191,7 @@ const App: Component = () => {
         syncCurrentDocumentToTab();
         return true;
       } else {
-        const selected = await save({
-          defaultPath: doc.filename.endsWith(".md")
-            ? doc.filename
-            : `${doc.filename}.md`,
-          filters: [
-            { name: "Markdown", extensions: ["md", "markdown", "mdx", "txt"] },
-          ],
-        });
-
-        if (selected && typeof selected === "string") {
-          const result = await saveFile(selected, doc.content);
-          markSaved(result);
-          syncCurrentDocumentToTab();
-          await startWatchingFile(selected);
-          return true;
-        }
-        return false;
+        return await saveCurrentFileAs();
       }
     } catch (err) {
       console.error("Failed to save file:", err);
@@ -508,6 +520,9 @@ const App: Component = () => {
     } else if (isCmd && e.key === "o") {
       e.preventDefault();
       handleOpenFile();
+    } else if (isCmd && e.shiftKey && (e.key === "S" || e.key === "s")) {
+      e.preventDefault();
+      handleSaveFileAs();
     } else if (isCmd && e.key === "s") {
       e.preventDefault();
       handleSaveFile();
@@ -607,6 +622,9 @@ const App: Component = () => {
         <MobileShell
           onOpenFile={loadFile}
           onNewDocument={handleNewDocument}
+          onSaveFile={handleSaveFile}
+          onSaveFileAs={handleSaveFileAs}
+          onCloseWindow={handleRequestCloseWindow}
           onOpenQuickSwitcher={() => setQuickSwitcherOpen(true)}
         >
           {renderViewport()}
@@ -625,6 +643,7 @@ const App: Component = () => {
             onOpenFile={handleOpenFile}
             onOpenFolder={handleOpenFolder}
             onSaveFile={handleSaveFile}
+            onSaveFileAs={handleSaveFileAs}
             onExport={handleExport}
             onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
             onOpenQuickSwitcher={() => setQuickSwitcherOpen(true)}
