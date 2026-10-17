@@ -1,5 +1,5 @@
 use crate::services::parser;
-use std::path::Path;
+#[cfg(test)]
 use tokio::fs;
 
 /// Export markdown to a self-contained, standalone styled HTML document.
@@ -90,14 +90,7 @@ pub async fn export_to_html(markdown: &str, title: &str, output_path: &str) -> R
         title, body_html
     );
 
-    let path = Path::new(output_path);
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .await
-            .map_err(|e| e.to_string())?;
-    }
-
-    fs::write(path, full_html.as_bytes())
+    crate::services::fs_service::write_file_atomic(output_path, &full_html)
         .await
         .map_err(|e| e.to_string())?;
 

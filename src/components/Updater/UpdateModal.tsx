@@ -1,5 +1,4 @@
 import { Component, Show } from "solid-js";
-import { ask } from "@tauri-apps/plugin-dialog";
 import {
   downloadProgress,
   checkForUpdates,
@@ -10,7 +9,6 @@ import {
   updatePhase,
   isCheckingUpdate,
 } from "../../lib/updater";
-import { openTabs } from "../../store/files";
 import { t } from "../../i18n";
 
 export const UpdateModal: Component = () => {
@@ -18,15 +16,6 @@ export const UpdateModal: Component = () => {
   const busy = () => isCheckingUpdate() || updatePhase() !== "idle";
 
   const beginInstall = async () => {
-    if (openTabs().some((tab) => tab.document.isDirty)) {
-      const confirmed = await ask(t("update.unsavedMessage"), {
-        title: t("update.unsavedTitle"),
-        kind: "warning",
-        okLabel: t("update.discardAndInstall"),
-        cancelLabel: t("dialogs.cancel"),
-      });
-      if (!confirmed) return;
-    }
     await installPendingUpdate();
   };
 

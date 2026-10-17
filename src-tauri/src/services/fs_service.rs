@@ -1,8 +1,11 @@
 use crate::models::document::FileEntry;
 use std::path::Path;
+use std::sync::LazyLock;
 use thiserror::Error;
 use tokio::fs;
-use tokio::io::AsyncWriteExt;
+
+// Serialize Taleno writes/checks. External applications cannot participate in this lock.
+static SAVE_LOCK: LazyLock<tokio::sync::Mutex<()>> = LazyLock::new(|| tokio::sync::Mutex::new(()));
 
 #[derive(Error, Debug)]
 pub enum FsError {
@@ -26,21 +29,77 @@ pub async fn read_file(path: &str) -> Result<String, FsError> {
 /// 1. Write to a temporary file (.tmp)
 /// 2. Rename the temp file to the target path
 pub async fn write_file_atomic(path: &str, content: &str) -> Result<(), FsError> {
-    let target = Path::new(path);
-    let tmp_path = format!("{}.tmp", path);
-    let tmp = Path::new(&tmp_path);
+    let path = path.to_owned();
+    let content = content.to_owned();
+    tokio::task::spawn_blocking(move || atomic_replace(Path::new(&path), &content, || Ok(())))
+        .await
+        .map_err(std::io::Error::other)?
+}
 
-    if let Some(parent) = target.parent() {
-        fs::create_dir_all(parent).await?;
-    }
-
-    let mut file = fs::File::create(tmp).await?;
-    file.write_all(content.as_bytes()).await?;
-    file.flush().await?;
-    drop(file);
-
-    fs::rename(tmp, target).await?;
+/// Staging is exclusively created in the same directory. Only our own temp is cleaned up.
+fn atomic_replace(
+    target: &Path,
+    content: &str,
+    before_replace: impl FnOnce() -> Result<(), FsError>,
+) -> Result<(), FsError> {
+    use std::io::Write;
+    let parent = target
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    std::fs::create_dir_all(parent)?;
+    let mut temp = tempfile::Builder::new()
+        .prefix(".taleno-save-")
+        .tempfile_in(parent)?;
+    temp.write_all(content.as_bytes())?;
+    temp.flush()?;
+    temp.as_file().sync_all()?;
+    before_replace()?;
+    temp.persist(target).map_err(|e| e.error)?;
+    // Directory fsync is supported on Unix; Windows replacement uses tempfile's native path.
+    #[cfg(unix)]
+    std::fs::File::open(parent)?.sync_all()?;
     Ok(())
+}
+
+pub async fn read_optional_file(path: &str) -> Result<Option<String>, FsError> {
+    match fs::read_to_string(path).await {
+        Ok(content) => Ok(Some(content)),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(err) => Err(err.into()),
+    }
+}
+
+/// Compare the disk baseline both before staging and immediately before replacing.
+/// A missing baseline means a new destination; it never authorizes overwriting an existing file.
+pub async fn write_file_checked(
+    path: &str,
+    content: &str,
+    expected: Option<&str>,
+) -> Result<(), FsError> {
+    let _guard = SAVE_LOCK.lock().await;
+    let path = path.to_owned();
+    let content = content.to_owned();
+    let expected = expected.map(str::to_owned);
+    tokio::task::spawn_blocking(move || {
+        let check = || {
+            let actual = match std::fs::read_to_string(&path) {
+                Ok(value) => Some(value),
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => None,
+                Err(err) => return Err(FsError::IoError(err)),
+            };
+            if actual != expected {
+                return Err(FsError::IoError(std::io::Error::other(
+                    "SAVE_CONFLICT: disk content changed; Reload or Save As before retrying",
+                )));
+            }
+            Ok(())
+        };
+        check()?;
+        atomic_replace(Path::new(&path), &content, check)
+    })
+    .await
+    .map_err(std::io::Error::other)?
 }
 
 /// Recursively read a directory tree, sorting directories first and filtering out hidden/build folders.
@@ -113,16 +172,28 @@ pub async fn read_dir_tree(path: &str) -> Result<FileEntry, FsError> {
     Ok(entry)
 }
 
-/// Create a new file or directory.
-pub async fn create_file_entry(path: &str, is_dir: bool) -> Result<(), FsError> {
-    let p = Path::new(path);
+/// The UI supplies the parent and a single filename separately; names cannot escape the parent.
+pub async fn create_child(parent: &str, name: &str, is_dir: bool) -> Result<(), FsError> {
+    if name.is_empty()
+        || name == "."
+        || name == ".."
+        || name.contains(['/', '\\', ':', '\0'])
+        || name.ends_with(['.', ' '])
+    {
+        return Err(FsError::IoError(std::io::Error::other(
+            "Enter a single filename, without directories",
+        )));
+    }
+    let parent = fs::canonicalize(parent).await?;
+    let target = parent.join(name);
     if is_dir {
-        fs::create_dir_all(p).await?;
+        fs::create_dir(&target).await?;
     } else {
-        if let Some(parent) = p.parent() {
-            fs::create_dir_all(parent).await?;
-        }
-        let _ = fs::File::create(p).await?;
+        fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&target)
+            .await?;
     }
     Ok(())
 }
@@ -154,6 +225,92 @@ pub async fn rename_file_entry(old_path: &str, new_path: &str) -> Result<(), FsE
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn refuses_collisions_and_filename_escapes() {
+        let dir = tempfile::tempdir().unwrap();
+        let parent = dir.path().to_str().unwrap();
+        create_child(parent, "note.md", false).await.unwrap();
+        let target = dir.path().join("note.md");
+        fs::write(&target, "keep this").await.unwrap();
+        assert!(create_child(parent, "note.md", false).await.is_err());
+        for name in [
+            "../outside.md",
+            "a/b.md",
+            "..\\outside.md",
+            "C:other",
+            "/root",
+        ] {
+            assert!(create_child(parent, name, false).await.is_err());
+        }
+        assert_eq!(fs::read_to_string(target).await.unwrap(), "keep this");
+    }
+
+    #[tokio::test]
+    async fn unique_staging_preserves_siblings_under_concurrent_writers() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("note.md");
+        let path = path.to_str().unwrap();
+        fs::write(format!("{path}.tmp"), "unrelated").await.unwrap();
+        let (a, b) = tokio::join!(write_file_atomic(path, "A"), write_file_atomic(path, "B"));
+        a.unwrap();
+        b.unwrap();
+        assert!(["A", "B"].contains(&read_file(path).await.unwrap().as_str()));
+        assert_eq!(
+            read_file(&format!("{path}.tmp")).await.unwrap(),
+            "unrelated"
+        );
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 2);
+    }
+
+    #[tokio::test]
+    async fn checked_save_rejects_modified_deleted_or_unread_baselines() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("note.md");
+        let path = path.to_str().unwrap();
+        write_file_checked(path, "base", None).await.unwrap();
+        fs::write(path, "external").await.unwrap();
+        assert!(
+            write_file_checked(path, "local", Some("base"))
+                .await
+                .unwrap_err()
+                .to_string()
+                .contains("SAVE_CONFLICT")
+        );
+        assert!(write_file_checked(path, "local", None).await.is_err());
+        assert_eq!(read_file(path).await.unwrap(), "external");
+        // An explicit overwrite must capture a new baseline, rather than disable conflict checking.
+        write_file_checked(path, "local", Some("external"))
+            .await
+            .unwrap();
+        fs::remove_file(path).await.unwrap();
+        assert!(
+            write_file_checked(path, "local", Some("local"))
+                .await
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn failed_commit_keeps_original_and_cleans_only_owned_temporary_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("note.md");
+        std::fs::write(&target, "original").unwrap();
+        let error = atomic_replace(&target, "new", || {
+            Err(FsError::IoError(std::io::Error::other(
+                "injected pre-rename failure",
+            )))
+        });
+        assert!(error.is_err());
+        assert_eq!(std::fs::read_to_string(&target).unwrap(), "original");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+        // A rename to an existing directory fails, keeping it intact and removing our stage.
+        let directory = dir.path().join("directory");
+        std::fs::create_dir(&directory).unwrap();
+        assert!(atomic_replace(&directory, "new", || Ok(())).is_err());
+        assert!(directory.is_dir());
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 2);
+    }
 
     #[tokio::test]
     async fn test_atomic_write_and_read() {
