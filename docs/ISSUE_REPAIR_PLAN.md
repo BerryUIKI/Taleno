@@ -70,9 +70,10 @@ GitHub 当前清单为 **74 个开放 Issue：15 个 P1、50 个 P2、8 个 P3�
 ### B — 搜索服务边界
 
 - Issues：[#110](https://github.com/BerryUIKI/Taleno/issues/110)、[#111](https://github.com/BerryUIKI/Taleno/issues/111)、[#115](https://github.com/BerryUIKI/Taleno/issues/115)。
+- 交付 PR：[PR #137](https://github.com/BerryUIKI/Taleno/pull/137)（分支 `feature/search-service-bounds`）。
 - 依赖/顺序：先于全局搜索导航和 Quick Switcher 扩展。
-- 实施范围：把业务逻辑抽到 Rust service；定义符号链接/循环/根目录策略、深度和结果总上限；覆盖多个兄弟目录、拒绝读取和大目录。
-- 完成条件：下方逐 Issue 验收条件全部有证据；失败/无法验证项明确保留。
+- 实施范围：将全量文本搜索抽离为独立 Rust `services/search_service.rs`；建立严格符号链接及 Junction 根目录包含策略；采用规范化路径 `HashSet<PathBuf>` 防止无限递归与循环引用；限制递归深度 `MAX_DEPTH = 32` 与单文件 10MB；支持 `SearchOptions` 取消令牌；全局匹配上限 100 并在递归与同级目录立即终止扫描；在 `fs_service::read_dir_tree` 同步落地深度边界、根目录限制与循环链接保护；命令层返回强类型 `WorkspaceSearchResult`，并在前端 `SearchModal` 明确展示结果截断说明；补充 Rust 31 项单元测试与前端 `SearchModal.test.tsx`。
+- 完成条件：下方逐 Issue 验收条件全部验证通过。
 
 ### C — 插件运行边界
 
@@ -185,21 +186,21 @@ pnpm build
 
 **[#110](https://github.com/BerryUIKI/Taleno/issues/110) — [BUG] [P2] Bound workspace traversal and prevent directory-link cycles**
 
-- [ ] Define link policy and root containment.
-- [ ] Add cancellation and depth/size bounds or visited-path protection.
-- [ ] Test cycles, large trees and unreadable directories.
+- [x] Define link policy and root containment.（定义符号链接/Junction策略：规范化路径必须严格处于workspace根目录下，外部链接直接跳过）
+- [x] Add cancellation and depth/size bounds or visited-path protection.（`search_service`与`fs_service::read_dir_tree`均采用规范化路径`HashSet<PathBuf>`记录已访问目录防止循环链接，限制深度`MAX_DEPTH = 32`，单文件大小上限10MB，支持`SearchOptions`协作式取消）
+- [x] Test cycles, large trees and unreadable directories.（覆盖循环链接、外部逃逸、深度截断、不可读目录容错等全场景测试）
 
 **[#111](https://github.com/BerryUIKI/Taleno/issues/111) — [BUG] [P2] Enforce the workspace search result limit across all recursive directories**
 
-- [ ] Stop further recursion/scanning after the global cap.
-- [ ] Test multiple sibling/deep directories.
-- [ ] Expose deterministic truncated-result behavior.
+- [x] Stop further recursion/scanning after the global cap.（全局匹配达到100上限后立即退出递归和文件读取，不再扫描后续同级目录和深层目录）
+- [x] Test multiple sibling/deep directories.（新增多同级子目录各60项匹配测试，严格断言全局仅返回100项且不再递归第三个目录）
+- [x] Expose deterministic truncated-result behavior.（命令层返回`WorkspaceSearchResult { matches, truncated }`，`SearchModal`在命中上限时明确提示`(Results capped at 100 matches)`；新增`SearchModal.test.tsx`）
 
 **[#115](https://github.com/BerryUIKI/Taleno/issues/115) — [REFACTOR] [P3] Move workspace-search business logic from commands into a Rust service**
 
-- [ ] Extract search logic into services without frontend I/O.
-- [ ] Retain typed command responses.
-- [ ] Keep service tests for traversal, matching and limits.
+- [x] Extract search logic into services without frontend I/O.（将搜索逻辑完全自`commands/search.rs`抽取至`services/search_service.rs`，并在`services/mod.rs`注册）
+- [x] Retain typed command responses.（命令层保留并强化为强类型`WorkspaceSearchResult`及前端对应TS定义）
+- [x] Keep service tests for traversal, matching and limits.（`search_service`包含基础搜索、上限截断、深度限制、循环检测、根目录包含、取消令牌、空值处理等全套单元测试）
 
 ### C — 插件运行边界
 
