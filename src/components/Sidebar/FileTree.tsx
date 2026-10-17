@@ -150,26 +150,24 @@ export const FileTree: Component<FileTreeProps> = (props) => {
   const handleNewFile = async () => {
     const name = prompt("Enter new file name (e.g. note.md):");
     if (!name) return;
-    const sep = props.tree.path.includes("\\") ? "\\" : "/";
-    const newPath = `${props.tree.path}${sep}${name}`;
     try {
-      await createEntry(newPath, false);
+      await createEntry(props.tree.path, name, false);
       props.onRefresh();
     } catch (err) {
       console.error("Failed to create file:", err);
+      alert(`Could not create file. Choose a different name or check folder permissions.\n${String(err)}`);
     }
   };
 
   const handleNewFolder = async () => {
     const name = prompt("Enter new folder name:");
     if (!name) return;
-    const sep = props.tree.path.includes("\\") ? "\\" : "/";
-    const newPath = `${props.tree.path}${sep}${name}`;
     try {
-      await createEntry(newPath, true);
+      await createEntry(props.tree.path, name, true);
       props.onRefresh();
     } catch (err) {
       console.error("Failed to create folder:", err);
+      alert(`Could not create folder.\n${String(err)}`);
     }
   };
 
