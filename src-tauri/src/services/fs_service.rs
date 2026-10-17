@@ -1,5 +1,6 @@
 use crate::models::document::FileEntry;
-use std::path::Path;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 use thiserror::Error;
 use tokio::fs;
@@ -102,31 +103,60 @@ pub async fn write_file_checked(
     .map_err(std::io::Error::other)?
 }
 
+const MAX_DIR_TREE_DEPTH: usize = 32;
+
 /// Recursively read a directory tree, sorting directories first and filtering out hidden/build folders.
+///
+/// Enforces root containment, max depth bounds, and cycle prevention.
 pub async fn read_dir_tree(path: &str) -> Result<FileEntry, FsError> {
     let root = Path::new(path);
     if !root.exists() {
         return Err(FsError::NotFound(path.to_string()));
     }
 
-    let name = root
+    let canonical_root = match fs::canonicalize(root).await {
+        Ok(c) => c,
+        Err(_) => return Err(FsError::NotFound(path.to_string())),
+    };
+
+    let mut visited_dirs = HashSet::new();
+    visited_dirs.insert(canonical_root.clone());
+
+    read_dir_tree_bounded(path, root, &canonical_root, &mut visited_dirs, 0).await
+}
+
+async fn read_dir_tree_bounded(
+    display_path: &str,
+    current_path: &Path,
+    canonical_root: &Path,
+    visited_dirs: &mut HashSet<PathBuf>,
+    depth: usize,
+) -> Result<FileEntry, FsError> {
+    let name = current_path
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
-        .unwrap_or_else(|| path.to_string());
+        .unwrap_or_else(|| display_path.to_string());
 
-    let is_dir = root.is_dir();
+    let is_dir = current_path.is_dir();
     let mut entry = FileEntry {
         name,
-        path: path.to_string(),
+        path: display_path.to_string(),
         is_directory: is_dir,
         children: if is_dir { Some(Vec::new()) } else { None },
     };
 
     if is_dir {
-        let mut children = Vec::new();
-        let mut read_dir = fs::read_dir(root).await?;
+        if depth >= MAX_DIR_TREE_DEPTH {
+            return Ok(entry);
+        }
 
-        while let Some(child) = read_dir.next_entry().await? {
+        let mut children = Vec::new();
+        let mut read_dir = match fs::read_dir(current_path).await {
+            Ok(rd) => rd,
+            Err(_) => return Ok(entry),
+        };
+
+        while let Ok(Some(child)) = read_dir.next_entry().await {
             let child_path = child.path();
             let child_name = child.file_name().to_string_lossy().to_string();
 
@@ -142,10 +172,47 @@ pub async fn read_dir_tree(path: &str) -> Result<FileEntry, FsError> {
 
             let child_path_str = child_path.to_string_lossy().to_string();
             if child_path.is_dir() {
-                if let Ok(sub_tree) = Box::pin(read_dir_tree(&child_path_str)).await {
+                // Canonicalize to verify root containment and detect cycles
+                let canonical_child = match fs::canonicalize(&child_path).await {
+                    Ok(p) => p,
+                    Err(_) => continue,
+                };
+
+                // Root containment: cannot escape declared workspace root
+                if !canonical_child.starts_with(canonical_root) {
+                    continue;
+                }
+
+                // Cycle prevention: cannot re-visit an already visited directory
+                if !visited_dirs.insert(canonical_child.clone()) {
+                    continue;
+                }
+
+                if let Ok(sub_tree) = Box::pin(read_dir_tree_bounded(
+                    &child_path_str,
+                    &child_path,
+                    canonical_root,
+                    visited_dirs,
+                    depth + 1,
+                ))
+                .await
+                {
                     children.push(sub_tree);
                 }
             } else {
+                // For files, if it's a symlink, verify it doesn't escape the workspace root
+                if let Ok(file_type) = child.file_type().await {
+                    if file_type.is_symlink() {
+                        if let Ok(canonical_file) = fs::canonicalize(&child_path).await {
+                            if !canonical_file.starts_with(canonical_root) {
+                                continue;
+                            }
+                        } else {
+                            continue;
+                        }
+                    }
+                }
+
                 children.push(FileEntry {
                     name: child_name,
                     path: child_path_str,
@@ -346,5 +413,89 @@ mod tests {
         assert!(tree_res.children.is_some());
 
         let _ = fs::remove_dir_all(&temp_dir).await;
+    }
+
+    fn create_test_dir_link(target: &Path, link: &Path) -> bool {
+        #[cfg(windows)]
+        {
+            let output = std::process::Command::new("cmd")
+                .args(["/C", "mklink", "/J"])
+                .arg(link)
+                .arg(target)
+                .output();
+            match output {
+                Ok(out) => out.status.success(),
+                Err(_) => false,
+            }
+        }
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(target, link).is_ok()
+        }
+    }
+
+    #[tokio::test]
+    async fn test_read_dir_tree_prevents_cycles() {
+        let temp_dir = std::env::temp_dir().join("Taleno_test_tree_cycle");
+        let _ = fs::create_dir_all(&temp_dir).await;
+
+        let sub_dir = temp_dir.join("sub_folder");
+        fs::create_dir_all(&sub_dir).await.unwrap();
+        let _ = write_file_atomic(&sub_dir.join("note.md").to_string_lossy(), "content").await;
+
+        let link_path = sub_dir.join("cycle_link");
+        if create_test_dir_link(&temp_dir, &link_path) {
+            let tree = read_dir_tree(&temp_dir.to_string_lossy()).await;
+            assert!(tree.is_ok());
+            let tree_res = tree.unwrap();
+            assert!(tree_res.is_directory);
+
+            #[cfg(windows)]
+            let _ = std::process::Command::new("cmd")
+                .args(["/C", "rmdir"])
+                .arg(&link_path)
+                .output();
+            #[cfg(unix)]
+            let _ = fs::remove_file(&link_path).await;
+        }
+
+        let _ = fs::remove_dir_all(&temp_dir).await;
+    }
+
+    #[tokio::test]
+    async fn test_read_dir_tree_prevents_external_escape() {
+        let temp_dir = std::env::temp_dir().join("Taleno_test_tree_containment");
+        let outside_dir = std::env::temp_dir().join("Taleno_test_tree_outside");
+        let _ = fs::create_dir_all(&temp_dir).await;
+        let _ = fs::create_dir_all(&outside_dir).await;
+
+        let _ =
+            write_file_atomic(&outside_dir.join("outside.md").to_string_lossy(), "secret").await;
+
+        let escape_link = temp_dir.join("escape_link");
+        if create_test_dir_link(&outside_dir, &escape_link) {
+            let tree = read_dir_tree(&temp_dir.to_string_lossy()).await;
+            assert!(tree.is_ok());
+            let tree_res = tree.unwrap();
+            let children = tree_res.children.unwrap();
+            for child in &children {
+                if child.name == "escape_link" {
+                    assert!(
+                        child.children.is_none() || child.children.as_ref().unwrap().is_empty()
+                    );
+                }
+            }
+
+            #[cfg(windows)]
+            let _ = std::process::Command::new("cmd")
+                .args(["/C", "rmdir"])
+                .arg(&escape_link)
+                .output();
+            #[cfg(unix)]
+            let _ = fs::remove_file(&escape_link).await;
+        }
+
+        let _ = fs::remove_dir_all(&temp_dir).await;
+        let _ = fs::remove_dir_all(&outside_dir).await;
     }
 }

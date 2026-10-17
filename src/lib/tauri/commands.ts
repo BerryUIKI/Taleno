@@ -219,14 +219,19 @@ export interface SearchMatch {
   match_end: number;
 }
 
+export interface WorkspaceSearchResult {
+  matches: SearchMatch[];
+  truncated: boolean;
+}
+
 /**
  * Perform workspace full-text search.
  */
 export async function searchWorkspace(
   query: string,
   rootPath: string
-): Promise<SearchMatch[]> {
-  return invoke<SearchMatch[]>("search_workspace", {
+): Promise<WorkspaceSearchResult> {
+  return invoke<WorkspaceSearchResult>("search_workspace", {
     query,
     rootPath,
   });
