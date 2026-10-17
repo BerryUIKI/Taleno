@@ -3,17 +3,19 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      # Desktop release tags only (e.g. v0.1.9).
+      # Platform-specific mobile tags (vX.Y.Z-android, vX.Y.Z-ios) are routed separately.
+      - 'v[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag name (e.g. v0.1.6)'
+        description: 'Tag name (e.g. v0.1.9)'
         required: true
-        default: 'v0.1.6'
+        default: 'v0.1.9'
       release_name:
         description: 'Release title'
         required: false
-        default: 'Taleno v0.1.6'
+        default: 'Taleno v0.1.9'
 
 jobs:
   build-tauri:
@@ -71,6 +73,7 @@ jobs:
         run: node scripts/validate-release-version.mjs
         env:
           RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
+          RELEASE_PLATFORM: desktop
 
       - name: Verify macOS signing secrets
         if: matrix.platform == 'macos-latest'
