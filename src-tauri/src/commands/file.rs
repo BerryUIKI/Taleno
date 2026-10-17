@@ -19,9 +19,20 @@ pub async fn open_file(
     path: String,
     state: State<'_, AppState>,
 ) -> Result<OpenFileResponse, String> {
+    let _io = state.document_io.lock().await;
     let content = fs_service::read_file(&path)
         .await
         .map_err(|e| e.to_string())?;
+    let path = tokio::fs::canonicalize(path)
+        .await
+        .map_err(|e| e.to_string())?
+        .to_string_lossy()
+        .into_owned();
+    state
+        .disk_baselines
+        .lock()
+        .map_err(|e| e.to_string())?
+        .insert(path.clone(), content.clone());
 
     let html = parser::markdown_to_html(&content);
     let toc = parser::extract_toc(&content);
@@ -59,11 +70,23 @@ pub async fn open_file(
 pub async fn save_file(
     path: String,
     content: String,
+    expected_content: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<OpenFileResponse, String> {
-    fs_service::write_file_atomic(&path, &content)
+    let _io = state.document_io.lock().await;
+    fs_service::write_file_checked(&path, &content, expected_content.as_deref())
         .await
         .map_err(|e| e.to_string())?;
+    let path = tokio::fs::canonicalize(path)
+        .await
+        .map_err(|e| e.to_string())?
+        .to_string_lossy()
+        .into_owned();
+    state
+        .disk_baselines
+        .lock()
+        .map_err(|e| e.to_string())?
+        .insert(path.clone(), content.clone());
 
     let html = parser::markdown_to_html(&content);
     let toc = parser::extract_toc(&content);
@@ -93,6 +116,13 @@ pub async fn save_file(
         toc,
         word_count,
     })
+}
+
+#[tauri::command]
+pub async fn read_file_baseline(path: String) -> Result<Option<String>, String> {
+    fs_service::read_optional_file(&path)
+        .await
+        .map_err(|err| err.to_string())
 }
 
 /// Get the current active document state.
@@ -131,8 +161,12 @@ pub async fn list_directory_tree(
 
 /// Create a new file or directory in workspace.
 #[tauri::command]
-pub async fn create_entry(path: String, is_directory: bool) -> Result<(), String> {
-    fs_service::create_file_entry(&path, is_directory)
+pub async fn create_entry(
+    parent_path: String,
+    name: String,
+    is_directory: bool,
+) -> Result<(), String> {
+    fs_service::create_child(&parent_path, &name, is_directory)
         .await
         .map_err(|e| e.to_string())
 }
