@@ -30,6 +30,7 @@ export interface MenuBarProps {
   onOpenFile: () => void;
   onOpenFolder: () => void;
   onSaveFile: () => void;
+  onSaveFileAs?: () => void;
   onExport: () => void;
   onToggleSidebar: () => void;
   onOpenQuickSwitcher: () => void;
@@ -301,6 +302,14 @@ export const MenuBar: Component<MenuBarProps> = (props) => {
                 >
                   <span>{t("file.save")}</span>
                   <kbd class="text-[10px] text-[var(--color-text-secondary)] font-mono">Ctrl+S</kbd>
+                </button>
+
+                <button
+                  class="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--color-hover)] transition-colors text-left"
+                  onClick={() => { closeMenus(); props.onSaveFileAs?.(); }}
+                >
+                  <span>{t("file.saveAs")}</span>
+                  <kbd class="text-[10px] text-[var(--color-text-secondary)] font-mono">Ctrl+Shift+S</kbd>
                 </button>
 
                 <button

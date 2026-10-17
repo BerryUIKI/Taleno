@@ -9,30 +9,41 @@ interface MobileShellProps {
   children: JSX.Element;
   onOpenFile: (path: string) => Promise<void>;
   onNewDocument: () => void;
+  onSaveFile?: () => void;
+  onSaveFileAs?: () => void;
+  onCloseWindow?: () => void;
   onOpenQuickSwitcher: () => void;
 }
 
 export const MobileShell: Component<MobileShellProps> = (props) => {
   const [activeSheet, setActiveSheet] = createSignal<MobileSheetView>(null);
   const [isKeyboardVisible, setIsKeyboardVisible] = createSignal(false);
+  const [viewportHeight, setViewportHeight] = createSignal<number | null>(null);
+  const [viewportOffsetTop, setViewportOffsetTop] = createSignal<number>(0);
 
-  // Track virtual keyboard visibility via visualViewport API
-  const handleViewportResize = () => {
+  // Track virtual keyboard visibility and geometry via visualViewport API
+  const updateViewportGeometry = () => {
     if (typeof window !== "undefined" && window.visualViewport) {
-      const isKeyboard = window.visualViewport.height < window.innerHeight * 0.75;
+      const vv = window.visualViewport;
+      const isKeyboard = vv.height < window.innerHeight * 0.75;
       setIsKeyboardVisible(isKeyboard);
+      setViewportHeight(vv.height);
+      setViewportOffsetTop(vv.offsetTop || 0);
     }
   };
 
   onMount(() => {
     if (typeof window !== "undefined" && window.visualViewport) {
-      window.visualViewport.addEventListener("resize", handleViewportResize);
+      updateViewportGeometry();
+      window.visualViewport.addEventListener("resize", updateViewportGeometry);
+      window.visualViewport.addEventListener("scroll", updateViewportGeometry);
     }
   });
 
   onCleanup(() => {
     if (typeof window !== "undefined" && window.visualViewport) {
-      window.visualViewport.removeEventListener("resize", handleViewportResize);
+      window.visualViewport.removeEventListener("resize", updateViewportGeometry);
+      window.visualViewport.removeEventListener("scroll", updateViewportGeometry);
     }
   });
 
@@ -47,11 +58,14 @@ export const MobileShell: Component<MobileShellProps> = (props) => {
 
   return (
     <div
-      class="h-screen w-screen flex flex-col overflow-hidden relative"
+      class="w-screen flex flex-col overflow-hidden relative"
       style={{
+        height: viewportHeight() !== null ? `${viewportHeight()}px` : "100vh",
+        transform: viewportOffsetTop() > 0 ? `translateY(${viewportOffsetTop()}px)` : undefined,
         background: "var(--color-bg-primary)",
         color: "var(--color-text-primary)",
       }}
+      data-testid="mobile-shell"
     >
       {/* 1. Mobile Safe-Area Top Bar */}
       <MobileTopBar
@@ -59,6 +73,9 @@ export const MobileShell: Component<MobileShellProps> = (props) => {
         onOpenOutline={() => setActiveSheet("outline")}
         onOpenSettings={() => setActiveSheet("settings")}
         onNewDocument={props.onNewDocument}
+        onSaveFile={props.onSaveFile}
+        onSaveFileAs={props.onSaveFileAs}
+        onCloseWindow={props.onCloseWindow}
       />
 
       {/* 2. Main Document Content Viewport */}
@@ -91,6 +108,8 @@ export const MobileShell: Component<MobileShellProps> = (props) => {
         onClose={() => setActiveSheet(null)}
         onOpenFile={props.onOpenFile}
         onNewDocument={props.onNewDocument}
+        onSaveFile={props.onSaveFile}
+        onSaveFileAs={props.onSaveFileAs}
       />
     </div>
   );
