@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 /**
  * Validates that the active Node.js runtime meets the requirements of
  * locked frontend test dependencies (jsdom 30.0.1 requires ^22.22.2 || ^24.15.0 || >=26.0.0).

@@ -9,7 +9,16 @@ import {
   setMarkdownTheme,
   setTheme,
 } from "../../store/settings";
-import { plugins, setPluginFilterQuery, pluginSubTab, setPluginSubTab } from "../../store/plugins";
+import {
+  plugins,
+  setPlugins,
+  pluginErrors,
+  setPluginErrors,
+  setPluginFilterQuery,
+  pluginSubTab,
+  setPluginSubTab,
+} from "../../store/plugins";
+import type { PluginManifest } from "../../types/plugin";
 import {
   setInstalledThemes,
   setActiveTheme,
@@ -17,6 +26,29 @@ import {
   themeSubTab,
 } from "../../store/customThemes";
 import { SettingsModal } from "./SettingsModal";
+
+const TEST_PLUGINS: PluginManifest[] = [
+  {
+    id: "wordcount-pro",
+    name: "Word Count Pro",
+    version: "1.2.0",
+    description: "Advanced real-time document statistics.",
+    author: "Taleno Team",
+    enabled: true,
+    tags: ["analytics"],
+    permissions: ["editor:read", "commands"],
+  },
+  {
+    id: "katex-macros",
+    name: "KaTeX Math Macros",
+    version: "1.1.0",
+    description: "Custom LaTeX macro definitions.",
+    author: "Community",
+    enabled: false,
+    tags: ["math"],
+    permissions: ["editor:write", "commands"],
+  },
+];
 
 describe("SettingsModal", () => {
   let dispose: (() => void) | undefined;
@@ -27,6 +59,8 @@ describe("SettingsModal", () => {
     dispose = undefined;
     container?.remove();
     container = undefined;
+    setPlugins([]);
+    setPluginErrors({});
     setPluginFilterQuery("");
     setPluginSubTab("installed");
     setThemeSubTab("installed");
@@ -85,6 +119,7 @@ describe("SettingsModal", () => {
   });
 
   it("renders plugins tab with initialTab prop and toggles plugin state", () => {
+    setPlugins([...TEST_PLUGINS]);
     container = document.createElement("div");
     document.body.append(container);
 
@@ -119,6 +154,7 @@ describe("SettingsModal", () => {
   });
 
   it("filters plugins via search input", () => {
+    setPlugins([...TEST_PLUGINS]);
     container = document.createElement("div");
     document.body.append(container);
 
@@ -142,6 +178,47 @@ describe("SettingsModal", () => {
 
     expect(container.textContent).toContain("KaTeX Math Macros");
     expect(container.textContent).not.toContain("Word Count Pro");
+  });
+
+  it("renders actionable error when plugin fails to load", () => {
+    setPlugins([...TEST_PLUGINS]);
+    setPluginErrors({
+      "wordcount-pro": "Failed to read plugin source: manifest missing",
+    });
+    container = document.createElement("div");
+    document.body.append(container);
+
+    dispose = render(
+      () => (
+        <SettingsModal
+          isOpen={true}
+          initialTab="plugins"
+          onClose={() => undefined}
+        />
+      ),
+      container
+    );
+
+    expect(container.textContent).toContain("Failed to read plugin source: manifest missing");
+  });
+
+  it("renders empty state when no plugins are installed", () => {
+    setPlugins([]);
+    container = document.createElement("div");
+    document.body.append(container);
+
+    dispose = render(
+      () => (
+        <SettingsModal
+          isOpen={true}
+          initialTab="plugins"
+          onClose={() => undefined}
+        />
+      ),
+      container
+    );
+
+    expect(container.textContent).toContain("No plugins installed");
   });
 
   it("switches to marketplace tab and renders remote catalog", () => {

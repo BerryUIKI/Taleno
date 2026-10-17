@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import type { PluginManifest, RemotePlugin } from "../../types/plugin";
+import type { ThemeManifest, RemoteTheme } from "../../types/theme";
 
 export interface TocEntry {
   level: number;
@@ -240,8 +242,8 @@ export async function searchWorkspace(
 /**
  * List all installed plugins from the user's plugins directory.
  */
-export async function listPlugins(): Promise<any[]> {
-  return invoke<any[]>("list_plugins");
+export async function listPlugins(): Promise<PluginManifest[]> {
+  return invoke<PluginManifest[]>("list_plugins");
 }
 
 /**
@@ -261,8 +263,8 @@ export async function readPluginSource(pluginId: string): Promise<string> {
 /**
  * Fetch the list of available plugins from BerryUIKI/Taleno-Plugins registry.
  */
-export async function fetchMarketplacePlugins(): Promise<any[]> {
-  return invoke<any[]>("fetch_marketplace_plugins");
+export async function fetchMarketplacePlugins(): Promise<RemotePlugin[]> {
+  return invoke<RemotePlugin[]>("fetch_marketplace_plugins");
 }
 
 /**
@@ -272,8 +274,8 @@ export async function installPlugin(
   pluginId: string,
   rawBaseUrl: string,
   entryFile?: string
-): Promise<any> {
-  return invoke<any>("install_plugin", {
+): Promise<PluginManifest> {
+  return invoke<PluginManifest>("install_plugin", {
     pluginId,
     rawBaseUrl,
     entryFile,
@@ -294,8 +296,8 @@ export async function updatePlugin(
   pluginId: string,
   rawBaseUrl: string,
   entryFile?: string
-): Promise<any> {
-  return invoke<any>("update_plugin", {
+): Promise<PluginManifest> {
+  return invoke<PluginManifest>("update_plugin", {
     pluginId,
     rawBaseUrl,
     entryFile,
@@ -305,8 +307,8 @@ export async function updatePlugin(
 /**
  * List all installed custom themes.
  */
-export async function listThemes(): Promise<any[]> {
-  return invoke<any[]>("list_themes");
+export async function listThemes(): Promise<ThemeManifest[]> {
+  return invoke<ThemeManifest[]>("list_themes");
 }
 
 /**
@@ -326,8 +328,8 @@ export async function openThemesFolder(): Promise<void> {
 /**
  * Fetch available themes from the remote registry.
  */
-export async function fetchMarketplaceThemes(): Promise<any[]> {
-  return invoke<any[]>("fetch_marketplace_themes");
+export async function fetchMarketplaceThemes(): Promise<RemoteTheme[]> {
+  return invoke<RemoteTheme[]>("fetch_marketplace_themes");
 }
 
 /**
@@ -337,8 +339,8 @@ export async function installTheme(
   themeId: string,
   rawBaseUrl: string,
   entryFile?: string
-): Promise<any> {
-  return invoke<any>("install_theme", {
+): Promise<ThemeManifest> {
+  return invoke<ThemeManifest>("install_theme", {
     themeId,
     rawBaseUrl,
     entryFile,

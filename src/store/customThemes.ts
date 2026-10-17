@@ -95,7 +95,7 @@ export const syncCustomThemes = async () => {
   try {
     let list: ThemeManifest[] = [];
     try {
-      list = (await listThemes()) as ThemeManifest[];
+      list = await listThemes();
     } catch {
       list = [];
     }
@@ -121,7 +121,7 @@ export const fetchThemes = async () => {
   setIsFetchingThemes(true);
   setThemeError(null);
   try {
-    const items = (await fetchMarketplaceThemes()) as RemoteTheme[];
+    const items = await fetchMarketplaceThemes();
     setMarketplaceThemes(items);
   } catch (err: any) {
     console.warn("[ThemeStore] Failed to fetch themes marketplace:", err);
