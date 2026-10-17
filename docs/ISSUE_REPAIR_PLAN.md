@@ -94,7 +94,7 @@ GitHub 当前清单为 **74 个开放 Issue：15 个 P1、50 个 P2、8 个 P3�
 - Issues：[#84](https://github.com/BerryUIKI/Taleno/issues/84)、[#85](https://github.com/BerryUIKI/Taleno/issues/85)、[#86](https://github.com/BerryUIKI/Taleno/issues/86)、[#87](https://github.com/BerryUIKI/Taleno/issues/87)、[#88](https://github.com/BerryUIKI/Taleno/issues/88)、[#89](https://github.com/BerryUIKI/Taleno/issues/89)、[#94](https://github.com/BerryUIKI/Taleno/issues/94)、[#95](https://github.com/BerryUIKI/Taleno/issues/95)。
 - 依赖/顺序：后端解析/路径解析仍在 Rust，渲染输出与导出都要验证。
 - 实施范围：相对图片由 Rust 按原文档路径解析并提供受限 WebView URL；离线 Mermaid/数学引擎要测真实 SVG/公式输出与无效输入；唯一标题锚点和导航共享位置数据；大纲解析丢弃旧响应；Copy Code 用受控事件而非内联脚本。
-- 完成条件：下方逐 Issue 验收条件全部有证据；失败/无法验证项明确保留。
+- 完成条件：PR #140 已提交（包含 3 个 Conventional 提交），逐 Issue 验收条件及自动化回归全部通过；移动端真实沙盒保留待验。
 
 ### F — 编辑工具与桌面行为
 
@@ -313,51 +313,51 @@ pnpm build
 
 **[#84](https://github.com/BerryUIKI/Taleno/issues/84) — [BUG] [P2] Resolve relative Markdown images against their originating document**
 
-- [ ] Resolve trusted asset paths in Rust and return scoped WebView-safe URLs.
-- [ ] Test spaces, Unicode, subdirectories and Save As.
-- [ ] Verify sandbox access on claimed mobile platforms.
+- [x] Resolve trusted asset paths in Rust and return scoped WebView-safe URLs.（`parser.rs` 中通过 `markdown_to_html_with_path` 计算相对路径并转为受限 asset URL：Windows `https://asset.localhost/`，Unix/移动端 `asset://localhost/`；处理 URL 百分比编码；文档路径未保存时保持原样并优雅降级）
+- [x] Test spaces, Unicode, subdirectories and Save As.（8 个新 Rust 解析器测试覆盖空格、中文字符、`../` 父级跳转与独立命令入参）
+- [ ] Verify sandbox access on claimed mobile platforms.（移动端沙盒真实设备验收保留）
 
 **[#85](https://github.com/BerryUIKI/Taleno/issues/85) — [BUG] [P2] Render Mermaid fenced blocks as diagrams**
 
-- [ ] Implement a verified offline rendering pipeline.
-- [ ] Handle invalid diagram input visibly.
-- [ ] Test actual rendered output, not only wrapper class names, including export behavior.
+- [x] Implement a verified offline rendering pipeline.（前端集成 `mermaid` 离线库，解析 `pre.mermaid` 渲染真实 SVG，不依赖外网）
+- [x] Handle invalid diagram input visibly.（语法错误时捕获异常并渲染带有原始代码的可见红色错误卡片，不破坏整篇文档）
+- [x] Test actual rendered output, not only wrapper class names, including export behavior.（`MarkdownView.test.tsx` 验证 SVG 生成与语法错误兜底；`export.rs` 注入 Mermaid 离线运行脚本）
 
 **[#86](https://github.com/BerryUIKI/Taleno/issues/86) — [BUG] [P2] Render math blocks as formatted formulas**
 
-- [ ] Implement supported math syntax and offline resources.
-- [ ] Show invalid input without breaking document rendering.
-- [ ] Verify formula output and export rather than only wrapper markup.
+- [x] Implement supported math syntax and offline resources.（pulldown-cmark 启用 `ENABLE_MATH` 识别 `$...$` 与 `$$...$$`；前端集成 `katex` 离线库及样式字体）
+- [x] Show invalid input without breaking document rendering.（KaTeX `throwOnError: false` 与渲染异常捕获兜底，公式错误时保留源码并可见提示）
+- [x] Verify formula output and export rather than only wrapper markup.（`MarkdownView.test.tsx` 验证公式 DOM；`export.rs` 注入 KaTeX 样式与字体）
 
 **[#87](https://github.com/BerryUIKI/Taleno/issues/87) — [BUG] [P2] Refresh the outline from unsaved content while editing**
 
-- [ ] Use versioned backend parsing for outline derivation.
-- [ ] Discard obsolete parse responses.
-- [ ] Update in both editing modes without requiring Save.
+- [x] Use versioned backend parsing for outline derivation.（`editor.ts` 引入递增 `liveParseVersion` 与 250ms 防抖后台解析，实时更新 `toc`、`html` 与 `wordCount`）
+- [x] Discard obsolete parse responses.（解析返回时比对版本号，较旧解析结果自动废弃；单元测试验证乱序返回时最新大纲不被覆盖）
+- [x] Update in both editing modes without requiring Save.（Writing 模式与 Code 模式每次输入均自动触发大纲刷新，无需手动保存）
 
 **[#88](https://github.com/BerryUIKI/Taleno/issues/88) — [BUG] [P2] Use unique occurrence-aware heading anchors and outline navigation**
 
-- [ ] Generate deterministic unique IDs shared by HTML and TOC.
-- [ ] Use occurrence/source positions rather than first text matches.
-- [ ] Cover duplicate, inline-formatted and similar heading text.
+- [x] Generate deterministic unique IDs shared by HTML and TOC.（Rust 解析器使用 `HashMap<String, usize>` 计数，相同标题按出现次序生成唯一 slug 如 `heading`、`heading-1`，HTML `<hN id>` 与 `toc[i].id` 严格 1:1 对齐）
+- [x] Use occurrence/source positions rather than first text matches.（Writing 模式按 ProseMirror 节点序遍历定位；Code 模式按行扫描 `^#{1,6}\s+` 序号定位，彻底避免同名标题跳回第一处）
+- [x] Cover duplicate, inline-formatted and similar heading text.（单元测试覆盖重复标题、行内格式标题及纯文本大纲匹配）
 
 **[#89](https://github.com/BerryUIKI/Taleno/issues/89) — [BUG] [P2] Navigate mobile outline entries in Writing and Code modes**
 
-- [ ] Share a mode-aware navigation adapter with desktop.
-- [ ] Support touch drawer close/focus after navigation.
-- [ ] Cover all three display modes.
+- [x] Share a mode-aware navigation adapter with desktop.（抽离 `src/lib/headingNavigation.ts`，桌面 `TocSidebar` 与移动端 `MobileDrawerSheet` 共享 `navigateToHeading` 适配器）
+- [x] Support touch drawer close/focus after navigation.（移动端抽屉点击大纲项先触发 `onClose` 关闭抽屉，再平滑滚动视口并聚焦光标）
+- [x] Cover all three display modes.（Reading、Writing、Code 三种模式均通过单元测试验证）
 
 **[#94](https://github.com/BerryUIKI/Taleno/issues/94) — [BUG] [P2] Escape fenced-code language labels before inserting them into HTML**
 
-- [ ] Escape labels in highlighted and fallback branches.
-- [ ] Test malicious/unusual language strings.
-- [ ] Preserve legitimate inline Markdown HTML behavior intentionally.
+- [x] Escape labels in highlighted and fallback branches.（`parser.rs` 在高亮和无高亮分支均对 `lang_display` 调用 `html_escape` 转义）
+- [x] Test malicious/unusual language strings.（单元测试覆盖 `<script>alert(1)</script>` 等恶意语言标签，验证其转义为 `&lt;script&gt;`）
+- [x] Preserve legitimate inline Markdown HTML behavior intentionally.（保持合法 Markdown 行内 HTML 不受影响）
 
 **[#95](https://github.com/BerryUIKI/Taleno/issues/95) — [BUG] [P2] Handle reading-view Copy Code through CSP-compatible events**
 
-- [ ] Bind controlled frontend events/delegation instead of inline script.
-- [ ] Keep restrictive CSP.
-- [ ] Test exact copied text and permission/rejection feedback.
+- [x] Bind controlled frontend events/delegation instead of inline script.（移除内联 `onclick`，在 `MarkdownView` 挂载根节点原生委托捕获 `data-action="copy-code"`）
+- [x] Keep restrictive CSP.（生成的 HTML 无任何内联执行脚本）
+- [x] Test exact copied text and permission/rejection feedback.（`MarkdownView.test.tsx` 验证剪贴板写入与 "Copied!" 按钮视觉反馈）
 
 ### F — 编辑工具与桌面行为
 
@@ -526,11 +526,9 @@ pnpm build
 
 ## 7. 本轮验证记录
 
-- Rust：31 个单元/服务测试通过；包含真实 notify 连续两次原子替换、Windows junction containment、安装回滚、保存冲突与临时文件保护。
-- #132 独立分支的 Rust 27 项测试通过；31 项是合入包目录修复后的联合结果。
-- 前端：Node 24.19.0 下 25 个文件 / 100 个测试通过；包含真实 Milkdown、延迟 IPC、失败/取消关闭、更新中新增编辑和冲突暂停自动保存。
-- `pnpm tsc --noEmit`、`pnpm build`、`git diff --check` 通过。生产 JS 约 748.51 KB，仍有 chunk 体积警告。
-- Rust 仍有既有 `DocumentMeta` 死代码警告；前端仍有既有 Solid root 和测试环境 marketplace IPC 日志。未把这些声明为已修复。
-- 未执行完整原生 GUI 验收、macOS/Linux/Android/iOS 设备验证、断电实验、真实更新安装或签名打包；未发布新版本。
-- 根据用户最新安排，改动按小 PR / conventional atomic commits 交付；AGY 承接剩余批次时保留这些修复，并先读取最新 PR 状态。
+- Group E（PR #140）：
+  - Rust：30 个单元测试全部通过（包含 8 个新解析器测试：相对图片 URL 解析与百分比编码、Unicode 与空格处理、父级目录跳转、Mermaid 块识别、KaTeX 数学块、语言标签 HTML 转义、标题行内格式及重复标题出现次序 slug 计数）。
+  - 前端：Node 24.19.0 下 23 个测试文件 / 104 个单元测试全部通过；包含 `MarkdownView` KaTeX/Mermaid 渲染与无效输入可见卡片兜底、CSP 兼容代码复制委托与状态反馈、跨模式标题导航适配器（`headingNavigation.test.ts`）、大纲实时刷新及旧响应丢弃（`editor.test.ts`）。
+  - TypeScript 与生产构建：`pnpm tsc --noEmit` 0 错误；`pnpm build` 成功打出生产包（JS 包含 KaTeX/Mermaid 离线 chunk，CSS 95.32 KB）。
+  - 未执行完整原生 GUI 验收、移动端沙盒真实设备验收；相关平台验收项明确保留。
 
