@@ -10,6 +10,7 @@ interface MobileShellProps {
   onOpenFile: (path: string) => Promise<void>;
   onNewDocument: () => void;
   onOpenQuickSwitcher: () => void;
+  onCloseTab?: (id: string) => void;
 }
 
 export const MobileShell: Component<MobileShellProps> = (props) => {
@@ -87,6 +88,7 @@ export const MobileShell: Component<MobileShellProps> = (props) => {
 
       {/* 4. Bottom Sheet Modal (Files / Outline / Settings) */}
       <MobileDrawerSheet
+        onCloseTab={props.onCloseTab}
         view={activeSheet()}
         onClose={() => setActiveSheet(null)}
         onOpenFile={props.onOpenFile}

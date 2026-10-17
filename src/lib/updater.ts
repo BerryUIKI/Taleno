@@ -6,6 +6,8 @@ import {
 } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { getVersion } from "@tauri-apps/api/app";
+import { ask } from "@tauri-apps/plugin-dialog";
+import { hasUnsavedDocuments, openTabs } from "../store/files";
 import { automaticUpdateChecks } from "../store/settings";
 import { t } from "../i18n";
 
@@ -197,9 +199,22 @@ export async function installPendingUpdate(): Promise<void> {
   setDownloadProgress(0);
   let downloaded = 0;
   let total = 0;
+  let authorizedSnapshot = "";
+  const authorize = async () => {
+    if (!hasUnsavedDocuments()) return true;
+    const snapshot = JSON.stringify(openTabs().map((tab) => [tab.id, tab.instance, tab.document.content, tab.document.isDirty]));
+    if (snapshot === authorizedSnapshot) return true;
+    const confirmed = await ask(t("update.unsavedMessage"), {
+      title: t("update.unsavedTitle"), kind: "warning",
+      okLabel: t("update.discardAndInstall"), cancelLabel: t("dialogs.cancel"),
+    });
+    if (confirmed) authorizedSnapshot = snapshot;
+    return confirmed;
+  };
 
   try {
-    await pendingUpdate.downloadAndInstall((event: DownloadEvent) => {
+    if (!await authorize()) { setUpdatePhase("idle"); return; }
+    await pendingUpdate.download((event: DownloadEvent) => {
       if (event.event === "Started") {
         total = event.data.contentLength || 0;
       } else if (event.event === "Progress") {
@@ -211,9 +226,12 @@ export async function installPendingUpdate(): Promise<void> {
         }
       } else if (event.event === "Finished") {
         setDownloadProgress(100);
-        setUpdatePhase("installing");
       }
     });
+    if (!await authorize()) { setUpdatePhase("idle"); return; }
+    setUpdatePhase("installing");
+    await pendingUpdate.install();
+    if (!await authorize()) { setUpdatePhase("idle"); return; }
     await relaunch();
   } catch (error) {
     console.error("Update installation failed:", error);

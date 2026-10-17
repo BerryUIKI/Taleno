@@ -4,11 +4,18 @@
   "description": "A seamless in-place WYSIWYG Markdown reader-editor built on Tauri + Rust",
   "type": "module",
   "license": "AGPL-3.0-only",
+  "packageManager": "pnpm@10.5.2",
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0",
+    "pnpm": ">=9.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "lint": "tsc --noEmit",
+    "pretest": "node scripts/check-node-version.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test"
@@ -31,6 +38,7 @@
     "solid-js": "^1.9.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/vite": "^4.1.11",
     "@tauri-apps/cli": "^2.5.0",
     "@types/jsdom": "^30.0.0",
