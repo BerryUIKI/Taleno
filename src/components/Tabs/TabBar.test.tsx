@@ -1,7 +1,7 @@
 import { render } from "solid-js/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TabBar } from "./TabBar";
-import { addOrSwitchTab, openTabs } from "../../store/files";
+import { addOrSwitchTab, openTabs, setOpenTabs, setActiveTabId } from "../../store/files";
 
 vi.mock("../../lib/tauri/commands", () => ({
   startDrag: vi.fn(),
@@ -12,10 +12,8 @@ describe("TabBar", () => {
   let container: HTMLDivElement | undefined;
 
   beforeEach(() => {
-    // Clear tabs or add a test tab
-    openTabs().forEach((tab) => {
-      // Clean tabs if needed
-    });
+    setOpenTabs([]);
+    setActiveTabId(null);
   });
 
   afterEach(() => {

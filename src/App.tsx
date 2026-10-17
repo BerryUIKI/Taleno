@@ -23,6 +23,7 @@ import { syncPlugins } from "./store/plugins";
 import { syncCustomThemes } from "./store/customThemes";
 import { scheduleAutomaticUpdateCheck } from "./lib/updater";
 import { isMobile } from "./lib/platform";
+import { revealMatchAt } from "./lib/formatter";
 import {
   currentDocument,
   setCurrentDocument,
@@ -129,7 +130,7 @@ const App: Component = () => {
   };
 
   // Load a file by path
-  const loadFile = async (path: string) => {
+  const loadFile = async (path: string, lineNumber?: number, _lineContent?: string) => {
     try {
       await stopWatchingFile();
       const result = await openFile(path);
@@ -148,6 +149,23 @@ const App: Component = () => {
       addOrSwitchTab(docState);
       setHomeVisible(false);
       await startWatchingFile(path);
+
+      if (lineNumber !== undefined && lineNumber > 0) {
+        setTimeout(() => {
+          let start = 0;
+          let end = 0;
+          const lines = result.content.split("\n");
+          if (lineNumber <= lines.length) {
+            let offset = 0;
+            for (let i = 0; i < lineNumber - 1; i++) {
+              offset += lines[i].length + 1; // newline
+            }
+            start = offset;
+            end = offset + lines[lineNumber - 1].length;
+          }
+          revealMatchAt(start, end, lineNumber);
+        }, 50);
+      }
     } catch (err) {
       console.error("Failed to open file:", err);
     }
