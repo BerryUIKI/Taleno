@@ -1,7 +1,8 @@
-import { Component, createSignal, createMemo, createEffect, For, Show, onMount, onCleanup } from "solid-js";
+import { Component, createSignal, createMemo, createEffect, For, Show, onCleanup } from "solid-js";
 import { openTabs, quickSwitcherOpen, setQuickSwitcherOpen, selectTab, workspaceTree } from "../../store/files";
 import type { Tab } from "../../store/files";
 import type { FileEntry } from "../../lib/tauri/commands";
+import { pluginRuntime, type PluginCommand } from "../../lib/plugins/runtime";
 
 export interface QuickSwitcherProps {
   onOpenFileByPath: (path: string) => void;
@@ -21,6 +22,13 @@ export type QuickSwitcherItem =
       title: string;
       subtitle: string;
       path: string;
+    }
+  | {
+      type: "command";
+      id: string;
+      title: string;
+      subtitle: string;
+      command: PluginCommand;
     };
 
 function collectWorkspaceFiles(
@@ -104,10 +112,19 @@ export const QuickSwitcher: Component<QuickSwitcherProps> = (props) => {
       path: f.path,
     }));
 
-    return [...tabItems, ...fileItems];
+    const commands = pluginRuntime.getRegisteredCommands();
+    const commandItems: QuickSwitcherItem[] = commands.map((c) => ({
+      type: "command",
+      id: `command-${c.id}`,
+      title: c.title,
+      subtitle: c.shortcut || c.id,
+      command: c,
+    }));
+
+    return [...tabItems, ...fileItems, ...commandItems];
   });
 
-  const filteredItems = createMemo(() => {
+  const filteredItems = createMemo<QuickSwitcherItem[]>(() => {
     const q = query().toLowerCase().trim();
     const items = allItems();
     if (!q) return items;
@@ -121,8 +138,14 @@ export const QuickSwitcher: Component<QuickSwitcherProps> = (props) => {
   const handleSelect = (item: QuickSwitcherItem) => {
     if (item.type === "tab") {
       selectTab(item.tab.id);
-    } else {
+    } else if (item.type === "workspaceFile") {
       props.onOpenFileByPath(item.path);
+    } else if (item.type === "command") {
+      try {
+        item.command.run();
+      } catch (err) {
+        console.error(`[PluginCommand] Execution error for ${item.command.id}:`, err);
+      }
     }
     setQuickSwitcherOpen(false);
   };
@@ -205,7 +228,7 @@ export const QuickSwitcher: Component<QuickSwitcherProps> = (props) => {
                   : undefined
               }
               class="w-full bg-transparent outline-none text-sm placeholder:opacity-40"
-              placeholder="Search open tabs and workspace files... (Esc to close)"
+              placeholder="Search open tabs, workspace files, or commands... (Esc to close)"
               value={query()}
               onInput={(e) => {
                 setQuery(e.currentTarget.value);
@@ -226,7 +249,7 @@ export const QuickSwitcher: Component<QuickSwitcherProps> = (props) => {
               when={filteredItems().length > 0}
               fallback={
                 <div class="p-4 text-center text-xs opacity-50">
-                  No matching files found.
+                  No matching files or commands found.
                 </div>
               }
             >
@@ -246,18 +269,44 @@ export const QuickSwitcher: Component<QuickSwitcherProps> = (props) => {
                       onClick={() => handleSelect(item)}
                       onMouseEnter={() => setSelectedIndex(idx())}
                     >
-                      <div class="flex items-center gap-2 truncate">
-                        <span>{item.type === "tab" ? "📝" : "📁"}</span>
-                        <span class="font-medium truncate">{item.title}</span>
-                        <Show when={item.type === "workspaceFile"}>
-                          <span class="text-[9px] uppercase px-1 py-0.2 rounded bg-[var(--color-bg-secondary)] border border-[var(--color-border)] opacity-60">
-                            Workspace
+                      {item.type === "tab" ? (
+                        <>
+                          <div class="flex items-center gap-2 truncate">
+                            <span>📝</span>
+                            <span class="font-medium truncate">{item.title}</span>
+                          </div>
+                          <span class="opacity-40 truncate max-w-44 text-[10px] font-mono">
+                            {item.subtitle}
                           </span>
-                        </Show>
-                      </div>
-                      <span class="opacity-40 truncate max-w-44 text-[10px] font-mono">
-                        {item.subtitle}
-                      </span>
+                        </>
+                      ) : item.type === "workspaceFile" ? (
+                        <>
+                          <div class="flex items-center gap-2 truncate">
+                            <span>📁</span>
+                            <span class="font-medium truncate">{item.title}</span>
+                            <span class="text-[9px] uppercase px-1 py-0.2 rounded bg-[var(--color-bg-secondary)] border border-[var(--color-border)] opacity-60">
+                              Workspace
+                            </span>
+                          </div>
+                          <span class="opacity-40 truncate max-w-44 text-[10px] font-mono">
+                            {item.subtitle}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <div class="flex items-center gap-2 truncate">
+                            <span class="px-1.5 py-0.5 rounded bg-[var(--color-accent)]/10 text-[var(--color-accent)] font-mono text-[9px] font-semibold border border-[var(--color-accent)]/20 uppercase tracking-wider">
+                              Plugin
+                            </span>
+                            <span class="font-medium truncate">{item.command.title}</span>
+                          </div>
+                          <Show when={item.command.shortcut}>
+                            <span class="px-1.5 py-0.5 rounded bg-[var(--color-hover)] border border-[var(--color-border)] text-[10px] font-mono opacity-70">
+                              {item.command.shortcut}
+                            </span>
+                          </Show>
+                        </>
+                      )}
                     </div>
                   );
                 }}

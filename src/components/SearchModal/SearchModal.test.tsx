@@ -22,6 +22,7 @@ describe("SearchModal Component", () => {
     dispose = undefined;
     container?.remove();
     container = undefined;
+    setWorkspaceTree(null);
     vi.restoreAllMocks();
   });
 
@@ -81,33 +82,37 @@ describe("SearchModal Component", () => {
   });
 
   it("discards obsolete search responses when a newer query is triggered", async () => {
-    let callCount = 0;
     vi.spyOn(tauriCommands, "searchWorkspace").mockImplementation(async (query: string, _rootPath: string) => {
-      callCount++;
       if (query === "slow") {
         // Delayed resolution
         await new Promise((r) => setTimeout(r, 200));
-        return [
+        return {
+          matches: [
+            {
+              file_name: "slow.md",
+              file_path: "/mock/slow.md",
+              line_number: 1,
+              line_content: "Old slow match",
+              match_start: 0,
+              match_end: 3,
+            },
+          ],
+          truncated: false,
+        };
+      }
+      return {
+        matches: [
           {
-            file_name: "slow.md",
-            file_path: "/mock/slow.md",
-            line_number: 1,
-            line_content: "Old slow match",
+            file_name: "fast.md",
+            file_path: "/mock/fast.md",
+            line_number: 2,
+            line_content: "New fast match",
             match_start: 0,
             match_end: 3,
           },
-        ];
-      }
-      return [
-        {
-          file_name: "fast.md",
-          file_path: "/mock/fast.md",
-          line_number: 2,
-          line_content: "New fast match",
-          match_start: 0,
-          match_end: 3,
-        },
-      ];
+        ],
+        truncated: false,
+      };
     });
 
     container = document.createElement("div");
@@ -130,7 +135,7 @@ describe("SearchModal Component", () => {
     input.value = "slow";
     input.dispatchEvent(new Event("input", { bubbles: true }));
 
-    // Wait 160ms so the debounce triggers and searchWorkspace("slow") starts
+    // Wait 160ms so debounce triggers and searchWorkspace("slow") starts
     await new Promise((r) => setTimeout(r, 160));
 
     // Immediately trigger newer fast search
@@ -140,33 +145,36 @@ describe("SearchModal Component", () => {
     // Wait for fast search to debounce and resolve
     await new Promise((r) => setTimeout(r, 200));
 
-    // Wait for the slow search to also finish in the background
+    // Wait for slow search to also finish
     await new Promise((r) => setTimeout(r, 200));
 
-    // Container should contain "fast.md" and NOT "slow.md" because slow was obsolete
+    // Container should contain fast.md and NOT slow.md
     expect(container.textContent).toContain("fast.md");
     expect(container.textContent).not.toContain("slow.md");
   });
 
   it("supports keyboard navigation with ArrowDown/ArrowUp and accessible options", async () => {
-    vi.spyOn(tauriCommands, "searchWorkspace").mockResolvedValue([
-      {
-        file_name: "doc1.md",
-        file_path: "/mock/doc1.md",
-        line_number: 10,
-        line_content: "First match content",
-        match_start: 0,
-        match_end: 5,
-      },
-      {
-        file_name: "doc2.md",
-        file_path: "/mock/doc2.md",
-        line_number: 20,
-        line_content: "Second match content",
-        match_start: 0,
-        match_end: 6,
-      },
-    ]);
+    vi.spyOn(tauriCommands, "searchWorkspace").mockResolvedValue({
+      matches: [
+        {
+          file_name: "doc1.md",
+          file_path: "/mock/doc1.md",
+          line_number: 10,
+          line_content: "First match content",
+          match_start: 0,
+          match_end: 5,
+        },
+        {
+          file_name: "doc2.md",
+          file_path: "/mock/doc2.md",
+          line_number: 20,
+          line_content: "Second match content",
+          match_start: 0,
+          match_end: 6,
+        },
+      ],
+      truncated: false,
+    });
 
     container = document.createElement("div");
     document.body.append(container);
@@ -205,16 +213,19 @@ describe("SearchModal Component", () => {
   });
 
   it("selects active result and navigates to line on Enter", async () => {
-    vi.spyOn(tauriCommands, "searchWorkspace").mockResolvedValue([
-      {
-        file_name: "doc1.md",
-        file_path: "/mock/doc1.md",
-        line_number: 42,
-        line_content: "Target match on line 42",
-        match_start: 0,
-        match_end: 6,
-      },
-    ]);
+    vi.spyOn(tauriCommands, "searchWorkspace").mockResolvedValue({
+      matches: [
+        {
+          file_name: "doc1.md",
+          file_path: "/mock/doc1.md",
+          line_number: 42,
+          line_content: "Target match on line 42",
+          match_start: 0,
+          match_end: 6,
+        },
+      ],
+      truncated: false,
+    });
 
     const onSelectResult = vi.fn();
     const onClose = vi.fn();
@@ -245,6 +256,63 @@ describe("SearchModal Component", () => {
       "/mock/doc1.md",
       42,
       "Target match on line 42"
+    );
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("displays search results and explains truncation when capped", async () => {
+    const mockMatches = [
+      {
+        file_path: "/mock/workspace/doc1.md",
+        file_name: "doc1.md",
+        line_number: 10,
+        line_content: "Found query_target here",
+        match_start: 6,
+        match_end: 18,
+      },
+    ];
+
+    vi.spyOn(tauriCommands, "searchWorkspace").mockResolvedValue({
+      matches: mockMatches,
+      truncated: true,
+    });
+
+    const onSelectResult = vi.fn();
+    const onClose = vi.fn();
+
+    container = document.createElement("div");
+    document.body.append(container);
+
+    dispose = render(
+      () => (
+        <SearchModal
+          isOpen={true}
+          onClose={onClose}
+          onSelectResult={onSelectResult}
+        />
+      ),
+      container
+    );
+
+    const input = container.querySelector<HTMLInputElement>('input[role="combobox"]')!;
+    input.value = "query_target";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    await new Promise((r) => setTimeout(r, 200));
+
+    expect(container.textContent).toContain("Found 1 match");
+    expect(container.textContent).toContain("(Results capped at 100 matches)");
+    expect(container.textContent).toContain("doc1.md");
+    expect(container.textContent).toContain("Line 10");
+    expect(container.textContent).toContain("Found query_target here");
+
+    // Click result item
+    const item = container.querySelector<HTMLDivElement>('[role="option"]')!;
+    item.click();
+    expect(onSelectResult).toHaveBeenCalledWith(
+      "/mock/workspace/doc1.md",
+      10,
+      "Found query_target here"
     );
     expect(onClose).toHaveBeenCalled();
   });

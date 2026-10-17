@@ -1,6 +1,6 @@
 import { Component, createMemo, onMount, onCleanup } from "solid-js";
 import { currentDocument, updateDocumentContent } from "../../store/editor";
-import { registerCodeFormatter, registerCodeMatchRevealer, type FormatAction } from "../../lib/formatter";
+import { registerCodeFormatter, registerCodeMatchRevealer, registerCodeInserter, type FormatAction } from "../../lib/formatter";
 
 export const CodeView: Component = () => {
   let textareaRef!: HTMLTextAreaElement;
@@ -147,14 +147,32 @@ export const CodeView: Component = () => {
     return true;
   };
 
+  const insertTextInCode = (text: string): boolean => {
+    const textarea = textareaRef;
+    if (!textarea) return false;
+
+    const val = textarea.value;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const newVal = val.substring(0, start) + text + val.substring(end);
+    textarea.value = newVal;
+    const newCursor = start + text.length;
+    textarea.setSelectionRange(newCursor, newCursor);
+    textarea.focus();
+    updateDocumentContent(newVal);
+    return true;
+  };
+
   onMount(() => {
     registerCodeFormatter(executeCodeFormat);
     registerCodeMatchRevealer(revealMatchInCode);
+    registerCodeInserter(insertTextInCode);
   });
 
   onCleanup(() => {
     registerCodeFormatter(null);
     registerCodeMatchRevealer(null);
+    registerCodeInserter(null);
   });
 
   const handleKeyDown = (e: KeyboardEvent) => {

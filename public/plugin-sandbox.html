@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <!--
+    Plugin Execution Sandbox:
+    Isolated within an iframe (sandbox="allow-scripts") with an opaque null origin.
+    This sandbox has NO access to parent DOM, localStorage, window.__TAURI_INTERNALS__,
+    or native IPC. The sandbox evaluates plugin code and communicates solely via postMessage RPC.
+  -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-eval' 'unsafe-inline';" />
+  <title>Taleno Plugin Sandbox</title>
+</head>
+<body>
+  <script>
+    (function () {
+      const activeModules = new Map();
+      const commandHandlers = new Map();
+      const pendingRpcs = new Map();
+      let rpcCounter = 0;
+
+      function callRpc(pluginId, method, args) {
+        return new Promise((resolve, reject) => {
+          const id = ++rpcCounter;
+          pendingRpcs.set(id, { resolve, reject });
+          window.parent.postMessage(
+            {
+              type: "TALENO_RPC_REQUEST",
+              id,
+              pluginId,
+              method,
+              args,
+            },
+            "*"
+          );
+        });
+      }
+
+      window.addEventListener("message", async (event) => {
+        const msg = event.data;
+        if (!msg || typeof msg !== "object") return;
+
+        switch (msg.type) {
+          case "TALENO_LOAD_PLUGIN": {
+            const { pluginId, manifest, source } = msg;
+            try {
+              const cleanSource = source
+                .replace(/^\s*export\s+default\s+/m, "return ")
+                .replace(/^\s*module\.exports\s*=\s*/m, "return ");
+
+              const factory = new Function(cleanSource);
+              const mod = factory() || {};
+              activeModules.set(pluginId, mod);
+
+              const registeredCommands = [];
+              const ctx = {
+                commands: {
+                  registerCommand: (cmd) => {
+                    const handlerKey = `${pluginId}:${cmd.id}`;
+                    commandHandlers.set(handlerKey, cmd.run);
+                    registeredCommands.push({
+                      id: cmd.id,
+                      title: cmd.title,
+                      shortcut: cmd.shortcut,
+                    });
+                    return () => {
+                      commandHandlers.delete(handlerKey);
+                    };
+                  },
+                },
+                editor: {
+                  getContent: () => callRpc(pluginId, "editor.getContent", []),
+                  insertText: (text) => callRpc(pluginId, "editor.insertText", [text]),
+                  setContent: (text) => callRpc(pluginId, "editor.setContent", [text]),
+                },
+                storage: {
+                  getItem: (key) => callRpc(pluginId, "storage.getItem", [key]),
+                  setItem: (key, val) => callRpc(pluginId, "storage.setItem", [key, val]),
+                },
+              };
+
+              if (typeof mod.onload === "function") {
+                await Promise.resolve(mod.onload(ctx));
+              }
+
+              window.parent.postMessage(
+                {
+                  type: "TALENO_PLUGIN_LOADED",
+                  pluginId,
+                  commands: registeredCommands,
+                },
+                "*"
+              );
+            } catch (err) {
+              const errorMessage = err && err.message ? err.message : String(err);
+              window.parent.postMessage(
+                {
+                  type: "TALENO_PLUGIN_LOAD_ERROR",
+                  pluginId,
+                  error: errorMessage,
+                },
+                "*"
+              );
+            }
+            break;
+          }
+
+          case "TALENO_EXECUTE_COMMAND": {
+            const { pluginId, commandId } = msg;
+            const handler = commandHandlers.get(`${pluginId}:${commandId}`);
+            if (handler) {
+              try {
+                await Promise.resolve(handler());
+              } catch (err) {
+                console.error(`[PluginSandbox] Command ${commandId} error:`, err);
+              }
+            }
+            break;
+          }
+
+          case "TALENO_UNLOAD_PLUGIN": {
+            const { pluginId } = msg;
+            const mod = activeModules.get(pluginId);
+            if (mod && typeof mod.onunload === "function") {
+              try {
+                await Promise.resolve(mod.onunload());
+              } catch (err) {
+                console.warn(`[PluginSandbox] Plugin ${pluginId} onunload error:`, err);
+              }
+            }
+            activeModules.delete(pluginId);
+            for (const key of Array.from(commandHandlers.keys())) {
+              if (key.startsWith(`${pluginId}:`)) {
+                commandHandlers.delete(key);
+              }
+            }
+            window.parent.postMessage(
+              {
+                type: "TALENO_PLUGIN_UNLOADED",
+                pluginId,
+              },
+              "*"
+            );
+            break;
+          }
+
+          case "TALENO_RPC_RESPONSE": {
+            const { id, result, error } = msg;
+            const resolver = pendingRpcs.get(id);
+            if (resolver) {
+              pendingRpcs.delete(id);
+              if (error) {
+                resolver.reject(new Error(error));
+              } else {
+                resolver.resolve(result);
+              }
+            }
+            break;
+          }
+        }
+      });
+
+      // Signal to parent that sandbox is ready to receive messages
+      window.parent.postMessage({ type: "TALENO_SANDBOX_READY" }, "*");
+    })();
+  </script>
+</body>
+</html>

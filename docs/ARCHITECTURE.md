@@ -221,7 +221,7 @@ src-tauri/
     │   └── workspace.rs      # Directory traversal and file tree commands
     ├── models/               # Domain data structures (Serde-enabled)
     │   ├── mod.rs
-    │   ├── document.rs       # FileEntry, DocumentMeta
+    │   ├── document.rs       # FileEntry node representation
     │   ├── file_item.rs      # File tree node representation
     │   ├── payload.rs        # IPC response/request wrappers
     │   ├── plugin.rs         # PluginManifest and metadata models
@@ -336,6 +336,10 @@ Taleno adheres to strict **least-privilege** security practices enabled by Tauri
 3. **Rust Memory & Input Validation**:
    - All paths received via IPC are sanitized and canonicalized to prevent path traversal attacks (`../` exploits).
    - Atomic writes prevent partial file truncation and race conditions.
+4. **Plugin Runtime Sandbox & Broker Boundary**:
+   - Extensibility scripts are executed with isolation from the main window realm. Evaluation is hosted within a dedicated sandboxed iframe (`public/plugin-sandbox.html`) with `sandbox="allow-scripts"` and an opaque `null` origin, denying direct access to the main window DOM, `localStorage`, `__TAURI_INTERNALS__`, or native IPC.
+   - A strongly typed permission broker validates all runtime interactions against declared manifest permissions (`commands`, `editor:read`, `editor:write`, `storage`), throwing `PluginPermissionError` on unauthorized access.
+   - The production main window CSP strictly retains `default-src 'self'` without `'unsafe-eval'`.
 
 ---
 

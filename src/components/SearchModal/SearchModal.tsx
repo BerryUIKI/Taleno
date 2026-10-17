@@ -14,6 +14,7 @@ export const SearchModal: Component<SearchModalProps> = (props) => {
   const [results, setResults] = createSignal<SearchMatch[]>([]);
   const [selectedIndex, setSelectedIndex] = createSignal(0);
   const [isSearching, setIsSearching] = createSignal(false);
+  const [isTruncated, setIsTruncated] = createSignal(false);
 
   let inputRef!: HTMLInputElement;
   let previousActiveElement: HTMLElement | null = null;
@@ -67,6 +68,7 @@ export const SearchModal: Component<SearchModalProps> = (props) => {
       setResults([]);
       setIsSearching(false);
       setSelectedIndex(0);
+      setIsTruncated(false);
       return;
     }
 
@@ -75,16 +77,18 @@ export const SearchModal: Component<SearchModalProps> = (props) => {
       if (reqId !== currentRequestId || !props.isOpen) return;
 
       try {
-        const matches = await searchWorkspace(val, ws.path);
+        const searchRes = await searchWorkspace(val, ws.path);
         // Only accept response if request identity matches and dialog is still open
         if (reqId === currentRequestId && props.isOpen) {
-          setResults(matches);
+          setResults(searchRes.matches);
+          setIsTruncated(searchRes.truncated);
           setSelectedIndex(0);
         }
       } catch (err) {
         if (reqId === currentRequestId) {
           console.error("Workspace search error:", err);
           setResults([]);
+          setIsTruncated(false);
         }
       } finally {
         if (reqId === currentRequestId) {
@@ -206,8 +210,15 @@ export const SearchModal: Component<SearchModalProps> = (props) => {
                 </div>
               }
             >
-              <div class="text-xs opacity-50 px-2 mb-1">
-                Found {results().length} match{results().length === 1 ? "" : "es"}
+              <div class="text-xs opacity-50 px-2 mb-1 flex items-center justify-between">
+                <span>
+                  Found {results().length} match{results().length === 1 ? "" : "es"}
+                </span>
+                <Show when={isTruncated()}>
+                  <span class="text-[11px] text-amber-500 font-medium">
+                    (Results capped at 100 matches)
+                  </span>
+                </Show>
               </div>
 
               <For each={results()}>

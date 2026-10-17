@@ -1,4 +1,4 @@
-import { Component, createSignal, Show, onMount, onCleanup } from "solid-js";
+import { Component, createSignal, createMemo, createEffect, Show, onMount, onCleanup } from "solid-js";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -32,9 +32,8 @@ import {
   displayMode,
   setDisplayMode,
   cycleDisplayMode,
-  markSaved,
-  markExternallyModified,
-  clearExternallyModified,
+  flushPendingEdits,
+  documentFromResponse,
 } from "./store/editor";
 import {
   addOrSwitchTab,
@@ -45,6 +44,9 @@ import {
   setQuickSwitcherOpen,
   syncCurrentDocumentToTab,
   setWorkspaceTree,
+  applySaveResult,
+  replaceTabFromDisk,
+  markPathExternallyModified,
 } from "./store/files";
 import { zenMode, setZenMode, focusMode, setFocusMode } from "./store/settings";
 import {
@@ -56,11 +58,11 @@ import {
   listDirectoryTree,
   getCliArgs,
   closeWindow,
+  readFileBaseline,
 } from "./lib/tauri/commands";
 import { onFileChanged, onSingleInstanceOpen } from "./lib/tauri/events";
 import { isDropOverTabBar, processFileDrop } from "./lib/dnd";
 import { dispatchFormat, type FormatAction } from "./lib/formatter";
-import { createSingleFlight } from "./lib/singleFlight";
 
 const App: Component = () => {
   const [sidebarOpen, setSidebarOpen] = createSignal(
@@ -76,6 +78,7 @@ const App: Component = () => {
   const [settingsOpen, setSettingsOpen] = createSignal(false);
   const [settingsTab, setSettingsTab] = createSignal<SettingsTabId>("theme");
   const [homeVisible, setHomeVisible] = createSignal(false);
+  const [fileError, setFileError] = createSignal("");
   const [dragHoverTarget, setDragHoverTarget] = createSignal<
     "window" | "tabbar" | "editor" | null
   >(null);
@@ -132,21 +135,9 @@ const App: Component = () => {
   // Load a file by path
   const loadFile = async (path: string, lineNumber?: number, _lineContent?: string) => {
     try {
-      await stopWatchingFile();
+      flushPendingEdits();
       const result = await openFile(path);
-      const docState = {
-        path: result.path,
-        filename: result.filename,
-        content: result.content,
-        renderedContent: result.content,
-        html: result.html,
-        toc: result.toc,
-        wordCount: result.word_count,
-        isDirty: false,
-        externallyModified: false,
-      };
-      markSaved(result);
-      addOrSwitchTab(docState);
+      addOrSwitchTab(documentFromResponse(result));
       setHomeVisible(false);
       await startWatchingFile(path);
 
@@ -166,20 +157,30 @@ const App: Component = () => {
           revealMatchAt(start, end, lineNumber);
         }, 50);
       }
+      setFileError("");
     } catch (err) {
       console.error("Failed to open file:", err);
+      setFileError(String(err));
     }
   };
 
   // Handle saving the current file (atomic write)
-  const saveCurrentFile = async (): Promise<boolean> => {
-    const doc = currentDocument();
+  const saveCurrentFile = async (saveAs = false, overwrite = false): Promise<boolean> => {
+    flushPendingEdits();
+    const id = activeTabId();
+    if (!id) return false;
+    const instance = openTabs().find((tab) => tab.id === id)?.instance;
+    let doc = currentDocument();
+    if (doc.externallyModified && !saveAs && !overwrite) {
+      setFileError("The file changed on disk. Reload, Save As, or explicitly overwrite the disk version.");
+      return false;
+    }
     try {
-      if (doc.path) {
-        const result = await saveFile(doc.path, doc.content);
-        markSaved(result);
-        syncCurrentDocumentToTab();
-        return true;
+      if (doc.path && !saveAs) {
+        const baseline = overwrite ? await readFileBaseline(doc.path) : doc.savedContent ?? doc.content;
+        const result = await saveFile(doc.path, doc.content, baseline);
+        setFileError("");
+        return applySaveResult(id, result, instance);
       } else {
         const selected = await save({
           defaultPath: doc.filename.endsWith(".md")
@@ -191,23 +192,35 @@ const App: Component = () => {
         });
 
         if (selected && typeof selected === "string") {
-          const result = await saveFile(selected, doc.content);
-          markSaved(result);
-          syncCurrentDocumentToTab();
-          await startWatchingFile(selected);
-          return true;
+          const baseline = await readFileBaseline(selected);
+          flushPendingEdits();
+          const tab = openTabs().find((tab) => tab.id === id);
+          if (!tab || tab.instance !== instance) return false;
+          doc = tab.document;
+          const result = await saveFile(selected, doc.content, baseline);
+          setFileError("");
+          return applySaveResult(id, result, instance);
         }
         return false;
       }
     } catch (err) {
       console.error("Failed to save file:", err);
+      if (String(err).includes("SAVE_CONFLICT") && doc.path) markPathExternallyModified(doc.path);
+      setFileError(String(err));
       return false;
     }
   };
-  const handleSaveFile = createSingleFlight(saveCurrentFile);
+  let activeSave: Promise<boolean> | null = null;
+  const requestSave = (saveAs = false, overwrite = false) => {
+    if (activeSave) return activeSave;
+    activeSave = saveCurrentFile(saveAs, overwrite).finally(() => { activeSave = null; });
+    return activeSave;
+  };
+  const handleSaveFile = () => requestSave();
 
   // Request closing a tab, prompting if it has unsaved changes
   const requestCloseTab = (targetTabId?: string, onComplete?: () => void) => {
+    flushPendingEdits();
     syncCurrentDocumentToTab();
     const id = targetTabId || activeTabId();
     if (!id) return;
@@ -240,9 +253,12 @@ const App: Component = () => {
   const handleConfirmCloseSave = async () => {
     const item = confirmCloseTab();
     if (!item) return;
-
+    if (!selectTab(item.tabId)) return;
     const saved = await handleSaveFile();
-    if (saved !== false && !currentDocument().isDirty) {
+    if (confirmCloseTab() !== item) return;
+    flushPendingEdits();
+    const target = openTabs().find((tab) => tab.id === item.tabId);
+    if (saved && target && !target.document.isDirty) {
       closeTab(item.tabId);
       setConfirmCloseTab(null);
       if (pendingWindowClose) {
@@ -268,6 +284,7 @@ const App: Component = () => {
   };
 
   const checkNextWindowClose = async () => {
+    flushPendingEdits();
     syncCurrentDocumentToTab();
     const dirtyTab = openTabs().find(
       (t) =>
@@ -293,6 +310,7 @@ const App: Component = () => {
 
   // Handle exporting the current document to standalone HTML
   const handleExport = async () => {
+    flushPendingEdits();
     const doc = currentDocument();
     try {
       const selected = await save({
@@ -327,10 +345,22 @@ const App: Component = () => {
 
   // Handle reloading externally modified file
   const reloadCurrentFile = async () => {
+    flushPendingEdits();
+    const id = activeTabId();
     const doc = currentDocument();
-    if (doc.path) {
-      clearExternallyModified();
-      await loadFile(doc.path);
+    const instance = openTabs().find((tab) => tab.id === id)?.instance;
+    if (id && doc.path) {
+      if (doc.isDirty && !confirm("Discard local changes and reload the disk version?")) return;
+      try {
+        const result = await openFile(doc.path);
+        // A reload response cannot discard edits made while the read was pending.
+        flushPendingEdits();
+        const target = openTabs().find((tab) => tab.id === id);
+        if (target && target.instance === instance && target.document.content === doc.content) {
+          replaceTabFromDisk(id, result, instance);
+          setFileError("");
+        } else setFileError("The document changed while reloading. Retry Reload to review the latest edits.");
+      } catch (err) { setFileError(String(err)); }
     }
   };
 
@@ -366,7 +396,7 @@ const App: Component = () => {
   onMount(() => {
     autoSaveTimer = window.setInterval(() => {
       const doc = currentDocument();
-      if (doc.path && doc.isDirty) {
+      if (document.visibilityState !== "hidden" && doc.path && doc.isDirty && !doc.externallyModified) {
         handleSaveFile();
       }
     }, 30000);
@@ -375,8 +405,8 @@ const App: Component = () => {
   // Set up file change listener and Drag & Drop listener
   onMount(async () => {
     try {
-      unlistenFileChanged = await onFileChanged((_payload) => {
-        markExternallyModified();
+      unlistenFileChanged = await onFileChanged((payload) => {
+        markPathExternallyModified(payload.path);
       });
     } catch (err) {
       console.warn("File changed listener setup:", err);
@@ -432,6 +462,7 @@ const App: Component = () => {
 
     try {
       unlistenCloseRequested = await getCurrentWindow().onCloseRequested((event) => {
+        flushPendingEdits();
         syncCurrentDocumentToTab();
         const hasDirty = openTabs().some(
           (t) => t.document.isDirty || (t.id === activeTabId() && currentDocument().isDirty)
@@ -452,6 +483,7 @@ const App: Component = () => {
     unlistenCloseRequested?.();
     unlistenSingleInstance?.();
     cancelAutomaticUpdateCheck?.();
+    void stopWatchingFile();
     if (autoSaveTimer !== null) {
       clearInterval(autoSaveTimer);
     }
@@ -576,6 +608,18 @@ const App: Component = () => {
   });
 
   const doc = () => currentDocument();
+  const watchedPaths = createMemo(() => JSON.stringify(openTabs().map((tab) => tab.document.path).filter(Boolean).sort()));
+  let previousPaths = new Set<string>();
+  createEffect(() => {
+    const paths = new Set<string>(JSON.parse(watchedPaths()));
+    for (const path of paths) if (!previousPaths.has(path)) {
+      void startWatchingFile(path).catch((err) => setFileError(String(err)));
+    }
+    for (const path of previousPaths) if (!paths.has(path)) {
+      void stopWatchingFile(path).catch((err) => setFileError(String(err)));
+    }
+    previousPaths = paths;
+  });
   const hasDocument = () =>
     doc().path !== null || doc().content.length > 0 || openTabs().length > 0;
 
@@ -606,7 +650,9 @@ const App: Component = () => {
       </Show>
 
       <Show when={displayMode() === "writing"}>
-        <Editor />
+        <Show keyed when={`${activeTabId()}:${doc().loadVersion ?? 0}`}>
+          {(_identity) => <Editor />}
+        </Show>
       </Show>
 
       <Show when={displayMode() === "code"}>
@@ -620,12 +666,26 @@ const App: Component = () => {
       class={`flex flex-col h-screen relative ${zenMode() ? "zen-mode" : ""} ${focusMode() ? "focus-mode" : ""}`}
       style={{ background: "var(--color-bg-primary)", color: "var(--color-text-primary)" }}
     >
+      <Show when={fileError() || doc().externallyModified}>
+        <div role="alert" class="p-2 flex flex-wrap gap-2 text-sm bg-[var(--color-bg-secondary)]">
+          <span>{fileError() || "This file changed on disk. Auto-save is paused."}</span>
+          <button onClick={() => void handleSaveFile()}>Retry Save</button>
+          <button onClick={() => void reloadCurrentFile()}>Reload</button>
+          <button onClick={() => void requestSave(true)}>Save As…</button>
+          <Show when={doc().externallyModified}>
+            <button onClick={() => {
+              if (confirm("Overwrite the disk version with this document?")) void requestSave(false, true);
+            }}>Overwrite disk version…</button>
+          </Show>
+        </div>
+      </Show>
       {/* 1. MOBILE PORTRAIT LAYOUT */}
       <Show when={isMobileViewport()}>
         <MobileShell
           onOpenFile={loadFile}
           onNewDocument={handleNewDocument}
           onOpenQuickSwitcher={() => setQuickSwitcherOpen(true)}
+          onCloseTab={(id) => requestCloseTab(id)}
         >
           {renderViewport()}
         </MobileShell>

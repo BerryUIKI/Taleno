@@ -36,7 +36,11 @@ pub struct RemotePlugin {
     #[serde(default = "default_entry_file")]
     pub entry_file: String,
     pub raw_base_url: String,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "minLexoraVersion", alias = "min_lexora_version")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        alias = "minLexoraVersion",
+        alias = "min_lexora_version"
+    )]
     pub min_taleno_version: Option<String>,
     #[serde(default)]
     pub tags: Vec<String>,

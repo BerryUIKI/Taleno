@@ -1,4 +1,4 @@
-import { Component, createEffect, onMount, onCleanup } from "solid-js";
+import { Component, createEffect, createSignal, onMount, onCleanup } from "solid-js";
 import {
   defaultValueCtx,
   Editor as MilkdownEditor,
@@ -10,6 +10,8 @@ import {
   commandsCtx,
 } from "@milkdown/core";
 import type { Ctx } from "@milkdown/ctx";
+import type { Transaction } from "@milkdown/kit/prose/state";
+import type { EditorView } from "@milkdown/kit/prose/view";
 import {
   commonmark,
   toggleStrongCommand,
@@ -31,16 +33,35 @@ import {
   undoCommand,
   redoCommand,
 } from "@milkdown/plugin-history";
-import { listener, listenerCtx } from "@milkdown/plugin-listener";
 import { nord } from "@milkdown/theme-nord";
 import "@milkdown/theme-nord/style.css";
 import { TextSelection } from "@milkdown/kit/prose/state";
-import { currentDocument, updateDocumentContent } from "../../store/editor";
-import { registerWritingFormatter, registerWritingMatchRevealer, type FormatAction } from "../../lib/formatter";
+import { currentDocument, updateDocumentContent, setCurrentDocument, registerEditorFlush } from "../../store/editor";
+import { activeTabId } from "../../store/files";
+import { registerWritingFormatter, registerWritingMatchRevealer, registerWritingInserter, type FormatAction } from "../../lib/formatter";
 
 export const Editor: Component = () => {
   let containerRef!: HTMLDivElement;
   let editorInstance: MilkdownEditor | null = null;
+  const tabId = activeTabId();
+  const loadVersion = currentDocument().loadVersion;
+  let disposed = false;
+  let changed = false;
+  const [ready, setReady] = createSignal(false);
+  let publishedContent = currentDocument().content;
+  let publishTimer: ReturnType<typeof setTimeout> | undefined;
+  const isCurrent = () => !disposed && activeTabId() === tabId && currentDocument().loadVersion === loadVersion;
+  const flush = () => {
+    clearTimeout(publishTimer);
+    if (!changed || !editorInstance || !isCurrent()) return;
+    editorInstance.action((ctx) => {
+      const markdown = ctx.get(serializerCtx)(ctx.get(editorViewCtx).state.doc);
+      changed = false;
+      publishedContent = markdown;
+      if (markdown !== currentDocument().content) updateDocumentContent(markdown);
+    });
+  };
+  let unregisterFlush: (() => void) | undefined;
 
   const executeFormat = (action: FormatAction) => {
     if (!editorInstance) return;
@@ -150,9 +171,29 @@ export const Editor: Component = () => {
     }
   };
 
+  const insertTextInWriting = (text: string): boolean => {
+    if (!editorInstance) return false;
+    try {
+      let inserted = false;
+      editorInstance.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        if (!view) return;
+        const { state } = view;
+        const tr = state.tr.insertText(text, state.selection.from, state.selection.to);
+        view.dispatch(tr);
+        inserted = true;
+      });
+      return inserted;
+    } catch (err) {
+      console.warn("Writing insertText error:", err);
+      return false;
+    }
+  };
+
   onMount(async () => {
     registerWritingFormatter(executeFormat);
     registerWritingMatchRevealer(revealMatchInWriting);
+    registerWritingInserter(insertTextInWriting);
 
     try {
       editorInstance = await MilkdownEditor.make()
@@ -161,6 +202,18 @@ export const Editor: Component = () => {
           ctx.set(defaultValueCtx, currentDocument().content || "");
           ctx.update(editorViewOptionsCtx, (prev: Record<string, unknown>) => ({
             ...prev,
+            dispatchTransaction(this: EditorView, transaction: Transaction) {
+              const view = this;
+              const previous = view.state.doc;
+              view.updateState(view.state.apply(transaction));
+              if (isCurrent() && transaction.getMeta("addToHistory") !== false && !previous.eq(view.state.doc)) {
+                changed = true;
+                // Dirty immediately; serialization can wait until the user pauses.
+                setCurrentDocument((doc) => ({ ...doc, isDirty: true }));
+                clearTimeout(publishTimer);
+                publishTimer = setTimeout(flush, 150);
+              }
+            },
             attributes: {
               class:
                 "milkdown-theme-nord prose outline-none focus:outline-none min-h-[500px] leading-relaxed text-base",
@@ -168,56 +221,45 @@ export const Editor: Component = () => {
             },
           }));
 
-          ctx.get(listenerCtx).markdownUpdated((_: unknown, markdown: string) => {
-            if (markdown !== currentDocument().content) {
-              updateDocumentContent(markdown);
-            }
-          });
         })
         .config(nord)
         .use(commonmark)
         .use(gfm)
         .use(history)
-        .use(listener)
         .create();
+      if (disposed) {
+        await editorInstance.destroy();
+        editorInstance = null;
+        return;
+      }
+      unregisterFlush = registerEditorFlush(flush);
+      setReady(true);
     } catch (err) {
       console.error("Failed to initialize Milkdown editor:", err);
     }
   });
 
-  // Keep Milkdown editor content synchronized when active document changes externally
+  // External same-document edits (Find/Replace or plugins) are real undoable operations.
+  // User-originated publications do not serialize/replace the whole editor a second time.
   createEffect(() => {
     const content = currentDocument().content;
-    if (!editorInstance) return;
-
-    try {
-      editorInstance.action((ctx) => {
-        const view = ctx.get(editorViewCtx);
-        const parser = ctx.get(parserCtx);
-        const serializer = ctx.get(serializerCtx);
-        if (!view || !parser || !serializer) return;
-
-        const currentMd = serializer(view.state.doc);
-        if (currentMd !== content) {
-          const parsedDoc = parser(content || "");
-          if (parsedDoc) {
-            const tr = view.state.tr.replaceWith(
-              0,
-              view.state.doc.content.size,
-              parsedDoc
-            );
-            view.dispatch(tr);
-          }
-        }
-      });
-    } catch (err) {
-      console.warn("Failed to sync Milkdown document content:", err);
-    }
+    if (!ready() || !editorInstance || content === publishedContent || !isCurrent()) return;
+    publishedContent = content;
+    editorInstance.action((ctx) => {
+      const parsed = ctx.get(parserCtx)(content || "");
+      const view = ctx.get(editorViewCtx);
+      if (parsed) view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, parsed.content));
+    });
   });
 
   onCleanup(async () => {
+    flush();
+    disposed = true;
+    clearTimeout(publishTimer);
+    unregisterFlush?.();
     registerWritingFormatter(null);
     registerWritingMatchRevealer(null);
+    registerWritingInserter(null);
     if (editorInstance) {
       try {
         await editorInstance.destroy();
@@ -229,7 +271,7 @@ export const Editor: Component = () => {
   });
 
   return (
-    <div class="h-full overflow-y-auto bg-[var(--color-editor-bg)] px-8 py-6">
+    <div aria-busy={!ready()} class="h-full overflow-y-auto bg-[var(--color-editor-bg)] px-8 py-6">
       <div class="max-w-4xl mx-auto">
         <div ref={containerRef} class="milkdown-container" />
       </div>
