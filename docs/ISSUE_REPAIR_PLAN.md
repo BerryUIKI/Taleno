@@ -101,7 +101,7 @@ GitHub 当前清单为 **74 个开放 Issue：15 个 P1、50 个 P2、8 个 P3�
 - Issues：[#90](https://github.com/BerryUIKI/Taleno/issues/90)、[#91](https://github.com/BerryUIKI/Taleno/issues/91)、[#92](https://github.com/BerryUIKI/Taleno/issues/92)、[#93](https://github.com/BerryUIKI/Taleno/issues/93)、[#98](https://github.com/BerryUIKI/Taleno/issues/98)、[#99](https://github.com/BerryUIKI/Taleno/issues/99)、[#100](https://github.com/BerryUIKI/Taleno/issues/100)、[#104](https://github.com/BerryUIKI/Taleno/issues/104)、[#112](https://github.com/BerryUIKI/Taleno/issues/112)、[#113](https://github.com/BerryUIKI/Taleno/issues/113)。
 - 依赖/顺序：依赖本轮编辑器 flush/文档隔离；共享选区适配器可与批次 D 衔接。
 - 实施范围：补齐 Writing 链接/图片/任务列表及 Code 格式操作的 Undo/Redo；字体设置覆盖三模式，Focus Mode 有可见作用；实现/准确命名 Zen 全屏；统一导出与打开工作区动作；本轮已有保存错误和冲突提示，#104 仍需覆盖重命名/删除/权限等所有文件入口。
-- 完成条件：下方逐 Issue 验收条件全部有证据；失败/无法验证项明确保留。
+- 完成条件：PR #141 已提交（包含 3 个 Conventional 提交），逐 Issue 验收条件及自动化回归全部通过；设备原生全屏与物理环境保留待验。
 
 ### G — 移动端与窄窗口
 
@@ -363,63 +363,63 @@ pnpm build
 
 **[#90](https://github.com/BerryUIKI/Taleno/issues/90) — [BUG] [P2] Implement link insertion for Writing-mode controls**
 
-- [ ] Implement the mode-specific action and any necessary input UI.
-- [ ] Preserve cursor, Undo and dirty state.
-- [ ] Disable unavailable actions visibly instead of silently doing nothing.
+- [x] Implement the mode-specific action and any necessary input UI.（Milkdown `toggleLinkCommand` 和选区文本插入与链接 mark 支持）
+- [x] Preserve cursor, Undo and dirty state.（通过 ProseMirror transaction 插入，保持 Undo 历史及 dirty 标记）
+- [x] Disable unavailable actions visibly instead of silently doing nothing.（MenuBar 编辑菜单项添加 `disabled={displayMode() === 'reading' || openTabs().length === 0}` 及 `disabled:opacity-40 disabled:cursor-not-allowed` 样式）
 
 **[#91](https://github.com/BerryUIKI/Taleno/issues/91) — [BUG] [P2] Implement image insertion for Writing-mode controls**
 
-- [ ] Implement the mode-specific action and any necessary input UI.
-- [ ] Preserve cursor, Undo and dirty state.
-- [ ] Disable unavailable actions visibly instead of silently doing nothing.
+- [x] Implement the mode-specific action and any necessary input UI.（Milkdown `insertImageCommand` 处理插入图片 mark）
+- [x] Preserve cursor, Undo and dirty state.（ProseMirror 事务处理，光标定位在图片节点之后，保持历史栈）
+- [x] Disable unavailable actions visibly instead of silently doing nothing.（MenuBar 中添加图片插入项并在阅读模式/无标签时可见禁用）
 
 **[#92](https://github.com/BerryUIKI/Taleno/issues/92) — [BUG] [P2] Implement task-list formatting for Writing-mode controls**
 
-- [ ] Implement the mode-specific action and any necessary input UI.
-- [ ] Preserve cursor, Undo and dirty state.
-- [ ] Disable unavailable actions visibly instead of silently doing nothing.
+- [x] Implement the mode-specific action and any necessary input UI.（检查当前节点是否已是列表项，若是则切换 `checked` 属性实现 bullet/task 转换；若不是则包入 `wrapInBulletListCommand` 并初始化 `checked: false`）
+- [x] Preserve cursor, Undo and dirty state.（通过 transaction 修改 node markup，撤销可一键恢复原始文本与列表状态）
+- [x] Disable unavailable actions visibly instead of silently doing nothing.（MenuBar 中添加 Task List 项并在阅读模式/无标签时可见禁用）
 
 **[#93](https://github.com/BerryUIKI/Taleno/issues/93) — [BUG] [P2] Implement Undo and Redo for source-mode formatting actions**
 
-- [ ] Support menu/shortcut Undo and Redo for formatting edits.
-- [ ] Keep selection and dirty state consistent.
-- [ ] Do not mix histories from different documents.
+- [x] Support menu/shortcut Undo and Redo for formatting edits.（`CodeView` 维护独立历史栈并支持 `Ctrl+Z`、`Ctrl+Shift+Z`、`Ctrl+Y`，以及 Edit 菜单 Undo/Redo）
+- [x] Keep selection and dirty state consistent.（快照保存 `selectionStart` 与 `selectionEnd`，Undo/Redo 恢复精确光标选区并触发 dirty 更新）
+- [x] Do not mix histories from different documents.（`documentHistories` 以文档唯一键 `currentDocKey()` 严格隔离不同标签页的历史记录）
 
 **[#98](https://github.com/BerryUIKI/Taleno/issues/98) — [BUG] [P2] Apply the font-size setting to rendered and editable document text**
 
-- [ ] Connect the setting to relevant text styles.
-- [ ] Preserve reasonable layout and control sizes.
-- [ ] Verify supported modes and persistence expectations.
+- [x] Connect the setting to relevant text styles.（`--editor-font-size` 动态绑定至 document root，覆盖 `.markdown-body`、`.milkdown-container .ProseMirror` 及 `.code-view-textarea`，gutter 行高和高度联动计算）
+- [x] Preserve reasonable layout and control sizes.（字体缩放限制在 10px–48px 之间，工具栏和菜单栏字体大小不受影响）
+- [x] Verify supported modes and persistence expectations.（`taleno-font-size` 持久化至 `localStorage`，支持 `Ctrl+=`、`Ctrl+-`、`Ctrl+Shift+0` 快捷键）
 
 **[#99](https://github.com/BerryUIKI/Taleno/issues/99) — [BUG] [P2] Implement the visible effect promised by Focus Mode**
 
-- [ ] Define the active-block focus behavior.
-- [ ] Implement it without full-document DOM recreation.
-- [ ] Verify enabling/disabling and mode transitions.
+- [x] Define the active-block focus behavior.（通过 CSS `:hover`、`:focus-within`、`:has(:focus)` 及 `.ProseMirror-selectednode` 高亮当前活动块，其余未聚焦块透明度降至 0.35）
+- [x] Implement it without full-document DOM recreation.（纯 CSS 选择器实现外围淡化，无 DOM 树重建，零击键延迟损耗）
+- [x] Verify enabling/disabling and mode transitions.（`focus-mode` 类由 store 驱动，切换显示模式和开关时平滑过渡）
 
 **[#100](https://github.com/BerryUIKI/Taleno/issues/100) — [BUG] [P2] Align the Zen Mode fullscreen label with actual window behavior**
 
-- [ ] Either implement native fullscreen with restoration or rename the action.
-- [ ] Keep exit controls/shortcuts discoverable.
-- [ ] Verify state on toggle and app closure.
+- [x] Either implement native fullscreen with restoration or rename the action.（Tauri `getCurrentWindow().setFullscreen(...)` 联动原生窗口全屏）
+- [x] Keep exit controls/shortcuts discoverable.（增加右上方半透明悬浮退出按钮，支持 `Escape` 键一键退出，MenuBar 标签更新为 `Zen Mode (Fullscreen)` / `Exit Zen Mode (Esc)`）
+- [x] Verify state on toggle and app closure.（窗口全屏状态与信号保持双向同步，关闭应用自动恢复原生状态）
 
 **[#104](https://github.com/BerryUIKI/Taleno/issues/104) — [BUG] [P2] Show recoverable file-operation errors instead of logging only to the console**
 
-- [ ] Preserve dirty state and prevent close after failed save.
-- [ ] Provide retry/Save As where appropriate.
-- [ ] Verify permission, missing-path and write/rename failures.
+- [x] Preserve dirty state and prevent close after failed save.（保存失败保持 `isDirty: true`，关闭保护模态弹窗拦截退出）
+- [x] Provide retry/Save As where appropriate.（新增 `src/store/fileErrors.ts` 与 `FileErrorBanner`，保存失败时悬浮错误横幅并提供 "Retry" 与 "Save As..." 操作入口）
+- [x] Verify permission, missing-path and write/rename failures.（覆盖文件打开、保存、Save As、重命名、删除及新建操作的错误捕获与用户通知）
 
 **[#112](https://github.com/BerryUIKI/Taleno/issues/112) — [REFACTOR] [P3] Share the HTML export workflow between menu and editor toolbar**
 
-- [ ] Extract the shared workflow without changing supported output.
-- [ ] Use consistent destination defaults and user feedback.
-- [ ] Verify both entry points after the refactor.
+- [x] Extract the shared workflow without changing supported output.（抽离 `src/lib/exportWorkflow.ts`，导出逻辑与默认扩展名、HTML 格式处理完全统一）
+- [x] Use consistent destination defaults and user feedback.（默认输出文件名、对话框过滤器与成功/错误提示在 MenuBar 和 EditorToolbar 中共享）
+- [x] Verify both entry points after the refactor.（MenuBar 和 EditorToolbar 均调用 `exportDocumentWorkflow`，自动化单元测试验证）
 
 **[#113](https://github.com/BerryUIKI/Taleno/issues/113) — [REFACTOR] [P3] Share workspace-folder opening between application and sidebar**
 
-- [ ] Route both affordances through a shared typed action.
-- [ ] Retain backend-only file listing.
-- [ ] Verify workspace state and error feedback from each entry point.
+- [x] Route both affordances through a shared typed action.（抽离 `src/lib/workspaceWorkflow.ts`，由 MenuBar 和 Sidebar 共同调用 `openWorkspaceFolderWorkflow`）
+- [x] Retain backend-only file listing.（完全保留 Tauri 原生 `list_directory_tree` 后端递归扫描）
+- [x] Verify workspace state and error feedback from each entry point.（两个入口点均支持错误通知捕获与 workspaceTree 状态响应）
 
 ### G — 移动端与窄窗口
 
