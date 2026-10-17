@@ -147,7 +147,10 @@ pub async fn read_plugin_source_from_dir(
 ) -> Result<String, String> {
     validate_plugin_id(plugin_id)?;
     if !plugins_dir.exists() {
-        return Err(format!("Plugins directory does not exist: {}", plugins_dir.display()));
+        return Err(format!(
+            "Plugins directory does not exist: {}",
+            plugins_dir.display()
+        ));
     }
 
     let mut entries = fs::read_dir(plugins_dir)
@@ -165,9 +168,13 @@ pub async fn read_plugin_source_from_dir(
                             let entry_name = manifest.main.unwrap_or_else(|| "main.js".to_string());
                             let script_file = path.join(&entry_name);
                             if script_file.is_file() {
-                                return fs::read_to_string(&script_file)
-                                    .await
-                                    .map_err(|e| format!("Failed to read script {}: {}", script_file.display(), e));
+                                return fs::read_to_string(&script_file).await.map_err(|e| {
+                                    format!(
+                                        "Failed to read script {}: {}",
+                                        script_file.display(),
+                                        e
+                                    )
+                                });
                             } else {
                                 return Err(format!(
                                     "Plugin entry file '{}' not found in {}",

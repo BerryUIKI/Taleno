@@ -92,7 +92,9 @@ pub async fn export_to_html(markdown: &str, title: &str, output_path: &str) -> R
 
     let path = Path::new(output_path);
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).await.map_err(|e| e.to_string())?;
+        fs::create_dir_all(parent)
+            .await
+            .map_err(|e| e.to_string())?;
     }
 
     fs::write(path, full_html.as_bytes())

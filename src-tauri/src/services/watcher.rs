@@ -1,7 +1,4 @@
-use notify::{
-    Config, Event, RecommendedWatcher, RecursiveMode, Watcher,
-    EventKind,
-};
+use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::Path;
 use std::sync::mpsc;
 use std::time::Duration;
@@ -15,10 +12,7 @@ pub struct FileChangedPayload {
 
 /// Start watching a file for external modifications.
 /// Emits a "file-changed" event to the frontend when the file is modified.
-pub fn watch_file(
-    app_handle: AppHandle,
-    file_path: String,
-) -> Result<RecommendedWatcher, String> {
+pub fn watch_file(app_handle: AppHandle, file_path: String) -> Result<RecommendedWatcher, String> {
     let path = file_path.clone();
 
     let (tx, rx) = mpsc::channel::<Result<Event, notify::Error>>();
@@ -41,12 +35,8 @@ pub fn watch_file(
             if let Ok(event) = event_result {
                 match event.kind {
                     EventKind::Modify(_) | EventKind::Create(_) => {
-                        let _ = app_handle.emit(
-                            "file-changed",
-                            FileChangedPayload {
-                                path: path.clone(),
-                            },
-                        );
+                        let _ = app_handle
+                            .emit("file-changed", FileChangedPayload { path: path.clone() });
                     }
                     _ => {}
                 }

@@ -115,9 +115,7 @@ fn start_watching_file(
 
 /// Stop watching the current file.
 #[tauri::command]
-fn stop_watching_file(
-    watcher_state: tauri::State<'_, WatcherState>,
-) -> Result<(), String> {
+fn stop_watching_file(watcher_state: tauri::State<'_, WatcherState>) -> Result<(), String> {
     if let Ok(mut w) = watcher_state._watcher.lock() {
         *w = None;
     }

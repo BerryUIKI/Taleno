@@ -33,7 +33,10 @@ pub fn validate_theme_id(id: &str) -> Result<(), String> {
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
     {
-        return Err("Theme ID contains invalid characters. Only a-z, 0-9, '-', and '_' are allowed".to_string());
+        return Err(
+            "Theme ID contains invalid characters. Only a-z, 0-9, '-', and '_' are allowed"
+                .to_string(),
+        );
     }
     Ok(())
 }
@@ -50,8 +53,8 @@ pub fn scan_themes_dir(themes_dir: &Path) -> Result<Vec<ThemeManifest>, String> 
         return Ok(Vec::new());
     }
 
-    let entries = fs::read_dir(themes_dir)
-        .map_err(|e| format!("Failed to read themes directory: {}", e))?;
+    let entries =
+        fs::read_dir(themes_dir).map_err(|e| format!("Failed to read themes directory: {}", e))?;
 
     let mut manifests = Vec::new();
 
@@ -96,11 +99,13 @@ pub async fn read_theme_css(app_handle: &AppHandle, theme_id: &str) -> Result<St
 
     let css_path = theme_dir.join(&entry_file);
     if !css_path.exists() {
-        return Err(format!("Stylesheet '{}' not found for theme '{}'", entry_file, theme_id));
+        return Err(format!(
+            "Stylesheet '{}' not found for theme '{}'",
+            entry_file, theme_id
+        ));
     }
 
-    fs::read_to_string(&css_path)
-        .map_err(|e| format!("Failed to read theme CSS file: {}", e))
+    fs::read_to_string(&css_path).map_err(|e| format!("Failed to read theme CSS file: {}", e))
 }
 
 /// Open the native OS file explorer pointing to the themes directory.
@@ -298,8 +303,7 @@ pub async fn uninstall_theme(app_handle: &AppHandle, theme_id: &str) -> Result<(
         return Ok(());
     }
 
-    fs::remove_dir_all(&target_dir)
-        .map_err(|e| format!("Failed to delete theme directory: {}", e))
+    fs::remove_dir_all(&target_dir).map_err(|e| format!("Failed to delete theme directory: {}", e))
 }
 
 #[cfg(test)]
