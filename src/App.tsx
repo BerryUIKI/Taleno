@@ -18,9 +18,13 @@ import { WelcomeHub } from "./components/Home/WelcomeHub";
 import { UpdateModal } from "./components/Updater/UpdateModal";
 import { SettingsModal } from "./components/Settings/SettingsModal";
 import { CloseConfirmModal } from "./components/Tabs/CloseConfirmModal";
+import { FileErrorBanner } from "./components/ErrorNotification/FileErrorBanner";
 import type { SettingsTabId } from "./types/plugin";
 import { syncPlugins } from "./store/plugins";
 import { syncCustomThemes } from "./store/customThemes";
+import { reportFileError, clearFileError } from "./store/fileErrors";
+import { exportDocumentWorkflow } from "./lib/exportWorkflow";
+import { openWorkspaceFolderWorkflow } from "./lib/workspaceWorkflow";
 import { scheduleAutomaticUpdateCheck } from "./lib/updater";
 import { isMobile } from "./lib/platform";
 import {
@@ -121,19 +125,15 @@ const App: Component = () => {
 
   // Handle opening a workspace folder
   const handleOpenFolder = async () => {
-    try {
-      const selected = await open({
-        directory: true,
-        multiple: false,
+    const res = await openWorkspaceFolderWorkflow();
+    if (res.success) {
+      setSidebarOpen(true);
+    } else if (res.error) {
+      reportFileError({
+        type: "open",
+        message: `Failed to open workspace folder: ${res.error}`,
+        path: res.path,
       });
-
-      if (selected && typeof selected === "string") {
-        const tree = await listDirectoryTree(selected);
-        setWorkspaceTree(tree);
-        setSidebarOpen(true);
-      }
-    } catch (err) {
-      console.error("Failed to open folder:", err);
     }
   };
 
@@ -156,9 +156,52 @@ const App: Component = () => {
       markSaved(result);
       addOrSwitchTab(docState);
       setHomeVisible(false);
+      clearFileError();
       await startWatchingFile(path);
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      reportFileError({
+        type: "open",
+        message: `Failed to open ${path}: ${message}`,
+        path,
+        canRetry: false,
+      });
       console.error("Failed to open file:", err);
+    }
+  };
+
+  // Save As workflow
+  const saveCurrentFileAs = async (): Promise<boolean> => {
+    const doc = currentDocument();
+    try {
+      const selected = await save({
+        defaultPath: doc.filename.endsWith(".md")
+          ? doc.filename
+          : `${doc.filename}.md`,
+        filters: [
+          { name: "Markdown", extensions: ["md", "markdown", "mdx", "txt"] },
+        ],
+      });
+
+      if (selected && typeof selected === "string") {
+        const result = await saveFile(selected, doc.content);
+        markSaved(result);
+        syncCurrentDocumentToTab();
+        clearFileError();
+        await startWatchingFile(selected);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      reportFileError({
+        type: "save",
+        message: `Failed to Save As: ${message}`,
+        path: doc.path || doc.filename,
+        canRetry: true,
+      });
+      console.error("Failed to save file as:", err);
+      return false;
     }
   };
 
@@ -170,27 +213,19 @@ const App: Component = () => {
         const result = await saveFile(doc.path, doc.content);
         markSaved(result);
         syncCurrentDocumentToTab();
+        clearFileError();
         return true;
       } else {
-        const selected = await save({
-          defaultPath: doc.filename.endsWith(".md")
-            ? doc.filename
-            : `${doc.filename}.md`,
-          filters: [
-            { name: "Markdown", extensions: ["md", "markdown", "mdx", "txt"] },
-          ],
-        });
-
-        if (selected && typeof selected === "string") {
-          const result = await saveFile(selected, doc.content);
-          markSaved(result);
-          syncCurrentDocumentToTab();
-          await startWatchingFile(selected);
-          return true;
-        }
-        return false;
+        return await saveCurrentFileAs();
       }
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      reportFileError({
+        type: "save",
+        message: `Failed to save ${doc.filename}: ${message}`,
+        path: doc.path || doc.filename,
+        canRetry: true,
+      });
       console.error("Failed to save file:", err);
       return false;
     }
@@ -285,17 +320,15 @@ const App: Component = () => {
   // Handle exporting the current document to standalone HTML
   const handleExport = async () => {
     const doc = currentDocument();
-    try {
-      const selected = await save({
-        defaultPath: `${doc.filename.replace(/\.md$/, "")}.html`,
-        filters: [{ name: "HTML Document", extensions: ["html"] }],
+    const result = await exportDocumentWorkflow(doc);
+    if (result.success && result.outputPath) {
+      alert(`Exported document successfully to:\n${result.outputPath}`);
+    } else if (result.error) {
+      reportFileError({
+        type: "export",
+        message: `Failed to export document: ${result.error}`,
+        path: doc.filename,
       });
-      if (selected && typeof selected === "string") {
-        await exportDocument(doc.content, doc.filename, selected);
-        alert(`Exported document successfully to:\n${selected}`);
-      }
-    } catch (err) {
-      console.error("Export error:", err);
     }
   };
 
@@ -816,6 +849,12 @@ const App: Component = () => {
 
       {/* GitHub Releases Update Modal */}
       <UpdateModal />
+
+      {/* Recoverable File Operation Error Banner */}
+      <FileErrorBanner
+        onRetrySave={handleSaveFile}
+        onSaveAs={saveCurrentFileAs}
+      />
     </div>
   );
 };

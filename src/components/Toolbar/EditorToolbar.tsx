@@ -1,7 +1,7 @@
 import { Component } from "solid-js";
 import { currentDocument } from "../../store/editor";
-import { exportDocument } from "../../lib/tauri/commands";
-import { save } from "@tauri-apps/plugin-dialog";
+import { exportDocumentWorkflow } from "../../lib/exportWorkflow";
+import { reportFileError } from "../../store/fileErrors";
 import { dispatchFormat } from "../../lib/formatter";
 import { t } from "../../i18n";
 
@@ -10,17 +10,15 @@ export const EditorToolbar: Component = () => {
 
   const handleExport = async () => {
     const current = doc();
-    try {
-      const selected = await save({
-        defaultPath: `${current.filename.replace(/\.md$/, "")}.html`,
-        filters: [{ name: "HTML Document", extensions: ["html"] }],
+    const result = await exportDocumentWorkflow(current);
+    if (result.success && result.outputPath) {
+      alert(`Exported document successfully to:\n${result.outputPath}`);
+    } else if (result.error) {
+      reportFileError({
+        type: "export",
+        message: `Failed to export document: ${result.error}`,
+        path: current.filename,
       });
-      if (selected && typeof selected === "string") {
-        await exportDocument(current.content, current.filename, selected);
-        alert(`Exported document successfully to:\n${selected}`);
-      }
-    } catch (err) {
-      console.error("Export error:", err);
     }
   };
 

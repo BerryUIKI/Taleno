@@ -4,7 +4,8 @@ import { FileTree } from "./FileTree";
 import { workspaceTree, setWorkspaceTree } from "../../store/files";
 import { currentDocument } from "../../store/editor";
 import { listDirectoryTree } from "../../lib/tauri/commands";
-import { open } from "@tauri-apps/plugin-dialog";
+import { openWorkspaceFolderWorkflow } from "../../lib/workspaceWorkflow";
+import { reportFileError } from "../../store/fileErrors";
 import { t } from "../../i18n";
 
 export interface SidebarProps {
@@ -57,18 +58,13 @@ export const Sidebar: Component<SidebarProps> = (props) => {
   onCleanup(() => stopWorkspaceResize?.());
 
   const handleOpenFolder = async () => {
-    try {
-      const selected = await open({
-        directory: true,
-        multiple: false,
+    const res = await openWorkspaceFolderWorkflow();
+    if (res.error) {
+      reportFileError({
+        type: "open",
+        message: `Failed to open workspace folder: ${res.error}`,
+        path: res.path,
       });
-
-      if (selected && typeof selected === "string") {
-        const tree = await listDirectoryTree(selected);
-        setWorkspaceTree(tree);
-      }
-    } catch (err) {
-      console.error("Failed to open folder:", err);
     }
   };
 
@@ -79,6 +75,12 @@ export const Sidebar: Component<SidebarProps> = (props) => {
         const tree = await listDirectoryTree(ws.path);
         setWorkspaceTree(tree);
       } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        reportFileError({
+          type: "open",
+          message: `Failed to refresh workspace: ${message}`,
+          path: ws.path,
+        });
         console.error("Failed to refresh workspace:", err);
       }
     }
