@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render } from "solid-js/web";
 import { MobileDrawerSheet } from "./MobileDrawerSheet";
+import { addOrSwitchTab, openTabs, setOpenTabs, setActiveTabId } from "../../store/files";
+import { documentFromResponse, updateDocumentContent } from "../../store/editor";
 
 describe("MobileDrawerSheet", () => {
   let dispose: (() => void) | undefined;
@@ -11,6 +13,20 @@ describe("MobileDrawerSheet", () => {
     dispose = undefined;
     container?.remove();
     container = undefined;
+  });
+
+  it("delegates dirty-tab closing to the shared confirmation flow", () => {
+    setActiveTabId(null); setOpenTabs([]);
+    addOrSwitchTab(documentFromResponse({ path: "/a.md", filename: "a.md", content: "A", html: "", toc: [], word_count: 1 }));
+    updateDocumentContent("unsaved");
+    const requestClose = vi.fn();
+    container = document.createElement("div"); document.body.append(container);
+    dispose = render(() => <MobileDrawerSheet view="files" onClose={vi.fn()} onOpenFile={vi.fn()} onNewDocument={vi.fn()} onCloseTab={requestClose} />, container);
+    const close = Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.trim() === "✕" && !button.hasAttribute("aria-label"));
+    expect(close).toBeDefined();
+    close!.click();
+    expect(requestClose).toHaveBeenCalledWith("/a.md");
+    expect(openTabs()[0].document).toMatchObject({ content: "unsaved", isDirty: true });
   });
 
   it("renders files and settings sheet when active", () => {

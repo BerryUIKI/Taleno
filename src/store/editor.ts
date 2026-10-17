@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { batch, createSignal, type Setter } from "solid-js";
 import type { OpenFileResponse, RenderResult } from "../lib/tauri/commands";
 
 export type DisplayMode = "reading" | "writing" | "code";
@@ -10,6 +10,10 @@ export interface TocEntry {
 }
 
 export interface DocumentState {
+  /** Last successfully read/written Markdown, used as the save conflict baseline. */
+  savedContent?: string;
+  /** Changes only on explicit disk reload, to reset editor history. */
+  loadVersion?: number;
   path: string | null;
   filename: string;
   content: string;
@@ -33,10 +37,34 @@ const emptyDocument: DocumentState = {
   externallyModified: false,
 };
 
-const [currentDocument, setCurrentDocument] =
+const [currentDocument, writeDocument] =
   createSignal<DocumentState>(emptyDocument);
 
-const [displayMode, setDisplayMode] = createSignal<DisplayMode>("writing");
+let documentObserver: ((doc: DocumentState) => void) | undefined;
+let editorFlush: (() => void) | undefined;
+export function observeDocument(observer: (doc: DocumentState) => void) {
+  documentObserver = observer;
+}
+export function registerEditorFlush(flush: () => void) {
+  editorFlush = flush;
+  return () => { if (editorFlush === flush) editorFlush = undefined; };
+}
+export function flushPendingEdits() { editorFlush?.(); }
+
+const setCurrentDocument = ((value: DocumentState | ((doc: DocumentState) => DocumentState)) => {
+  const next = typeof value === "function" ? value(currentDocument()) : value;
+  return batch(() => {
+    writeDocument(next);
+    documentObserver?.(next);
+    return next;
+  });
+}) as Setter<DocumentState>;
+
+const [displayMode, writeDisplayMode] = createSignal<DisplayMode>("writing");
+const setDisplayMode = ((value: DisplayMode | ((mode: DisplayMode) => DisplayMode)) => {
+  flushPendingEdits();
+  return writeDisplayMode(value);
+}) as Setter<DisplayMode>;
 
 export { currentDocument, setCurrentDocument, displayMode, setDisplayMode };
 
@@ -53,8 +81,9 @@ export function updateDocumentContent(newContent: string) {
     return {
       ...prev,
       content: newContent,
+      savedContent: prev.savedContent ?? (prev.isDirty ? "" : prev.content),
       wordCount: words,
-      isDirty: prev.path !== null ? newContent !== prev.content || prev.isDirty : newContent.length > 0,
+      isDirty: newContent !== (prev.savedContent ?? (prev.isDirty ? "" : prev.content)),
     };
   });
 }
@@ -77,17 +106,22 @@ export function updateDocumentRendering(
 }
 
 export function markSaved(result: OpenFileResponse) {
-  setCurrentDocument({
+  setCurrentDocument(documentFromResponse(result));
+}
+
+export function documentFromResponse(result: OpenFileResponse): DocumentState {
+  return {
     path: result.path,
     filename: result.filename,
     content: result.content,
+    savedContent: result.content,
     renderedContent: result.content,
     html: result.html,
     toc: result.toc,
     wordCount: result.word_count,
     isDirty: false,
     externallyModified: false,
-  });
+  };
 }
 
 export function resetDocument() {
