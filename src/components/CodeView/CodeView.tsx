@@ -1,5 +1,6 @@
 import { Component, createMemo, onMount, onCleanup } from "solid-js";
 import { currentDocument, updateDocumentContent } from "../../store/editor";
+import { fontSize } from "../../store/settings";
 import { registerCodeFormatter, type FormatAction } from "../../lib/formatter";
 
 export interface HistorySnapshot {
@@ -297,6 +298,8 @@ export const CodeView: Component = () => {
     }
   };
 
+  const dynamicLineHeight = () => `${Math.round(fontSize() * 1.5)}px`;
+
   return (
     <div class="h-full flex overflow-hidden font-mono text-sm bg-[var(--color-editor-bg)] text-[var(--color-text-primary)]">
       {/* Line Numbers Gutter (Synced Scroll) */}
@@ -306,7 +309,7 @@ export const CodeView: Component = () => {
         aria-hidden="true"
       >
         {lines().map((_, i) => (
-          <div style={{ height: "24px", "line-height": "24px" }}>{i + 1}</div>
+          <div style={{ height: dynamicLineHeight(), "line-height": dynamicLineHeight() }}>{i + 1}</div>
         ))}
       </div>
 
@@ -314,11 +317,11 @@ export const CodeView: Component = () => {
       <div class="flex-1 relative h-full overflow-hidden">
         <textarea
           ref={textareaRef}
-          class="w-full h-full p-6 outline-none resize-none bg-transparent font-mono text-sm border-0 overflow-y-auto block select-text focus:ring-0"
+          class="w-full h-full p-6 outline-none resize-none bg-transparent font-mono text-sm border-0 overflow-y-auto block select-text focus:ring-0 code-view-textarea"
           style={{
             "box-sizing": "border-box",
-            "line-height": "24px",
-            "font-size": "14px",
+            "line-height": dynamicLineHeight(),
+            "font-size": `${fontSize()}px`,
             "font-family": "Consolas, 'Cascadia Code', 'Fira Code', Menlo, Monaco, 'Courier New', monospace",
             "white-space": "pre-wrap",
             "word-break": "break-word",

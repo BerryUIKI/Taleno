@@ -6,7 +6,18 @@ import {
   setDisplayMode,
   cycleDisplayMode,
 } from "../../store/editor";
-import { theme, setTheme, zenMode, setZenMode, focusMode, setFocusMode } from "../../store/settings";
+import {
+  theme,
+  setTheme,
+  zenMode,
+  setZenMode,
+  focusMode,
+  setFocusMode,
+  fontSize,
+  increaseFontSize,
+  decreaseFontSize,
+  resetFontSize,
+} from "../../store/settings";
 import { recentFiles, openTabs, closeTab, activeTabId } from "../../store/files";
 import { dispatchFormat } from "../../lib/formatter";
 import { checkForUpdates } from "../../lib/updater";
@@ -621,7 +632,7 @@ export const MenuBar: Component<MenuBarProps> = (props) => {
                   class="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--color-hover)] transition-colors text-left"
                   onClick={() => { closeMenus(); setZenMode((prev) => !prev); }}
                 >
-                  <span>{zenMode() ? "Exit Zen Mode" : "Zen Mode (Fullscreen)"}</span>
+                  <span>{zenMode() ? "Exit Zen Mode (Esc)" : "Zen Mode (Fullscreen)"}</span>
                   <kbd class="text-[10px] text-[var(--color-text-secondary)] font-mono">F11</kbd>
                 </button>
 
@@ -631,6 +642,32 @@ export const MenuBar: Component<MenuBarProps> = (props) => {
                 >
                   <span>{focusMode() ? "Exit Focus Mode" : "Focus Mode"}</span>
                   <kbd class="text-[10px] text-[var(--color-text-secondary)] font-mono">Ctrl+Shift+D</kbd>
+                </button>
+
+                <div class="my-1 border-t border-[var(--color-border)]" />
+
+                <button
+                  class="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--color-hover)] transition-colors text-left"
+                  onClick={() => { closeMenus(); increaseFontSize(); }}
+                >
+                  <span>Increase Font Size</span>
+                  <kbd class="text-[10px] text-[var(--color-text-secondary)] font-mono">Ctrl+=</kbd>
+                </button>
+
+                <button
+                  class="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--color-hover)] transition-colors text-left"
+                  onClick={() => { closeMenus(); decreaseFontSize(); }}
+                >
+                  <span>Decrease Font Size</span>
+                  <kbd class="text-[10px] text-[var(--color-text-secondary)] font-mono">Ctrl+-</kbd>
+                </button>
+
+                <button
+                  class="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--color-hover)] transition-colors text-left"
+                  onClick={() => { closeMenus(); resetFontSize(); }}
+                >
+                  <span>Reset Font Size ({fontSize()}px)</span>
+                  <kbd class="text-[10px] text-[var(--color-text-secondary)] font-mono">Ctrl+Shift+0</kbd>
                 </button>
 
                 <div class="my-1 border-t border-[var(--color-border)]" />
