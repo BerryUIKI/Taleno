@@ -356,11 +356,12 @@ Taleno adheres to strict **least-privilege** security practices enabled by Tauri
 Taleno provides a local-first, sandboxed plugin system enabling users and developers to extend editor capabilities, register custom commands, and add workspace tooling without altering core binaries.
 
 ### 9.1 Storage & Discovery
-Plugins are stored in the platform-standard application data directory:
-- **Windows**: `%APPDATA%/Taleno/plugins/<plugin-id>/`
-- **macOS**: `~/Library/Application Support/Taleno/plugins/<plugin-id>/`
-- **Linux**: `~/.config/Taleno/plugins/<plugin-id>/`
+Plugins are stored in the platform application data directory resolved from Tauri's bundle identifier (`com.berryuiki.taleno`):
+- **Windows**: `%APPDATA%\com.berryuiki.taleno\plugins\<plugin-id>\`
+- **macOS**: `~/Library/Application Support/com.berryuiki.taleno/plugins/<plugin-id>/`
+- **Linux**: `~/.local/share/com.berryuiki.taleno/plugins/<plugin-id>/` (or `$XDG_DATA_HOME/com.berryuiki.taleno/plugins/<plugin-id>/`)
 
+Users can reveal this directory directly from **Settings ➔ Plugins ➔ "Open Plugins Folder"** via native shell integration.
 On startup, the Rust backend `plugin_service` verifies this directory exists and automatically writes a documented starter plugin (`sample-timestamp`) if empty.
 
 ### 9.2 Plugin Manifest (`manifest.json`)
@@ -409,7 +410,7 @@ All commands, UI elements, and event listeners registered through `ctx` are trac
 - Official plugin registry and community submission hub: [BerryUIKI/Taleno-Plugins](https://github.com/BerryUIKI/Taleno-Plugins).
 
 ### 9.6 Custom Themes & Skins Architecture
-- Custom themes are managed under `%APPDATA%/Taleno/themes/<theme-id>/`.
+- Custom themes are managed under the identifier-derived application data directory (e.g. `%APPDATA%\com.berryuiki.taleno\themes\<theme-id>\` on Windows), accessible via the **"Open Themes Folder"** button in Settings.
 - Themes provide a `theme.json` metadata file and a `theme.css` token override stylesheet that dynamically configures the CSS variables on `:root` without full DOM re-renders or application restarts.
 - For complete theme styling instructions and palette references, see [Theme Development Handbook](THEME_DEVELOPMENT.md).
 
