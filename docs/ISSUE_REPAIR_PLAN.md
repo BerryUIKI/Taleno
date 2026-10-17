@@ -204,41 +204,44 @@ pnpm build
 
 ### C — 插件运行边界
 
+> **PR**：[#138](https://github.com/BerryUIKI/Taleno/pull/138)
+> **Commits**：`da97bec`, `4001847`, `b2ec0dd`, `59a2316`
+
 **[#69](https://github.com/BerryUIKI/Taleno/issues/69) — [BUG] [P2] Report plugin execution failure under the production CSP**
 
-- [ ] Do not convert source-read/evaluation errors into successful no-op loads.
-- [ ] Expose actionable load errors without losing enabled-state intent.
-- [ ] Use an execution architecture compatible with the production CSP; do not simply relax CSP for main-realm eval.
+- [x] Do not convert source-read/evaluation errors into successful no-op loads.（废弃伪 mock 回退，文件读取与代码评估异常统一抛出 `PluginExecutionError`）
+- [x] Expose actionable load errors without losing enabled-state intent.（`pluginErrors` reactive signal 记录详细报错信息并在设置界面插件卡片显示醒目警告；保留用户 `enabled: true` 启用意图并在重载成功后自动清除错误）
+- [x] Use an execution architecture compatible with the production CSP; do not simply relax CSP for main-realm eval.（主窗口保持严格生产 CSP `default-src 'self'`，不引入 `unsafe-eval`；通过独立沙箱隔离机制运行代码）
 
 **[#70](https://github.com/BerryUIKI/Taleno/issues/70) — [BUG] [P2] Do not list fallback mock plugins as installed production plugins**
 
-- [ ] Keep test/mock manifests out of production discovery.
-- [ ] Missing installations do not appear enabled.
-- [ ] Refreshing after uninstall does not recreate phantom entries.
+- [x] Keep test/mock manifests out of production discovery.（移除 `src/store/plugins.ts` 中的 `BUILTIN_FALLBACK_PLUGINS`，初始状态清空为 `[]`）
+- [x] Missing installations do not appear enabled.（生产环境插件列表完全来自磁盘 `listPlugins()` 扫描结果，缺失安装不会显示启用）
+- [x] Refreshing after uninstall does not recreate phantom entries.（卸载后刷新仅扫描实际目录，彻底消除幽灵插件实体；测试夹具解耦至 `SettingsModal.test.tsx`）
 
 **[#71](https://github.com/BerryUIKI/Taleno/issues/71) — [BUG] [P2] Make registered plugin commands reachable from the application**
 
-- [ ] Expose active plugin commands through the chosen command UI.
-- [ ] Bind declared shortcuts with conflict handling.
-- [ ] Remove command/shortcut registrations on unload.
+- [x] Expose active plugin commands through the chosen command UI.（在 Quick Switcher / 命令面板 `<Ctrl+P>` 中联合展示已打开文档与活跃插件命令，带有专属 `[Plugin]` 标签与快捷键提示，支持模糊搜索及一键/回车执行）
+- [x] Bind declared shortcuts with conflict handling.（`normalizeShortcut` 统一格式化修饰键；构建 `RESERVED_CORE_SHORTCUTS` 核心保留清单，拦截与核心快捷键冲突的插件绑定并输出警告；支持跨平台 Ctrl/Cmd 适配）
+- [x] Remove command/shortcut registrations on unload.（插件卸载或禁用时，一并移除已注册命令、快捷键映射与事件监听器）
 
 **[#72](https://github.com/BerryUIKI/Taleno/issues/72) — [BUG] [P2] Insert plugin text at the editor selection instead of appending to the document**
 
-- [ ] Route insertion through the active editor adapter.
-- [ ] Preserve proper Undo behavior and dirty state.
-- [ ] Specify and test behavior when no editing selection exists.
+- [x] Route insertion through the active editor adapter.（在 `formatter.ts` 实现 `insertTextAtSelection`：Milkdown 写作模式通过 ProseMirror `tr.insertText(text, from, to)` 插入当前选区，代码模式替换 `<textarea>` 当前选区并保持光标位置）
+- [x] Preserve proper Undo behavior and dirty state.（ProseMirror 事务插入与 textarea 替换均完整接入撤销/重做历史栈，并更新 `isDirty: true`）
+- [x] Specify and test behavior when no editing selection exists.（无活跃选区或处于阅读模式时安全追加至文档末尾并标记 dirty；新增覆盖写作模式、代码模式及回退模式的全套单测）
 
 **[#73](https://github.com/BerryUIKI/Taleno/issues/73) — [ENHANCEMENT] [P2] Implement isolation and permission enforcement for third-party plugin execution**
 
-- [ ] Choose and implement an isolated execution boundary.
-- [ ] Enforce allowed operations at the broker/native boundary.
-- [ ] Document and verify the actual trust model; keep restrictive production CSP.
+- [x] Choose and implement an isolated execution boundary.（创建 `public/plugin-sandbox.html` 独立沙箱宿主，配置 `sandbox="allow-scripts"` 与独立专用 CSP，通过 opaque `null` origin 杜绝直接访问父级 DOM、`localStorage`、`__TAURI_INTERNALS__` 或原生 IPC）
+- [x] Enforce allowed operations at the broker/native boundary.（在 `PluginRuntimeManager` 的 broker 边界严格校验 `manifest.permissions`：`commands`、`editor:read`、`editor:write`、`storage`；未声明权限调用抛出 `PluginPermissionError` 阻断执行）
+- [x] Document and verify the actual trust model; keep restrictive production CSP.（在 `docs/PLUGIN_DEVELOPMENT.md` 与 `docs/ARCHITECTURE.md` 详述沙箱模型、权限校验、选区插入与快捷键规范，主窗口保留严格 CSP）
 
 **[#114](https://github.com/BerryUIKI/Taleno/issues/114) — [REFACTOR] [P3] Replace plugin and theme IPC any responses with domain types**
 
-- [ ] Use precise domain/response interfaces instead of any.
-- [ ] Handle malformed/optional data explicitly at the boundary.
-- [ ] Pass pnpm tsc --noEmit and relevant store tests.
+- [x] Use precise domain/response interfaces instead of any.（`src/lib/tauri/commands.ts` 中的 `listPlugins`、`fetchMarketplacePlugins`、`installPlugin`、`updatePlugin`、`listThemes`、`fetchMarketplaceThemes`、`installTheme` 均返回强类型领域接口 `PluginManifest`、`RemotePlugin`、`ThemeManifest`、`RemoteTheme`）
+- [x] Handle malformed/optional data explicitly at the boundary.（`PluginManifest` 补充 `main?: string` 字段，清理 `customThemes.ts` 中的手动 `as` 类型断言）
+- [x] Pass pnpm tsc --noEmit and relevant store tests.（`pnpm tsc --noEmit` 0 错误通过）
 
 ### D — 搜索、对话框与键盘导航
 
