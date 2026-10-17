@@ -19,7 +19,7 @@ pub struct ActiveDocument {
 }
 
 /// A single entry in the table of contents.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TocEntry {
     /// Heading level (1-6)
     pub level: u8,

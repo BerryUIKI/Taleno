@@ -1,6 +1,20 @@
-import { Component, createMemo, onMount, onCleanup } from "solid-js";
+import { Component, createMemo, Index, onMount, onCleanup } from "solid-js";
 import { currentDocument, updateDocumentContent } from "../../store/editor";
 import { registerCodeFormatter, type FormatAction } from "../../lib/formatter";
+
+/**
+ * Fast non-allocating line counter counting newline characters.
+ */
+export function countDocumentLines(text: string): number {
+  if (text.length === 0) return 1;
+  let count = 1;
+  for (let i = 0; i < text.length; i++) {
+    if (text.charCodeAt(i) === 10) {
+      count++;
+    }
+  }
+  return count;
+}
 
 export const CodeView: Component = () => {
   let textareaRef!: HTMLTextAreaElement;
@@ -8,10 +22,11 @@ export const CodeView: Component = () => {
   let isComposing = false;
 
   const content = () => currentDocument().content;
-  const lines = createMemo(() => content().split("\n"));
+  const lineCount = createMemo(() => countDocumentLines(content()));
+  const lineNumbers = createMemo(() => Array.from({ length: lineCount() }, (_, i) => i + 1));
 
   const handleInput = (e: InputEvent & { currentTarget: HTMLTextAreaElement }) => {
-    updateDocumentContent(e.currentTarget.value);
+    updateDocumentContent(e.currentTarget.value, { deferStats: true });
   };
 
   const handleCompositionStart = () => {
@@ -20,7 +35,7 @@ export const CodeView: Component = () => {
 
   const handleCompositionEnd = (e: CompositionEvent & { currentTarget: HTMLTextAreaElement }) => {
     isComposing = false;
-    updateDocumentContent(e.currentTarget.value);
+    updateDocumentContent(e.currentTarget.value, { deferStats: true });
   };
 
   const handleScroll = (e: Event & { currentTarget: HTMLTextAreaElement }) => {
@@ -164,9 +179,16 @@ export const CodeView: Component = () => {
         class="w-12 flex-shrink-0 select-none py-6 text-right pr-3 overflow-hidden text-xs opacity-40 border-r border-[var(--color-border)] bg-[var(--color-sidebar-bg)] pointer-events-none"
         aria-hidden="true"
       >
-        {lines().map((_, i) => (
-          <div style={{ height: "24px", "line-height": "24px" }}>{i + 1}</div>
-        ))}
+        <Index each={lineNumbers()}>
+          {(line) => (
+            <div
+              data-testid="gutter-line-number"
+              style={{ height: "24px", "line-height": "24px" }}
+            >
+              {line()}
+            </div>
+          )}
+        </Index>
       </div>
 
       {/* Code Textarea Area with Windows IME Caret Alignment */}

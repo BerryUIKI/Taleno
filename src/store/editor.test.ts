@@ -11,6 +11,8 @@ import {
   resetDocument,
   markExternallyModified,
   clearExternallyModified,
+  countWordsFast,
+  flushDeferredStats,
 } from "./editor";
 
 describe("Editor Store", () => {
@@ -97,4 +99,46 @@ describe("Editor Store", () => {
     clearExternallyModified();
     expect(currentDocument().externallyModified).toBe(false);
   });
+
+  describe("countWordsFast and performance optimizations", () => {
+    it("should count words accurately with zero regex or array allocations", () => {
+      expect(countWordsFast("")).toBe(0);
+      expect(countWordsFast("   \t\n\r  ")).toBe(0);
+      expect(countWordsFast("Hello world")).toBe(2);
+      expect(countWordsFast("  One   two   three \n four\tfive ")).toBe(5);
+    });
+
+    it("should defer derived word count when deferStats is true", async () => {
+      updateDocumentContent("Initial text", { deferStats: true });
+      // Content and isDirty are immediately updated
+      expect(currentDocument().content).toBe("Initial text");
+      expect(currentDocument().isDirty).toBe(true);
+      // Stats not yet computed immediately
+      expect(currentDocument().wordCount).toBe(0);
+
+      // Flush deferred stats synchronously
+      flushDeferredStats();
+      expect(currentDocument().wordCount).toBe(2);
+    });
+
+    it("should measure p95 input latency well within the 16ms frame budget", () => {
+      const baseText = "# Document Title\n\n".repeat(100);
+      const latencies: number[] = [];
+
+      for (let i = 0; i < 100; i++) {
+        const text = `${baseText} Keystroke ${i}`;
+        const start = performance.now();
+        updateDocumentContent(text, { deferStats: true });
+        latencies.push(performance.now() - start);
+      }
+
+      latencies.sort((a, b) => a - b);
+      const p95Index = Math.floor(latencies.length * 0.95);
+      const p95Latency = latencies[p95Index];
+
+      // Must easily beat the 16ms 60fps input budget
+      expect(p95Latency).toBeLessThan(5);
+    });
+  });
 });
+
