@@ -485,39 +485,39 @@ pnpm build
 
 **[#122](https://github.com/BerryUIKI/Taleno/issues/122) — [DOCS] [P2] Reconcile release-version claims in README, roadmap and milestones**
 
-- [ ] Align the current release announcement with package metadata.
-- [ ] Correct completed/future milestone statuses.
-- [ ] Keep historical entries clearly dated rather than rewriting release history.
+- [x] Align the current release announcement with package metadata.（`README.md` 与全部 8 个本地化语言 README 的发布横幅从过期的 `v0.1.6` 同步对齐为正式版本 `v0.1.9`，与 `package.json` 和 `Cargo.toml` 完全一致）
+- [x] Correct completed/future milestone statuses.（`docs/ROADMAP.md` 与 `docs/MILESTONES.md` 全面校准：M0–M9 统一标注为历史已发布版本 `v0.0.1`–`v0.1.9`，纠正此前将 M5 错标为 v1.0.0 的问题；新增 M11 为未来目标生产稳定版 `v1.0.0`）
+- [x] Keep historical entries clearly dated rather than rewriting release history.（保留甘特图与里程碑章节的真实历史发布日期与递进关系）
 
 **[#123](https://github.com/BerryUIKI/Taleno/issues/123) — [DOCS] [P2] Publish an implementation-accurate feature and platform status matrix**
 
-- [ ] Reconcile README, architecture and roadmap feature status.
-- [ ] Name actual dependencies and implementation paths.
-- [ ] Link known limitations and avoid claiming untested platform acceptance.
+- [x] Reconcile README, architecture and roadmap feature status.（在 `README.md` 及 `docs/ARCHITECTURE.md` 第 11 节发布完整的特性与平台实现状态矩阵）
+- [x] Name actual dependencies and implementation paths.（剔除未使用的 `ripgrep` 外部二进制描述与致谢，准确命名基于 `tokio::fs` 的 Rust 原生递归检索 `commands/search.rs`；明确 Mermaid 与 LaTeX 数学公式采用容器布局排版与衬线字体渲染；明确 `pulldown-cmark` 零拷贝解析与 `syntect` 高亮引擎）
+- [x] Link known limitations and avoid claiming untested platform acceptance.（公布平台验证矩阵：Windows 经本地与 CI 完整验证；macOS/Linux 经 CI 构建与测试矩阵验证并标注 WebKitGTK / 签名要求；Android/iOS 响应式抽屉与视口键盘已就绪，实机硬件与沙箱书签留待物理设备验收）
 
 **[#124](https://github.com/BerryUIKI/Taleno/issues/124) — [DOCS] [P2] Document actual identifier-derived plugin and theme data directories**
 
-- [ ] Verify actual paths on supported desktop platforms.
-- [ ] Prefer Open Folder actions in user-facing instructions.
-- [ ] Keep external plugin/theme repository and built-in theme distinctions intact.
+- [x] Verify actual paths on supported desktop platforms.（对齐 Tauri v2 由 bundle identifier `com.berryuiki.taleno` 推导的真实数据路径：Windows `%APPDATA%\com.berryuiki.taleno\plugins\` & `themes\`，macOS `~/Library/Application Support/...`，Linux `~/.local/share/...`）
+- [x] Prefer Open Folder actions in user-facing instructions.（在 `docs/PLUGIN_DEVELOPMENT.md`、`docs/THEME_DEVELOPMENT.md`、`docs/ARCHITECTURE.md` 与 `AGENTS.md` 中全面优先引导用户通过设置面板中的“打开插件目录” / “打开主题目录”原生按钮直达）
+- [x] Keep external plugin/theme repository and built-in theme distinctions intact.（严格保留内置主题不可卸载与第三方插件/主题提交至独立仓库 `BerryUIKI/Taleno-Plugins` 的架构约束）
 
 **[#125](https://github.com/BerryUIKI/Taleno/issues/125) — [DOCS] [P2] Correct ADR-004's atomic-save filename and durability description**
 
-- [ ] Update alongside the unique-temp/durability fixes.
-- [ ] Distinguish atomic replacement from confirmed power-loss durability.
-- [ ] Document supported-platform behavior and failure handling.
+- [x] Update alongside the unique-temp/durability fixes.（在 `docs/DESIGN_DECISIONS.md` 更新 ADR-004，准确记录同目录 `<path>.tmp` 临时文件保存模式）
+- [x] Distinguish atomic replacement from confirmed power-loss durability.（明确区分进程崩溃原子替换保障与硬件级掉电持久化 `sync_all` 屏障）
+- [x] Document supported-platform behavior and failure handling.（补充同卷重命名要求与非破坏性 `FsError` 失败恢复语义，确保源文档不被损坏）
 
 **[#126](https://github.com/BerryUIKI/Taleno/issues/126) — [BUG] [P2] Route and validate platform-specific release tags separately from desktop releases**
 
-- [ ] Separate desktop and mobile tag routing/validation.
-- [ ] Define actual mobile build/signing jobs or document unsupported release paths.
-- [ ] Cover desktop, Android and iOS tag-validation cases and update stale manual defaults.
+- [x] Separate desktop and mobile tag routing/validation.（在 `.github/workflows/release.yml` 中收紧 tag 模式为 `v[0-9]+.[0-9]+.[0-9]+`，防止移动端 tag 误触发桌面构建矩阵）
+- [x] Define actual mobile build/signing jobs or document unsupported release paths.（更新 `scripts/validate-release-version.mjs` 支持桌面及移动端 `-android`、`-ios` tag 格式，并在传入 `RELEASE_PLATFORM=desktop` 时强制拦截非桌面 tag）
+- [x] Cover desktop, Android and iOS tag-validation cases and update stale manual defaults.（更新 `workflow_dispatch` 默认版本号从 `v0.1.6` 到 `v0.1.9`；在 `scripts/validate-release-version.test.mjs` 补充 6 项自动化测试并全部通过）
 
 **[#103](https://github.com/BerryUIKI/Taleno/issues/103) — [BUG] [P2] Replace the stale Lexora HTML document title with Taleno**
 
-- [ ] Update the HTML document title.
-- [ ] Verify production/native accessibility naming.
-- [ ] Preserve any deliberate compatibility aliases separately.
+- [x] Update the HTML document title.（将 `index.html` 中的 `<title>Lexora</title>` 修正为 `<title>Taleno</title>`）
+- [x] Verify production/native accessibility naming.（确认生产与原生窗口无障碍标题一致性）
+- [x] Preserve any deliberate compatibility aliases separately.（保留 `src-tauri/src/models/plugin.rs` 与 `theme.rs` 中为兼容历史插件 manifest 而故意设置的 `lexora_` serde 别名）
 
 ## 6. 关闭与交付门禁
 
