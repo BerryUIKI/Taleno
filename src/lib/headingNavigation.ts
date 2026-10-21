@@ -1,0 +1,88 @@
+import { displayMode, type TocEntry } from "../store/editor";
+
+export type HeadingRevealer = (entry: TocEntry, index: number) => boolean;
+
+let writingRevealer: HeadingRevealer | null = null;
+let codeRevealer: HeadingRevealer | null = null;
+
+export function registerWritingHeadingRevealer(revealer: HeadingRevealer | null) {
+  writingRevealer = revealer;
+}
+
+export function registerCodeHeadingRevealer(revealer: HeadingRevealer | null) {
+  codeRevealer = revealer;
+}
+
+/**
+ * Shared mode-aware heading navigation adapter.
+ * Supports Reading, Writing, and Code modes with occurrence-aware resolution.
+ */
+export function navigateToHeading(entry: TocEntry, index: number): boolean {
+  const mode = displayMode();
+
+  if (mode === "reading") {
+    // Scope anchors to the document: headings such as "Root" may share IDs with app chrome.
+    const headings = document.querySelectorAll(
+      ".markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6"
+    );
+    const el = Array.from(headings).find(heading => heading.id === entry.id);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      return true;
+    }
+
+    // Fallback: search all headings in markdown-body by occurrence index
+    if (headings[index]) {
+      headings[index].scrollIntoView({ behavior: "smooth", block: "start" });
+      return true;
+    }
+    return false;
+  }
+
+  if (mode === "writing") {
+    if (writingRevealer && writingRevealer(entry, index)) {
+      return true;
+    }
+
+    // Fallback: search DOM headings in milkdown container by occurrence index
+    const headings = document.querySelectorAll(
+      ".milkdown-container h1, .milkdown-container h2, .milkdown-container h3, .milkdown-container h4, .milkdown-container h5, .milkdown-container h6"
+    );
+    if (headings[index]) {
+      headings[index].scrollIntoView({ behavior: "smooth", block: "start" });
+      return true;
+    }
+    return false;
+  }
+
+  if (mode === "code") {
+    if (codeRevealer && codeRevealer(entry, index)) {
+      return true;
+    }
+
+    // Fallback: scan textarea lines by heading regex and occurrence index
+    const textarea = document.querySelector("textarea");
+    if (textarea) {
+      const lines = textarea.value.split("\n");
+      let headingCount = 0;
+      let charIndex = 0;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (/^#{1,6}\s+/.test(line)) {
+          if (headingCount === index) {
+            textarea.focus();
+            textarea.setSelectionRange(charIndex, charIndex + line.length);
+            const lineHeight = 24;
+            textarea.scrollTop = Math.max(0, i * lineHeight - 60);
+            return true;
+          }
+          headingCount++;
+        }
+        charIndex += line.length + 1;
+      }
+    }
+    return false;
+  }
+
+  return false;
+}

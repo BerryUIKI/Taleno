@@ -14,7 +14,7 @@ vi.mock("./lib/tauri/commands", async (original) => ({
 vi.mock("./lib/tauri/events", () => ({ onFileChanged: async (callback: typeof mocks.changed) => { mocks.changed = callback; return () => {}; }, onSingleInstanceOpen: async () => () => {} }));
 vi.mock("./store/plugins", () => ({ syncPlugins: async () => {} }));
 vi.mock("./store/customThemes", () => ({ syncCustomThemes: async () => {} }));
-vi.mock("./lib/updater", () => ({ scheduleAutomaticUpdateCheck: () => () => {} }));
+vi.mock("./lib/updater", () => ({ scheduleAutomaticUpdateCheck: () => () => {}, updateModalOpen: () => false }));
 vi.mock("./components/Updater/UpdateModal", () => ({ UpdateModal: () => null }));
 vi.mock("./components/Settings/SettingsModal", () => ({ SettingsModal: () => null }));
 vi.mock("./components/MenuBar/MenuBar", () => ({ MenuBar: () => null }));

@@ -59,6 +59,7 @@ pub fn run() {
             commands::file::delete_entry,
             commands::file::rename_entry,
             commands::markdown::render_markdown,
+            commands::markdown::resolve_document_image,
             commands::markdown::highlight_code,
             commands::markdown::export_document,
             commands::search::search_workspace,

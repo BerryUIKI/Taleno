@@ -1,0 +1,48 @@
+{
+  "baseUrl": "http://127.0.0.1:1423",
+  "measuredAt": "2026-10-21T10:02:23.572Z",
+  "browser": "155.0.8059.85",
+  "platform": "win32",
+  "node": "v24.15.0",
+  "startupMs": [
+    210.09999999776483,
+    60,
+    54.399999998509884,
+    54.19999999925494,
+    68.39999999850988
+  ],
+  "initialScripts": [
+    "http://127.0.0.1:1423/assets/index-aYeK-6Gx.js"
+  ],
+  "source": {
+    "lines": 10000,
+    "handlerMs": {
+      "count": 60,
+      "p50": 12.900000002235174,
+      "p95": 20.700000002980232,
+      "max": 32.600000001490116
+    },
+    "nextAnimationFrameMs": {
+      "count": 60,
+      "p50": 20.5,
+      "p95": 27.599999997764826,
+      "max": 38.80000000074506
+    }
+  },
+  "writing": {
+    "paragraphs": 500,
+    "handlerMs": {
+      "count": 60,
+      "p50": 3.300000000745058,
+      "p95": 4.899999998509884,
+      "max": 14.400000002235174
+    },
+    "nextAnimationFrameMs": {
+      "count": 60,
+      "p50": 4.699999999254942,
+      "p95": 16.800000000745058,
+      "max": 17.199999999254942
+    }
+  },
+  "limits": "Browser on this host with mocked IPC; no native Tauri startup, device acceptance or universal frame-budget guarantee. Input samples run after document-level delegated handlers, excluding idle serialization. Animation-frame samples include scheduling, not GPU presentation. Startup probe: new browser context, then four reloads; time until the New Document action is available."
+}

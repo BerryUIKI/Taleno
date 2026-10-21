@@ -1,5 +1,35 @@
 # Taleno 修复计划与 AGY 交接
 
+## 2026-10-21 整合验收记录
+
+当前工作：`feature/complete-remaining-issues`，基线 `dev 68c4a3c`。本轮整合 PR #140–#144 的实现，并修复旧分支与近期数据完整性保护的冲突、离线导出依赖、图片资源权限、独立撤销组、聚焦效果和发布路由。以下原 2026-10-17 交接内容作为历史记录保留，不再代表当前分工或开放数量。
+
+本轮起始开放 34 项（33 个独立 issue 与总追踪 #127）。30 个无需真机的独立项完成代码与自动化验证；#84、#96、#102 保留真机验收，总追踪 #127 保留开放。用户已明确确认“暂无真机，保留待真机验收项”。这些修改尚未作为新版本发布，已发布桌面版本仍为 v0.1.9。
+
+| Issues | 实现与证据 |
+| --- | --- |
+| #84（部分完成，保留） | Rust 相对图片解析、逐文件 asset scope、Writing NodeView 显示 URL 与纯 Markdown 源分离；路径空格/Unicode/越界单测及浏览器 IPC 源保留测试。Android/iOS 外部资源、安全作用域/SAF 仍未验收，原生 provider 适配仍是已知限制。 |
+| #85、#86 | 捆绑 Mermaid/KaTeX；错误保留源，图表只替换自身；静态 SVG、数学标记、内嵌 CSS/字体导出。真实 Chrome 阻断外部网络验证显示与导出。 |
+| #87、#88、#89 | 实时后台 TOC、版本/文档替换取消、全局唯一锚点、Rust 源行位置；重复/带格式/setext/围栏标题测试；Reading/Writing/Code 导航适配及移动抽屉入口。 |
+| #90、#91、#92 | Writing 链接/图片输入对话框、任务列表；ProseMirror 原生事务与独立撤销组。真实浏览器验证 URL/alt、任务列表、Undo、原文字保留。 |
+| #93 | Source Undo/Redo、选区快照、标签 ID/实例/Reload 版本隔离；真实 textarea 输入/撤销/重做及同名未保存文档隔离测试。 |
+| #94、#95 | 代码语言标签转义，委托复制事件、精确 textContent 与失败反馈；Rust 与前端测试，生产 CSP 无 inline-script 放宽。 |
+| #96（部分完成，保留） | 移动 Save/Save As 接入统一保存与关闭保护；取消/失败保持 dirty，浏览器/IPC 回归通过。Android/iOS picker/provider 写入、权限和真机验收待补。 |
+| #97、#98、#99、#100、#101 | 窄桌面窗口按钮、跨模式持久字号、原生 decoration 活动块聚焦、Zen 全屏前态恢复与退出、移动可访问标签本地化。Chrome 窄窗口/字号/聚焦及单元测试通过。 |
+| #102（部分完成，保留） | visualViewport height/offsetTop、resize/scroll 清理、安全区域 CSS 和键盘布局测试；旋转、输入法、cutout 和真实触屏滚动保留真机验收。 |
+| #103 | HTML title 与 Tauri productName/window title 为 Taleno；生产前端和 Windows 原生构建检查。 |
+| #104 | 可恢复操作错误，保存失败不关闭；重试/另存绑定原标签实例。App 完整性测试、Rust 写入/替换失败测试。 |
+| #105、#106、#107、#108、#109 | 不变语法库缓存、虚拟稳定行号、延迟统计/避免重复序列化、blocking worker、按需分块与重试。见[实测方法和原始结果](performance/2026-10-21.md)。没有将包大小或 debug 数值当作启动/帧率结论；一万行 Source p95 仍高于 16 ms，明确保留性能边界。 |
+| #112、#113 | 菜单/工具栏共用导出（先 flush、捕获源、统一默认名/错误）；App/Sidebar 共用 workspace picker 和 Rust tree。工作流测试与类型检查。 |
+| #122、#123、#124、#125、#126 | 九语言当前版本说明、保留历史规划编号、真实路径/依赖/平台矩阵、identifier 数据目录与主题分类、原子写入 ADR、desktop/mobile 标签分类及不支持的移动签名发布说明。版本验证测试通过，手工发布默认值已去除。 |
+
+验证记录：TypeScript 通过；前端 41 个测试文件、200 项通过；Rust 全量 54 项通过，性能项单独以 release 运行；Chrome 9 项端到端验收通过。完整性回归使用真实 Milkdown，不以 formatter mock 替代编辑事务。Clippy `--all-targets -- -D warnings` 与 rustfmt 通过。`pnpm tauri build --no-sign` 与 `pnpm tauri bundle --no-sign --ci` 本地 EXE/MSI/NSIS 检查成功；不包含发布签名。最终以整合 PR 的 CI 记录为准。
+
+本地 `pnpm tauri build` 已构建原生 EXE、MSI 和 NSIS，随后因未提供本机 updater 私钥而在签名阶段退出非零。正式配置保留 updater 签名要求；本地未签名包验证不构成签名发布。正式签名须在 GitHub release workflow 的密钥环境中进行。本轮没有创建新发布 tag。
+
+---
+
+
 更新：2026-10-17（Asia/Shanghai）。审计基线：`dev c78763c`；当前实现分支：`feature/acceptance-fixes`。
 
 代码分别由两个独立、面向 dev 的 PR 交付：[包目录边界 #131](https://github.com/BerryUIKI/Taleno/pull/131)、[文档完整性 #132](https://github.com/BerryUIKI/Taleno/pull/132)。本机 `feature/acceptance-fixes` 用于联合检查；以各 PR 的最新提交和合并状态为准。

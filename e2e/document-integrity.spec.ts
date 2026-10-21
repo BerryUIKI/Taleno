@@ -52,7 +52,7 @@ test.describe("Document Integrity & Editor Journeys", () => {
 
     // 3. Trigger close tab button (hover to reveal)
     await tab.hover();
-    const closeBtn = tab.locator('button[title="Close Tab"]');
+    const closeBtn = tab.locator('button[aria-label^="Close "]');
     await closeBtn.click();
 
     // 4. Close confirm modal appears

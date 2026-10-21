@@ -19,7 +19,7 @@ pub struct ActiveDocument {
 }
 
 /// A single entry in the table of contents.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TocEntry {
     /// Heading level (1-6)
     pub level: u8,
@@ -27,6 +27,9 @@ pub struct TocEntry {
     pub text: String,
     /// Anchor id for scrolling
     pub id: String,
+    /// Zero-based source line, from the same parser used for rendering.
+    #[serde(default)]
+    pub source_line: usize,
 }
 
 /// Global application state managed by Tauri.

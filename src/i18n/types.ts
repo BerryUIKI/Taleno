@@ -233,4 +233,22 @@ export interface TranslationDictionary {
     unsavedCloseTitle: string;
     unsavedCloseMessage: string;
   };
+  mobile: {
+    filesAndWorkspace: string;
+    outlineTitle: string;
+    preferencesTitle: string;
+    openDocuments: string;
+    workspaceTree: string;
+    newNote: string;
+    noOutline: string;
+    colorMode: string;
+    markdownThemePresets: string;
+    fontSize: string;
+    saveFile: string;
+    saveFileAs: string;
+    search: string;
+    navigation: string;
+    switchMode: string;
+    dismissKeyboard: string;
+  };
 }

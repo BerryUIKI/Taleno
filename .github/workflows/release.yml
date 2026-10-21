@@ -7,16 +7,39 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag name (e.g. v0.1.6)'
+        description: 'Tag name (e.g. v0.1.9)'
         required: true
-        default: 'v0.1.6'
       release_name:
         description: 'Release title'
         required: false
-        default: 'Taleno v0.1.6'
 
 jobs:
+  classify:
+    runs-on: ubuntu-latest
+    outputs:
+      platform: ${{ steps.route.outputs.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: route
+        run: node scripts/classify-release.mjs
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
+
+  mobile-not-configured:
+    needs: classify
+    if: needs.classify.outputs.platform != 'desktop'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::error::Mobile release packaging/signing is not configured. No desktop artifacts will be built for this tag. See docs/MOBILE_DEVELOPMENT.md."
+          exit 1
+
   build-tauri:
+    needs: classify
+    if: needs.classify.outputs.platform == 'desktop'
     permissions:
       contents: write
     strategy:
@@ -65,12 +88,13 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
 
       - name: Install frontend dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Validate release version
         run: node scripts/validate-release-version.mjs
         env:
           RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
+          RELEASE_PLATFORM: desktop
 
       - name: Verify macOS signing secrets
         if: matrix.platform == 'macos-latest'
@@ -147,7 +171,7 @@ jobs:
           APPLE_API_KEY_PATH: ${{ steps.prepare_apple_notarization_key.outputs.path }}
         with:
           tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
-          releaseName: ${{ github.event_name == 'workflow_dispatch' && inputs.release_name || format('Taleno {0}', github.ref_name) }}
+          releaseName: ${{ inputs.release_name || format('Taleno {0}', inputs.tag_name || github.ref_name) }}
           releaseBody: |
             ### What's new
             - See [CHANGELOG.md](https://github.com/BerryUIKI/Taleno/blob/main/CHANGELOG.md) for release details.

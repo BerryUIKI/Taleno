@@ -26,6 +26,9 @@ if (process.env.VITEST) {
 export default defineConfig(async () => ({
   plugins: [solid(), tailwindcss()],
   clearScreen: false,
+  optimizeDeps: {
+    include: ["@milkdown/kit/prose/history", "@milkdown/kit/prose/view"],
+  },
   server: {
     port: 1420,
     strictPort: true,
@@ -44,6 +47,6 @@ export default defineConfig(async () => ({
   test: {
     environment: "jsdom",
     setupFiles: ["src/test/setup.ts"],
-    exclude: ["**/node_modules/**", "**/dist/**", "**/e2e/**"],
+    exclude: ["**/node_modules/**", "**/dist/**", "**/e2e/**", "**/test-results/**"],
   },
 }));

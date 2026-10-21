@@ -1,4 +1,4 @@
-import { Component, createSignal, createMemo, createEffect, Show, onMount, onCleanup } from "solid-js";
+import { Component, createSignal, createMemo, createEffect, Show, Suspense, onMount, onCleanup } from "solid-js";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -7,23 +7,41 @@ import { MobileShell } from "./components/Mobile/MobileShell";
 import { Sidebar } from "./components/Sidebar/Sidebar";
 import { TabBar } from "./components/Tabs/TabBar";
 import { QuickSwitcher } from "./components/QuickSwitcher/QuickSwitcher";
-import { SearchModal } from "./components/SearchModal/SearchModal";
 import { FindReplace } from "./components/FindReplace/FindReplace";
 import { EditorToolbar } from "./components/Toolbar/EditorToolbar";
 import { MarkdownView } from "./components/MarkdownView/MarkdownView";
-import { Editor } from "./components/Editor/Editor";
-import { CodeView } from "./components/CodeView/CodeView";
 import { StatusBar } from "./components/StatusBar/StatusBar";
 import { WelcomeHub } from "./components/Home/WelcomeHub";
-import { UpdateModal } from "./components/Updater/UpdateModal";
-import { SettingsModal } from "./components/Settings/SettingsModal";
 import { CloseConfirmModal } from "./components/Tabs/CloseConfirmModal";
+import { FileErrorBanner } from "./components/ErrorNotification/FileErrorBanner";
 import type { SettingsTabId } from "./types/plugin";
 import { syncPlugins } from "./store/plugins";
 import { syncCustomThemes } from "./store/customThemes";
-import { scheduleAutomaticUpdateCheck } from "./lib/updater";
+import { reportFileError, clearFileError } from "./store/fileErrors";
+import { exportDocumentWorkflow } from "./lib/exportWorkflow";
+import { openWorkspaceFolderWorkflow } from "./lib/workspaceWorkflow";
+import { updateModalOpen, scheduleAutomaticUpdateCheck } from "./lib/updater";
 import { isMobile } from "./lib/platform";
+import { lazyWithRetry } from "./lib/lazyWithRetry";
+import { createZenWindow } from "./lib/zenWindow";
 import { revealMatchAt } from "./lib/formatter";
+// Lazy-loaded heavy components to optimize initial screen payload and cold startup
+const Editor = lazyWithRetry(() =>
+  import("./components/Editor/Editor").then((m) => ({ default: m.Editor }))
+);
+const CodeView = lazyWithRetry(() =>
+  import("./components/CodeView/CodeView").then((m) => ({ default: m.CodeView }))
+);
+const SettingsModal = lazyWithRetry(() =>
+  import("./components/Settings/SettingsModal").then((m) => ({ default: m.SettingsModal }))
+);
+const UpdateModal = lazyWithRetry(() =>
+  import("./components/Updater/UpdateModal").then((m) => ({ default: m.UpdateModal }))
+);
+const SearchModal = lazyWithRetry(() =>
+  import("./components/SearchModal/SearchModal").then((m) => ({ default: m.SearchModal }))
+);
+
 import {
   currentDocument,
   setCurrentDocument,
@@ -48,7 +66,16 @@ import {
   replaceTabFromDisk,
   markPathExternallyModified,
 } from "./store/files";
-import { zenMode, setZenMode, focusMode, setFocusMode } from "./store/settings";
+import {
+  zenMode,
+  setZenMode,
+  focusMode,
+  setFocusMode,
+  increaseFontSize,
+  decreaseFontSize,
+  resetFontSize,
+  fontSize,
+} from "./store/settings";
 import {
   openFile,
   saveFile,
@@ -116,19 +143,15 @@ const App: Component = () => {
 
   // Handle opening a workspace folder
   const handleOpenFolder = async () => {
-    try {
-      const selected = await open({
-        directory: true,
-        multiple: false,
+    const res = await openWorkspaceFolderWorkflow();
+    if (res.success) {
+      setSidebarOpen(true);
+    } else if (res.error) {
+      reportFileError({
+        type: "open",
+        message: `Failed to open workspace folder: ${res.error}`,
+        path: res.path,
       });
-
-      if (selected && typeof selected === "string") {
-        const tree = await listDirectoryTree(selected);
-        setWorkspaceTree(tree);
-        setSidebarOpen(true);
-      }
-    } catch (err) {
-      console.error("Failed to open folder:", err);
     }
   };
 
@@ -139,6 +162,7 @@ const App: Component = () => {
       const result = await openFile(path);
       addOrSwitchTab(documentFromResponse(result));
       setHomeVisible(false);
+      clearFileError();
       await startWatchingFile(path);
 
       if (lineNumber !== undefined && lineNumber > 0) {
@@ -159,10 +183,20 @@ const App: Component = () => {
       }
       setFileError("");
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      reportFileError({
+        type: "open",
+        message: `Failed to open ${path}: ${message}`,
+        path,
+        canRetry: false,
+      });
       console.error("Failed to open file:", err);
       setFileError(String(err));
     }
   };
+
+  const saveCurrentFileAs = () => requestSave(true);
+  const handleSaveFileAs = saveCurrentFileAs;
 
   // Handle saving the current file (atomic write)
   const saveCurrentFile = async (saveAs = false, overwrite = false): Promise<boolean> => {
@@ -180,6 +214,7 @@ const App: Component = () => {
         const baseline = overwrite ? await readFileBaseline(doc.path) : doc.savedContent ?? doc.content;
         const result = await saveFile(doc.path, doc.content, baseline);
         setFileError("");
+        clearFileError();
         return applySaveResult(id, result, instance);
       } else {
         const selected = await save({
@@ -199,11 +234,27 @@ const App: Component = () => {
           doc = tab.document;
           const result = await saveFile(selected, doc.content, baseline);
           setFileError("");
+          clearFileError();
           return applySaveResult(id, result, instance);
         }
         return false;
       }
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      reportFileError({
+        type: "save",
+        message: `Failed to save ${doc.filename}: ${message}`,
+        path: doc.path || doc.filename,
+        canRetry: true,
+        retry: () => {
+          const original = openTabs().find(tab => tab.id === id && tab.instance === instance);
+          if (original) { selectTab(id); void requestSave(); }
+        },
+        saveAs: () => {
+          const original = openTabs().find(tab => tab.id === id && tab.instance === instance);
+          if (original) { selectTab(id); void requestSave(true); }
+        },
+      });
       console.error("Failed to save file:", err);
       if (String(err).includes("SAVE_CONFLICT") && doc.path) markPathExternallyModified(doc.path);
       setFileError(String(err));
@@ -312,17 +363,15 @@ const App: Component = () => {
   const handleExport = async () => {
     flushPendingEdits();
     const doc = currentDocument();
-    try {
-      const selected = await save({
-        defaultPath: `${doc.filename.replace(/\.md$/, "")}.html`,
-        filters: [{ name: "HTML Document", extensions: ["html"] }],
+    const result = await exportDocumentWorkflow(doc);
+    if (result.success && result.outputPath) {
+      alert(`Exported document successfully to:\n${result.outputPath}`);
+    } else if (result.error) {
+      reportFileError({
+        type: "export",
+        message: `Failed to export document: ${result.error}`,
+        path: doc.filename,
       });
-      if (selected && typeof selected === "string") {
-        await exportDocument(doc.content, doc.filename, selected);
-        alert(`Exported document successfully to:\n${selected}`);
-      }
-    } catch (err) {
-      console.error("Export error:", err);
     }
   };
 
@@ -391,6 +440,16 @@ const App: Component = () => {
     syncPlugins().catch((err) => console.warn("Plugin sync error:", err));
     syncCustomThemes().catch((err) => console.warn("Theme sync error:", err));
   });
+
+  const syncZenWindow = createZenWindow({
+    isFullscreen: () => getCurrentWindow().isFullscreen(),
+    setFullscreen: value => getCurrentWindow().setFullscreen(value),
+  }, error => {
+    console.error("Zen fullscreen failed:", error);
+    setZenMode(false);
+  });
+  createEffect(() => { if (!isMobile) void syncZenWindow(zenMode()); });
+  onCleanup(() => { void syncZenWindow(false); });
 
   // Set up auto-save interval (every 30 seconds for dirty files with path)
   onMount(() => {
@@ -513,9 +572,24 @@ const App: Component = () => {
   const handleKeyDown = (e: KeyboardEvent) => {
     const isCmd = e.ctrlKey || e.metaKey;
 
+    if (e.key === "Escape" && zenMode()) {
+      e.preventDefault();
+      setZenMode(false);
+      return;
+    }
+
     if (e.key === "F11" || (isCmd && e.shiftKey && (e.key === "Z" || e.key === "z"))) {
       e.preventDefault();
       setZenMode((prev) => !prev);
+    } else if (isCmd && (e.key === "=" || e.key === "+")) {
+      e.preventDefault();
+      increaseFontSize();
+    } else if (isCmd && (e.key === "-" || e.key === "_")) {
+      e.preventDefault();
+      decreaseFontSize();
+    } else if (isCmd && e.shiftKey && e.key === "0") {
+      e.preventDefault();
+      resetFontSize();
     } else if (isCmd && e.shiftKey && (e.key === "F" || e.key === "f")) {
       e.preventDefault();
       setSearchModalOpen((prev) => !prev);
@@ -558,6 +632,9 @@ const App: Component = () => {
     } else if (isCmd && e.key === "o") {
       e.preventDefault();
       handleOpenFile();
+    } else if (isCmd && e.shiftKey && (e.key === "S" || e.key === "s")) {
+      e.preventDefault();
+      handleSaveFileAs();
     } else if (isCmd && e.key === "s") {
       e.preventDefault();
       handleSaveFile();
@@ -640,6 +717,7 @@ const App: Component = () => {
           content={doc().content}
           renderedContent={doc().renderedContent}
           html={doc().html}
+          docPath={doc().path}
           externallyModified={doc().externallyModified}
           onReload={reloadCurrentFile}
           onRendered={(sourceContent, result) => {
@@ -651,12 +729,20 @@ const App: Component = () => {
 
       <Show when={displayMode() === "writing"}>
         <Show keyed when={`${activeTabId()}:${doc().loadVersion ?? 0}`}>
-          {(_identity) => <Editor />}
+          {(_identity) => <Suspense fallback={<div role="status">Loading editor...</div>}><Editor /></Suspense>}
         </Show>
       </Show>
 
       <Show when={displayMode() === "code"}>
-        <CodeView />
+        <Suspense
+          fallback={
+            <div class="h-full flex items-center justify-center text-xs text-[var(--color-text-secondary)]">
+              Loading source view...
+            </div>
+          }
+        >
+          <Show keyed when={`${activeTabId()}:${doc().loadVersion ?? 0}`}>{(_identity) => <CodeView />}</Show>
+        </Suspense>
       </Show>
     </Show>
   );
@@ -679,11 +765,26 @@ const App: Component = () => {
           </Show>
         </div>
       </Show>
+      {/* Floating Exit Button for Zen Mode */}
+      <Show when={zenMode()}>
+        <button
+          class="fixed top-3 right-4 z-50 px-3 py-1.5 rounded-full text-xs font-medium bg-[var(--color-bg-secondary)]/90 hover:bg-[var(--color-hover)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] border border-[var(--color-border)] shadow-md backdrop-blur-xs transition-all flex items-center gap-1.5 opacity-60 hover:opacity-100"
+          onClick={() => setZenMode(false)}
+          title="Exit Zen Mode (Esc)"
+        >
+          <span>✕</span>
+          <span>Exit Zen Mode (Esc)</span>
+        </button>
+      </Show>
+
       {/* 1. MOBILE PORTRAIT LAYOUT */}
       <Show when={isMobileViewport()}>
         <MobileShell
           onOpenFile={loadFile}
           onNewDocument={handleNewDocument}
+          onSaveFile={handleSaveFile}
+          onSaveFileAs={handleSaveFileAs}
+          onCloseWindow={handleRequestCloseWindow}
           onOpenQuickSwitcher={() => setQuickSwitcherOpen(true)}
           onCloseTab={(id) => requestCloseTab(id)}
         >
@@ -703,6 +804,7 @@ const App: Component = () => {
             onOpenFile={handleOpenFile}
             onOpenFolder={handleOpenFolder}
             onSaveFile={handleSaveFile}
+            onSaveFileAs={handleSaveFileAs}
             onExport={handleExport}
             onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
             onOpenQuickSwitcher={() => setQuickSwitcherOpen(true)}
@@ -822,18 +924,26 @@ const App: Component = () => {
       <QuickSwitcher onOpenFileByPath={loadFile} />
 
       {/* Global Workspace Search Modal (Ctrl+Shift+F) */}
-      <SearchModal
-        isOpen={searchModalOpen()}
-        onClose={() => setSearchModalOpen(false)}
-        onSelectResult={loadFile}
-      />
+      <Show when={searchModalOpen()}>
+        <Suspense fallback={null}>
+          <SearchModal
+            isOpen={searchModalOpen()}
+            onClose={() => setSearchModalOpen(false)}
+            onSelectResult={loadFile}
+          />
+        </Suspense>
+      </Show>
 
       {/* Settings Modal */}
-      <SettingsModal
-        isOpen={settingsOpen()}
-        initialTab={settingsTab()}
-        onClose={() => setSettingsOpen(false)}
-      />
+      <Show when={settingsOpen()}>
+        <Suspense fallback={null}>
+          <SettingsModal
+            isOpen={settingsOpen()}
+            initialTab={settingsTab()}
+            onClose={() => setSettingsOpen(false)}
+          />
+        </Suspense>
+      </Show>
 
       {/* Unsaved Changes Close Confirmation Dialog */}
       <CloseConfirmModal
@@ -845,7 +955,13 @@ const App: Component = () => {
       />
 
       {/* GitHub Releases Update Modal */}
-      <UpdateModal />
+      <Show when={updateModalOpen()}><Suspense fallback={null}><UpdateModal /></Suspense></Show>
+
+      {/* Recoverable File Operation Error Banner */}
+      <FileErrorBanner
+        onRetrySave={handleSaveFile}
+        onSaveAs={saveCurrentFileAs}
+      />
     </div>
   );
 };

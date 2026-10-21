@@ -128,10 +128,38 @@ if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
     });
 }
 
-const [fontSize, setFontSize] = createSignal(16);
+function getInitialFontSize(): number {
+  if (typeof localStorage !== "undefined") {
+    const stored =
+      localStorage.getItem("taleno-font-size") ||
+      localStorage.getItem("Taleno-font-size");
+    if (stored) {
+      const parsed = parseInt(stored, 10);
+      if (!isNaN(parsed) && parsed >= 10 && parsed <= 48) {
+        return parsed;
+      }
+    }
+  }
+  return 16;
+}
+
+const [fontSize, setFontSize] = createSignal(getInitialFontSize());
 const [workspacePath, setWorkspacePath] = createSignal<string | null>(null);
 const [zenMode, setZenMode] = createSignal(false);
 const [focusMode, setFocusMode] = createSignal(false);
+
+createEffect(() => {
+  const current = fontSize();
+  if (typeof localStorage !== "undefined") {
+    localStorage.setItem("taleno-font-size", String(current));
+  }
+  if (typeof document !== "undefined") {
+    document.documentElement.style.setProperty(
+      "--editor-font-size",
+      `${current}px`
+    );
+  }
+});
 
 export {
   theme,
@@ -152,6 +180,18 @@ export {
   focusMode,
   setFocusMode,
 };
+
+export function increaseFontSize() {
+  setFontSize((prev) => Math.min(48, prev + 2));
+}
+
+export function decreaseFontSize() {
+  setFontSize((prev) => Math.max(10, prev - 2));
+}
+
+export function resetFontSize() {
+  setFontSize(16);
+}
 
 export function cycleTheme() {
   const current = theme();

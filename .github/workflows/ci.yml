@@ -46,7 +46,7 @@ jobs:
         run: cargo test --manifest-path src-tauri/Cargo.toml --verbose
 
   test-frontend:
-    name: Frontend Test, Lint & Build
+    name: Frontend Typecheck & Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
