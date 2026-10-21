@@ -85,7 +85,12 @@ mod tests {
         let watched = target.clone();
         let _watcher = watch_document(target.to_string_lossy().into_owned(), move || {
             if let Ok(content) = std::fs::read_to_string(&watched) {
-                let _ = tx.send(content);
+                // Match watch_file's baseline filter. FSEvents can deliver the
+                // target's pre-subscription creation after watch() returns; that
+                // unchanged content must not count as an external modification.
+                if content != "base" {
+                    let _ = tx.send(content);
+                }
             }
         })
         .unwrap();
