@@ -24,13 +24,20 @@ describe("Heading Navigation Adapter", () => {
       h1.id = "intro-1";
       const scrollSpy = vi.fn();
       h1.scrollIntoView = scrollSpy;
-      document.body.appendChild(h1);
+      const container = document.createElement("div");
+      container.className = "markdown-body";
+      container.append(h1);
+      const unrelated = document.createElement("div");
+      unrelated.id = h1.id;
+      unrelated.scrollIntoView = vi.fn();
+      document.body.append(unrelated, container);
 
       const entry: TocEntry = { level: 1, text: "Intro", id: "intro-1" };
       const result = navigateToHeading(entry, 1);
 
       expect(result).toBe(true);
       expect(scrollSpy).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+      expect(unrelated.scrollIntoView).not.toHaveBeenCalled();
     });
 
     it("falls back to occurrence index in markdown-body when ID is missing", () => {

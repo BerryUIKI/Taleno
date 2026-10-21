@@ -23,7 +23,7 @@
 | #112、#113 | 菜单/工具栏共用导出（先 flush、捕获源、统一默认名/错误）；App/Sidebar 共用 workspace picker 和 Rust tree。工作流测试与类型检查。 |
 | #122、#123、#124、#125、#126 | 九语言当前版本说明、保留历史规划编号、真实路径/依赖/平台矩阵、identifier 数据目录与主题分类、原子写入 ADR、desktop/mobile 标签分类及不支持的移动签名发布说明。版本验证测试通过，手工发布默认值已去除。 |
 
-验证记录：TypeScript 通过；前端 41 个测试文件、200 项通过；Rust 全量 54 项通过，性能项单独以 release 运行；Chrome 端到端验收通过。完整性回归使用真实 Milkdown，不以 formatter mock 替代编辑事务。Clippy `--all-targets -- -D warnings` 与 rustfmt 通过。`pnpm tauri bundle --no-sign --ci` 本地 MSI/NSIS 打包成功；不包含发布签名。最终以整合 PR 的 CI 记录为准。
+验证记录：TypeScript 通过；前端 41 个测试文件、200 项通过；Rust 全量 54 项通过，性能项单独以 release 运行；Chrome 9 项端到端验收通过。完整性回归使用真实 Milkdown，不以 formatter mock 替代编辑事务。Clippy `--all-targets -- -D warnings` 与 rustfmt 通过。`pnpm tauri build --no-sign` 与 `pnpm tauri bundle --no-sign --ci` 本地 EXE/MSI/NSIS 检查成功；不包含发布签名。最终以整合 PR 的 CI 记录为准。
 
 本地 `pnpm tauri build` 已构建原生 EXE、MSI 和 NSIS，随后因未提供本机 updater 私钥而在签名阶段退出非零。正式配置保留 updater 签名要求；本地未签名包验证不构成签名发布。正式签名须在 GitHub release workflow 的密钥环境中进行。本轮没有创建新发布 tag。
 
