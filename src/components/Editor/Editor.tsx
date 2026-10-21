@@ -1,4 +1,4 @@
-import { Component, createEffect, createSignal, Show, onMount, onCleanup } from "solid-js";
+import { Component, createEffect, createMemo, createSignal, Show, onMount, onCleanup, untrack } from "solid-js";
 import {
   defaultValueCtx,
   Editor as MilkdownEditor,
@@ -50,6 +50,8 @@ export const Editor: Component = () => {
   let containerRef!: HTMLDivElement;
   let editorInstance: MilkdownEditor | null = null;
   let liveView: EditorView | undefined;
+  const imageRefreshers = new Set<() => void>();
+  const imageDocumentPath = createMemo(() => currentDocument().path);
   const tabId = activeTabId();
   const loadVersion = currentDocument().loadVersion;
   let disposed = false;
@@ -58,6 +60,10 @@ export const Editor: Component = () => {
   let publishedContent = currentDocument().content;
   let publishTimer: ReturnType<typeof setTimeout> | undefined;
   const isCurrent = () => !disposed && activeTabId() === tabId && currentDocument().loadVersion === loadVersion;
+  createEffect(() => {
+    imageDocumentPath();
+    untrack(() => { if (isCurrent()) for (const refresh of imageRefreshers) refresh(); });
+  });
   const flush = () => {
     clearTimeout(publishTimer);
     if (!changed || !editorInstance || !isCurrent()) return;
@@ -347,8 +353,10 @@ export const Editor: Component = () => {
               image(node: ProseNode) {
                 const image = document.createElement("img");
                 let version = 0;
+                let currentNode = node;
                 const update = (next: ProseNode) => {
                   if (next.type.name !== "image") return false;
+                  currentNode = next;
                   const request = ++version;
                   const source = String(next.attrs.src ?? "");
                   image.alt = String(next.attrs.alt ?? "");
@@ -365,8 +373,10 @@ export const Editor: Component = () => {
                   }
                   return true;
                 };
+                const refresh = () => { update(currentNode); };
+                imageRefreshers.add(refresh);
                 update(node);
-                return { dom: image, update, ignoreMutation: () => true, destroy: () => { version++; } };
+                return { dom: image, update, ignoreMutation: () => true, destroy: () => { version++; imageRefreshers.delete(refresh); } };
               },
             },
             decorations(state: EditorView["state"]) {

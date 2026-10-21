@@ -109,12 +109,18 @@ test("Writing resolves local image display through IPC while preserving relative
   await page.evaluate(async () => {
     const original = window.__TAURI_INTERNALS__.invoke;
     window.__TAURI_INTERNALS__.invoke = (command, args) => command === "resolve_document_image"
-      ? Promise.resolve("http://asset.localhost/resolved-picture.png") : original(command, args);
+      ? Promise.resolve(args.docPath.includes("other") ? "http://asset.localhost/other-picture.png" : "http://asset.localhost/resolved-picture.png") : original(command, args);
     const { addOrSwitchTab } = await import("/src/store/files.ts");
     const { documentFromResponse } = await import("/src/store/editor.ts");
     addOrSwitchTab(documentFromResponse({ path: "/workspace/note.md", filename: "note.md", content: "![Picture](./images/picture.png)", html: "", toc: [], word_count: 1 }));
   });
   await expect(page.locator('.ProseMirror img[alt="Picture"]')).toHaveAttribute("src", "http://asset.localhost/resolved-picture.png");
+  await page.evaluate(async () => {
+    const { currentDocument, setCurrentDocument } = await import("/src/store/editor.ts");
+    // Save As changes the base directory even when the source and tab identity stay the same.
+    setCurrentDocument({ ...currentDocument(), path: "/other/note.md" });
+  });
+  await expect(page.locator('.ProseMirror img[alt="Picture"]')).toHaveAttribute("src", "http://asset.localhost/other-picture.png");
   await page.locator('button[title*="Source Code"]').first().click();
   await expect(page.locator("textarea").first()).toHaveValue("![Picture](./images/picture.png)");
 });
