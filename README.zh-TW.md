@@ -8,7 +8,7 @@
 
 **一款 Typora 風格、本機優先、極速響應的 Markdown 閱讀與原位所見即所得編輯器。**
 
-<span style="font-size: 13px;">v0.1.6 已發佈 · AGPL-3.0 開源</span>
+<span style="font-size: 13px;">v0.1.9 已發佈 · AGPL-3.0 開源</span>
 
 [![Website](https://img.shields.io/badge/website-berryuiki.github.io%2FTaleno-4895ef.svg?style=for-the-badge)](https://berryuiki.github.io/Taleno/)
 [![Release](https://img.shields.io/badge/release-latest-4361ee.svg?style=for-the-badge)](https://github.com/BerryUIKI/Taleno/releases/latest)
@@ -20,12 +20,13 @@
 [![SolidJS](https://img.shields.io/badge/SolidJS-1.9+-2C4F7C?style=for-the-badge&logo=solid&logoColor=white)](https://www.solidjs.com/)
 
 <p align="center">
-  <b>🚀 本機優先</b> • <b>⚡ 毫秒級極速冷啟動 (&lt;400ms)</b> • <b>📝 無需分割視窗即時排版</b> • <b>🌐 9 種語言介面</b> • <b>📦 輕量安裝包 (~3.6 MB)</b>
-</p>
+  <b>🚀 本機優先</b> • <b>📝 無需分割視窗即時排版</b> • <b>🌐 9 種語言介面</b> • </p>
 
 [**📥 立即下載**](#-一鍵直接下載) · [**🖥️ 介面預覽**](#-介面預覽) · [**🌟 核心功能**](#-核心功能亮點) · [**⌨️ 常用快捷鍵**](#-常用快捷鍵) · [**📚 文件**](#-文件) · [**🌐 官網**](https://berryuiki.github.io/Taleno/)
 
 </div>
+
+> 已發布桌面版本：**v0.1.9（2026-10-16）**。後續開發修改尚未發布。實際依賴、實作路徑與驗證邊界見[功能與平台狀態矩陣](docs/ARCHITECTURE.md#11-feature--platform-implementation-status-matrix)。Android/iOS 外部檔案、儲存、鍵盤與安全區域仍待實機驗收，尚未設定行動簽章發布工作。啟動耗時與套件大小依建置和平台而異，以實測紀錄為準。
 
 ---
 
@@ -94,10 +95,10 @@
 | 📂 **工作區與多分頁** | 支援多文件分頁瀏覽、側邊欄遞迴檔案目錄管理與快速切換器 (<kbd>Ctrl+P</kbd>) | ✅ 已就緒 |
 | 🌈 **程式碼語法突顯** | 基於 Rust `syntect` 高效能著色，帶語言標籤與一鍵複製按鈕 | ✅ 已就緒 |
 | 📑 **動態大綱目錄** | 擷取各級標題產生階層化文件大綱，點擊平滑滾動定位 | ✅ 已就緒 |
-| 📊 **Mermaid 圖表與數學公式** | 支援流程圖、循序圖、類別圖與 LaTeX / KaTeX 數學公式渲染 | ✅ 已就緒 |
-| 🔍 **Ripgrep 全域搜尋** | 極速全工作區全文檢索 (<kbd>Ctrl+Shift+F</kbd>) 與單文件搜尋取代 (<kbd>Ctrl+F</kbd> / <kbd>Ctrl+H</kbd>) | ✅ 已就緒 |
+| 📊 **Mermaid 圖表與數學公式排版** | 基於容器版面的流程圖、循序圖 (`mermaid`) 與襯線 LaTeX 數學公式 (`math`/`katex`/`$$`) 渲染 | ✅ 已就緒 |
+| 🔍 **Rust 原生全域搜尋** | 基於 Rust 後端遞迴檢索 (`src-tauri/src/commands/search.rs`)，帶行符合定位 (<kbd>Ctrl+Shift+F</kbd>) 與單文件搜尋取代 (<kbd>Ctrl+F</kbd> / <kbd>Ctrl+H</kbd>) | ✅ 已就緒 |
 | 📤 **獨立 HTML 匯出** | 一鍵將任意 Markdown 匯出為自包含、離線樣式的獨立網頁 (<kbd>Ctrl+E</kbd>) | ✅ 已就緒 |
-| 🧩 **外掛系統與擴充能力** | 模組化外掛引擎，支援 `%APPDATA%` 目錄掃描、熱重載、JS 安全沙箱執行階段與偏好設定管理子選單 (<kbd>Ctrl+Shift+X</kbd>) | ✅ 已就緒 |
+| 🧩 **外掛系統與擴充能力** | 模組化外掛引擎，支援標準應用程式資料目錄掃描 (`plugins/`)、熱重載、JS 安全沙箱執行階段與偏好設定管理子選單 (<kbd>Ctrl+Shift+X</kbd>) | ✅ 已就緒 |
 
 *後續規劃詳見[路線圖](docs/ROADMAP.md)。*
 
@@ -110,7 +111,6 @@
 | **渲染方式** | 原位所見即所得，零分割 | 並排雙欄預覽 | 瀏覽器分頁切換 |
 | **啟動速度** | < 400 ms 原生冷啟動 | 取決於 Electron 體積 | 頁面載入 + 同步等待 |
 | **隱私** | 100% 本機優先，零遙測 | 本機檔案 | 資料存於雲端 |
-| **體積** | ~3.6 MB 安裝包 | 100+ MB 安裝包 | 不適用 |
 | **離線** | 完全離線 | 完全離線 | 需要網路 |
 | **儲存格式** | 磁碟上純 Markdown | 可能存在專有格式 | 供應商鎖定 |
 
@@ -266,7 +266,7 @@ Taleno 站在這些傑出開源專案的肩膀上：
 - [pulldown-cmark](https://github.com/pulldown-cmark/pulldown-cmark) — 零拷貝 GFM AST 解析
 - [syntect](https://github.com/trishume/syntect) — 程式碼語法突顯
 - [notify](https://github.com/notify-rs/notify) — 檔案系統監聽
-- [ripgrep](https://github.com/BurntSushi/ripgrep) — 全文搜尋
+- [tokio](https://tokio.rs) — 非同步執行階段與檔案檢索
 - [Mermaid](https://mermaid.js.org) — 圖表渲染
 - [KaTeX](https://katex.org) — 數學公式渲染
 - [Tailwind CSS](https://tailwindcss.com) — 原子化樣式方案

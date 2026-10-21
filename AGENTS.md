@@ -76,7 +76,7 @@ Themes in Taleno are strictly divided into two categories:
    - Require **no installation** and **cannot be uninstalled** via the GUI.
 2. **External Themes (Community Skins)**:
    - Hosted in the [`BerryUIKI/Taleno-Plugins`](https://github.com/BerryUIKI/Taleno-Plugins) repository and cataloged in `themes.json`.
-   - Stored in `%APPDATA%/Taleno/themes/<theme-id>/` on the user's disk.
+   - Stored in `%APPDATA%/com.berryuiki.taleno/themes/<theme-id>/` (Windows) or platform application data directories.
    - Users can freely choose to **install**, **apply**, or **uninstall** them at any time directly through the theme settings interface.
 
 
