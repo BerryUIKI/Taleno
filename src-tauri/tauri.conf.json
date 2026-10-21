@@ -24,7 +24,11 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' https://api.github.com https://github.com; style-src 'self' 'unsafe-inline'; img-src 'self' asset: https://asset.localhost http://asset.localhost https: http: data: blob:; font-src 'self' data:"
+      "csp": "default-src 'self'; connect-src 'self' https://api.github.com https://github.com; style-src 'self' 'unsafe-inline'; img-src 'self' asset: https://asset.localhost http://asset.localhost https: http: data: blob:; font-src 'self' data:",
+      "assetProtocol": {
+        "enable": true,
+        "scope": []
+      }
     }
   },
   "bundle": {
@@ -40,7 +44,12 @@
     ],
     "fileAssociations": [
       {
-        "ext": ["md", "markdown", "mdx", "txt"],
+        "ext": [
+          "md",
+          "markdown",
+          "mdx",
+          "txt"
+        ],
         "name": "Markdown Document",
         "description": "Markdown Document (Taleno)",
         "role": "Editor"

@@ -1,17 +1,180 @@
-import { Component, createMemo, onMount, onCleanup } from "solid-js";
-import { currentDocument, updateDocumentContent } from "../../store/editor";
+import { Component, createMemo, createSignal, Index, onMount, onCleanup } from "solid-js";
+import { currentDocument, updateDocumentContent, type TocEntry } from "../../store/editor";
 import { registerCodeFormatter, registerCodeMatchRevealer, registerCodeInserter, type FormatAction } from "../../lib/formatter";
+import { registerCodeHeadingRevealer } from "../../lib/headingNavigation";
+import { activeTabId, openTabs } from "../../store/files";
+import { fontSize } from "../../store/settings";
+
+export interface HistorySnapshot {
+  content: string;
+  selectionStart: number;
+  selectionEnd: number;
+}
+
+export interface DocumentHistory {
+  past: HistorySnapshot[];
+  future: HistorySnapshot[];
+}
+
+const documentHistories = new Map<string, DocumentHistory>();
+
+export function getCodeViewHistory(docKey: string): DocumentHistory {
+  let hist = documentHistories.get(docKey);
+  if (!hist) {
+    hist = { past: [], future: [] };
+    documentHistories.set(docKey, hist);
+  }
+  return hist;
+}
+
+export function clearCodeViewHistory(docKey?: string) {
+  if (docKey) {
+    documentHistories.delete(docKey);
+  } else {
+    documentHistories.clear();
+  }
+}
+
+/**
+ * Fast non-allocating line counter counting newline characters.
+ */
+export function countDocumentLines(text: string): number {
+  if (text.length === 0) return 1;
+  let count = 1;
+  for (let i = 0; i < text.length; i++) {
+    if (text.charCodeAt(i) === 10) {
+      count++;
+    }
+  }
+  return count;
+}
 
 export const CodeView: Component = () => {
   let textareaRef!: HTMLTextAreaElement;
   let lineGutterRef!: HTMLDivElement;
   let isComposing = false;
+  let typingTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const currentDocKey = () =>
+    `${activeTabId()}:${openTabs().find(tab => tab.id === activeTabId())?.instance ?? 0}:${currentDocument().loadVersion ?? 0}`;
+
+  const recordSnapshot = (textarea: HTMLTextAreaElement) => {
+    const key = currentDocKey();
+    const hist = getCodeViewHistory(key);
+    const snapshot: HistorySnapshot = {
+      content: textarea.value,
+      selectionStart: textarea.selectionStart,
+      selectionEnd: textarea.selectionEnd,
+    };
+    const last = hist.past[hist.past.length - 1];
+    if (!last || last.content !== snapshot.content) {
+      hist.past.push(snapshot);
+      if (hist.past.length > 100) {
+        hist.past.shift();
+      }
+    }
+    hist.future = [];
+  };
+
+  const performUndo = (textarea: HTMLTextAreaElement): boolean => {
+    if (typingTimer) clearTimeout(typingTimer);
+    typingTimer = null;
+    const key = currentDocKey();
+    const hist = getCodeViewHistory(key);
+    if (hist.past.length === 0) return false;
+
+    const currentSnapshot: HistorySnapshot = {
+      content: textarea.value,
+      selectionStart: textarea.selectionStart,
+      selectionEnd: textarea.selectionEnd,
+    };
+    hist.future.push(currentSnapshot);
+
+    const prev = hist.past.pop()!;
+    textarea.value = prev.content;
+    textarea.setSelectionRange(prev.selectionStart, prev.selectionEnd);
+    textarea.focus();
+    updateDocumentContent(prev.content);
+    return true;
+  };
+
+  const performRedo = (textarea: HTMLTextAreaElement): boolean => {
+    if (typingTimer) clearTimeout(typingTimer);
+    typingTimer = null;
+    const key = currentDocKey();
+    const hist = getCodeViewHistory(key);
+    if (hist.future.length === 0) return false;
+
+    const currentSnapshot: HistorySnapshot = {
+      content: textarea.value,
+      selectionStart: textarea.selectionStart,
+      selectionEnd: textarea.selectionEnd,
+    };
+    hist.past.push(currentSnapshot);
+
+    const next = hist.future.pop()!;
+    textarea.value = next.content;
+    textarea.setSelectionRange(next.selectionStart, next.selectionEnd);
+    textarea.focus();
+    updateDocumentContent(next.content);
+    return true;
+  };
+
+  const revealHeadingInCode = (_entry: TocEntry, index: number): boolean => {
+    const textarea = textareaRef;
+    if (!textarea) return false;
+
+    const sourceLine = _entry.source_line;
+    if (sourceLine !== undefined) {
+      let offset = 0;
+      for (let line = 0; line < sourceLine; line++) {
+        const next = textarea.value.indexOf("\n", offset);
+        if (next < 0) return false;
+        offset = next + 1;
+      }
+      const end = textarea.value.indexOf("\n", offset);
+      textarea.focus();
+      textarea.setSelectionRange(offset, end < 0 ? textarea.value.length : end);
+      textarea.scrollTop = Math.max(0, sourceLine * Math.round(fontSize() * 1.5) - 60);
+      return true;
+    }
+    return false;
+  };
 
   const content = () => currentDocument().content;
-  const lines = createMemo(() => content().split("\n"));
+  const lineCount = createMemo(() => countDocumentLines(content()));
+  const [scrollTop, setScrollTop] = createSignal(0);
+  const [viewportHeight, setViewportHeight] = createSignal(800);
+  const rowHeight = () => Math.round(fontSize() * 1.5);
+  const firstLine = createMemo(() => Math.max(0, Math.floor(scrollTop() / rowHeight()) - 8));
+  const lineNumbers = createMemo(() => {
+    const start = Math.min(firstLine(), Math.max(0, lineCount() - 1));
+    const count = Math.min(lineCount() - start, Math.ceil(viewportHeight() / rowHeight()) + 16);
+    return Array.from({ length: count }, (_, i) => start + i + 1);
+  });
 
   const handleInput = (e: InputEvent & { currentTarget: HTMLTextAreaElement }) => {
-    updateDocumentContent(e.currentTarget.value);
+    const target = e.currentTarget;
+    if (!typingTimer) {
+      const key = currentDocKey();
+      const hist = getCodeViewHistory(key);
+      const prevContent = currentDocument().content;
+      const last = hist.past[hist.past.length - 1];
+      if (!last || last.content !== prevContent) {
+        hist.past.push({
+          content: prevContent,
+          selectionStart: target.selectionStart,
+          selectionEnd: target.selectionEnd,
+        });
+        hist.future = [];
+      }
+    }
+    if (typingTimer) clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => {
+      typingTimer = null;
+    }, 500);
+
+    updateDocumentContent(target.value, { deferStats: true });
   };
 
   const handleCompositionStart = () => {
@@ -20,10 +183,11 @@ export const CodeView: Component = () => {
 
   const handleCompositionEnd = (e: CompositionEvent & { currentTarget: HTMLTextAreaElement }) => {
     isComposing = false;
-    updateDocumentContent(e.currentTarget.value);
+    updateDocumentContent(e.currentTarget.value, { deferStats: true });
   };
 
   const handleScroll = (e: Event & { currentTarget: HTMLTextAreaElement }) => {
+    setScrollTop(e.currentTarget.scrollTop);
     if (lineGutterRef) {
       lineGutterRef.scrollTop = e.currentTarget.scrollTop;
     }
@@ -32,6 +196,17 @@ export const CodeView: Component = () => {
   const executeCodeFormat = (action: FormatAction) => {
     const textarea = textareaRef;
     if (!textarea) return;
+
+    if (action === "undo") {
+      performUndo(textarea);
+      return;
+    }
+    if (action === "redo") {
+      performRedo(textarea);
+      return;
+    }
+
+    recordSnapshot(textarea);
 
     const val = textarea.value;
     const start = textarea.selectionStart;
@@ -151,6 +326,7 @@ export const CodeView: Component = () => {
     const textarea = textareaRef;
     if (!textarea) return false;
 
+    recordSnapshot(textarea);
     const val = textarea.value;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
@@ -164,23 +340,49 @@ export const CodeView: Component = () => {
   };
 
   onMount(() => {
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(() => setViewportHeight(textareaRef.clientHeight || 800));
+      observer.observe(textareaRef);
+      onCleanup(() => observer.disconnect());
+    }
     registerCodeFormatter(executeCodeFormat);
     registerCodeMatchRevealer(revealMatchInCode);
     registerCodeInserter(insertTextInCode);
+    registerCodeHeadingRevealer(revealHeadingInCode);
   });
 
   onCleanup(() => {
+    if (typingTimer) clearTimeout(typingTimer);
     registerCodeFormatter(null);
     registerCodeMatchRevealer(null);
     registerCodeInserter(null);
+    registerCodeHeadingRevealer(null);
   });
 
   const handleKeyDown = (e: KeyboardEvent) => {
     if (isComposing) return;
+    const isCmd = e.ctrlKey || e.metaKey;
+
+    if (isCmd && (e.key === "z" || e.key === "Z")) {
+      e.preventDefault();
+      if (e.shiftKey) {
+        performRedo(textareaRef);
+      } else {
+        performUndo(textareaRef);
+      }
+      return;
+    }
+
+    if (isCmd && (e.key === "y" || e.key === "Y")) {
+      e.preventDefault();
+      performRedo(textareaRef);
+      return;
+    }
 
     if (e.key === "Tab") {
       e.preventDefault();
       const textarea = textareaRef;
+      recordSnapshot(textarea);
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
       const val = textarea.value;
@@ -191,6 +393,8 @@ export const CodeView: Component = () => {
     }
   };
 
+  const dynamicLineHeight = () => `${Math.round(fontSize() * 1.5)}px`;
+
   return (
     <div class="h-full flex overflow-hidden font-mono text-sm bg-[var(--color-editor-bg)] text-[var(--color-text-primary)]">
       {/* Line Numbers Gutter (Synced Scroll) */}
@@ -199,20 +403,22 @@ export const CodeView: Component = () => {
         class="w-12 flex-shrink-0 select-none py-6 text-right pr-3 overflow-hidden text-xs opacity-40 border-r border-[var(--color-border)] bg-[var(--color-sidebar-bg)] pointer-events-none"
         aria-hidden="true"
       >
-        {lines().map((_, i) => (
-          <div style={{ height: "24px", "line-height": "24px" }}>{i + 1}</div>
-        ))}
+        <div style={{ height: `${lineCount() * rowHeight()}px`, position: "relative" }}>
+          <div style={{ position: "absolute", top: `${(lineNumbers()[0] - 1) * rowHeight()}px`, right: "0" }}>
+            <Index each={lineNumbers()}>{(line) => <div data-testid="gutter-line-number" style={{ height: dynamicLineHeight(), "line-height": dynamicLineHeight() }}>{line()}</div>}</Index>
+          </div>
+        </div>
       </div>
 
       {/* Code Textarea Area with Windows IME Caret Alignment */}
       <div class="flex-1 relative h-full overflow-hidden">
         <textarea
           ref={textareaRef}
-          class="w-full h-full p-6 outline-none resize-none bg-transparent font-mono text-sm border-0 overflow-y-auto block select-text focus:ring-0"
+          class="w-full h-full p-6 outline-none resize-none bg-transparent font-mono text-sm border-0 overflow-y-auto block select-text focus:ring-0 code-view-textarea"
           style={{
             "box-sizing": "border-box",
-            "line-height": "24px",
-            "font-size": "14px",
+            "line-height": dynamicLineHeight(),
+            "font-size": `${fontSize()}px`,
             "font-family": "Consolas, 'Cascadia Code', 'Fira Code', Menlo, Monaco, 'Courier New', monospace",
             "white-space": "pre-wrap",
             "word-break": "break-word",
@@ -220,6 +426,7 @@ export const CodeView: Component = () => {
             "caret-color": "var(--color-accent)",
           }}
           value={content()}
+          onBeforeInput={() => { if (!typingTimer) recordSnapshot(textareaRef); }}
           onInput={handleInput}
           onCompositionStart={handleCompositionStart}
           onCompositionEnd={handleCompositionEnd}

@@ -30,6 +30,9 @@ pub async fn read_file(path: &str) -> Result<String, FsError> {
 /// 1. Write to a temporary file (.tmp)
 /// 2. Rename the temp file to the target path
 pub async fn write_file_atomic(path: &str, content: &str) -> Result<(), FsError> {
+    // Windows replacement can reject overlapping destination renames. Use the same
+    // publication lock as checked saves, including exports and unchecked callers.
+    let _guard = SAVE_LOCK.lock().await;
     let path = path.to_owned();
     let content = content.to_owned();
     tokio::task::spawn_blocking(move || atomic_replace(Path::new(&path), &content, || Ok(())))

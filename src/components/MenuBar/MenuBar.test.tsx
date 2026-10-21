@@ -145,4 +145,17 @@ describe("MenuBar Title Bar Quick Access", () => {
     const hasWebsite = allButtons.some(b => b.title?.includes("BerryUIKI") || b.title?.includes("website") || b.title?.includes("官网"));
     expect(hasWebsite).toBe(false);
   });
+
+  it("aligns Zen Mode label with state and shortcut (#100)", () => {
+    const menu = renderMenu();
+    const viewMenuBtn = Array.from(menu.querySelectorAll("button")).find(
+      (b) => b.textContent?.trim() === t("menu.view")
+    )!;
+    viewMenuBtn.click();
+
+    const zenBtn = Array.from(menu.querySelectorAll("button")).find((b) =>
+      b.textContent?.includes("Zen Mode")
+    );
+    expect(zenBtn?.textContent).toContain("Zen Mode (Fullscreen)");
+  });
 });

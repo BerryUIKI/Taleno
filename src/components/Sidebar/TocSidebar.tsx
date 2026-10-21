@@ -1,5 +1,6 @@
 import { Component, For, Show } from "solid-js";
-import { type TocEntry, displayMode } from "../../store/editor";
+import type { TocEntry } from "../../store/editor";
+import { navigateToHeading } from "../../lib/headingNavigation";
 import { t } from "../../i18n";
 
 export interface TocSidebarProps {
@@ -7,60 +8,6 @@ export interface TocSidebarProps {
 }
 
 export const TocSidebar: Component<TocSidebarProps> = (props) => {
-  const scrollToHeading = (entry: TocEntry) => {
-    const mode = displayMode();
-
-    if (mode === "reading") {
-      const element = document.getElementById(entry.id);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth", block: "start" });
-        return;
-      }
-    }
-
-    if (mode === "writing") {
-      const headingElements = Array.from(
-        document.querySelectorAll(
-          `.milkdown-container h1, .milkdown-container h2, .milkdown-container h3, .milkdown-container h4, .milkdown-container h5, .milkdown-container h6`
-        )
-      );
-
-      const targetEl = headingElements.find(
-        (el) =>
-          el.textContent?.trim().toLowerCase() === entry.text.trim().toLowerCase()
-      );
-
-      if (targetEl) {
-        targetEl.scrollIntoView({ behavior: "smooth", block: "start" });
-        return;
-      }
-    }
-
-    if (mode === "code") {
-      const textarea = document.querySelector("textarea");
-      if (textarea) {
-        const text = textarea.value;
-        const lines = text.split("\n");
-        let charIndex = 0;
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
-          if (line.includes(entry.text)) {
-            textarea.focus();
-            textarea.setSelectionRange(charIndex, charIndex + line.length);
-            const lineHeight = 24;
-            textarea.scrollTop = Math.max(0, i * lineHeight - 60);
-            return;
-          }
-          charIndex += line.length + 1;
-        }
-      }
-    }
-
-    const fallbackEl = document.getElementById(entry.id);
-    if (fallbackEl) {
-      fallbackEl.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
 
   return (
     <div class="flex flex-col h-full">
@@ -96,7 +43,7 @@ export const TocSidebar: Component<TocSidebarProps> = (props) => {
           }
         >
           <For each={props.toc}>
-            {(entry) => (
+            {(entry, idx) => (
               <button
                 class="block w-full text-left px-2.5 py-1.5 rounded-md truncate transition-colors hover:bg-[var(--color-hover)] group"
                 style={{
@@ -108,7 +55,7 @@ export const TocSidebar: Component<TocSidebarProps> = (props) => {
                   "font-weight": entry.level <= 2 ? "600" : "400",
                   "font-size": entry.level === 1 ? "0.8125rem" : "0.75rem",
                 }}
-                onClick={() => scrollToHeading(entry)}
+                onClick={() => navigateToHeading(entry, idx())}
                 title={entry.text}
               >
                 <div class="flex items-center gap-1.5 truncate">

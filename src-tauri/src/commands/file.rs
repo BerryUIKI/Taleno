@@ -18,6 +18,7 @@ pub struct OpenFileResponse {
 pub async fn open_file(
     path: String,
     state: State<'_, AppState>,
+    app: tauri::AppHandle,
 ) -> Result<OpenFileResponse, String> {
     let _io = state.document_io.lock().await;
     let content = fs_service::read_file(&path)
@@ -34,7 +35,8 @@ pub async fn open_file(
         .map_err(|e| e.to_string())?
         .insert(path.clone(), content.clone());
 
-    let html = parser::markdown_to_html(&content);
+    parser::grant_document_images(&app, &content, &path)?;
+    let html = parser::markdown_to_html_with_path(&content, Some(&path));
     let toc = parser::extract_toc(&content);
     let word_count = parser::count_words(&content);
 
@@ -56,10 +58,10 @@ pub async fn open_file(
     }
 
     Ok(OpenFileResponse {
-        path,
+        path: path.clone(),
         filename,
-        content,
-        html,
+        content: content.clone(),
+        html: html.clone(),
         toc,
         word_count,
     })
@@ -72,6 +74,7 @@ pub async fn save_file(
     content: String,
     expected_content: Option<String>,
     state: State<'_, AppState>,
+    app: tauri::AppHandle,
 ) -> Result<OpenFileResponse, String> {
     let _io = state.document_io.lock().await;
     fs_service::write_file_checked(&path, &content, expected_content.as_deref())
@@ -88,7 +91,8 @@ pub async fn save_file(
         .map_err(|e| e.to_string())?
         .insert(path.clone(), content.clone());
 
-    let html = parser::markdown_to_html(&content);
+    parser::grant_document_images(&app, &content, &path)?;
+    let html = parser::markdown_to_html_with_path(&content, Some(&path));
     let toc = parser::extract_toc(&content);
     let word_count = parser::count_words(&content);
     let filename = std::path::Path::new(&path)

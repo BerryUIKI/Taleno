@@ -1,6 +1,7 @@
 import { Component, createSignal, For, Show } from "solid-js";
 import type { FileEntry } from "../../lib/tauri/commands";
 import { createEntry, deleteEntry, renameEntry } from "../../lib/tauri/commands";
+import { reportFileError } from "../../store/fileErrors";
 import { t } from "../../i18n";
 
 export interface FileTreeProps {
@@ -51,6 +52,13 @@ const TreeItem: Component<TreeItemProps> = (props) => {
       setIsEditing(false);
       props.onRefresh();
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      reportFileError({
+        type: "rename",
+        message: `Failed to rename ${props.entry.name} to ${newName()}: ${message}`,
+        path: props.entry.path,
+        targetPath,
+      });
       console.error("Failed to rename:", err);
     }
   };
@@ -62,6 +70,12 @@ const TreeItem: Component<TreeItemProps> = (props) => {
         await deleteEntry(props.entry.path);
         props.onRefresh();
       } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        reportFileError({
+          type: "delete",
+          message: `Failed to delete ${props.entry.name}: ${message}`,
+          path: props.entry.path,
+        });
         console.error("Failed to delete entry:", err);
       }
     }
@@ -154,6 +168,12 @@ export const FileTree: Component<FileTreeProps> = (props) => {
       await createEntry(props.tree.path, name, false);
       props.onRefresh();
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      reportFileError({
+        type: "create",
+        message: `Failed to create file ${name}: ${message}`,
+        path: props.tree.path,
+      });
       console.error("Failed to create file:", err);
       alert(`Could not create file. Choose a different name or check folder permissions.\n${String(err)}`);
     }
@@ -166,6 +186,12 @@ export const FileTree: Component<FileTreeProps> = (props) => {
       await createEntry(props.tree.path, name, true);
       props.onRefresh();
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      reportFileError({
+        type: "create",
+        message: `Failed to create folder ${name}: ${message}`,
+        path: props.tree.path,
+      });
       console.error("Failed to create folder:", err);
       alert(`Could not create folder.\n${String(err)}`);
     }
