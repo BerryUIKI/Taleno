@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Code Mode Line Numbers on Wrapped Lines**:
+  - Line numbers now stay on the first visual row of each logical line when long lines soft-wrap, instead of drifting further behind with every wrapped row.
+  - Wrapped heights are measured for ASCII and non-ASCII (CJK) text, and trailing empty lines, tabs and scrolled virtual windows keep their alignment.
+
 ## [0.1.9] - 2026-10-16
 
 ### Fixed

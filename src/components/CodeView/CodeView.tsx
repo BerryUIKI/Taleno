@@ -49,6 +49,132 @@ export function countDocumentLines(text: string): number {
   return count;
 }
 
+export const CODE_FONT_FAMILY =
+  "Consolas, 'Cascadia Code', 'Fira Code', Menlo, Monaco, 'Courier New', monospace";
+/** Tailwind `p-6` on both the textarea and the gutter scroll container. */
+export const CODE_PADDING = 24;
+const GUTTER_OVERSCAN_ROWS = 8;
+const GUTTER_MAX_ROWS = 320;
+/**
+ * Upper bound for one monospace glyph's advance in em. When every line of an
+ * ASCII document is narrower than the textarea, no line can wrap and the
+ * gutter can keep using the cheap uniform row model.
+ */
+const WIDEST_MONO_ADVANCE_EM = 0.62;
+
+export interface DocumentTextAnalysis {
+  lineCount: number;
+  /** Longest logical line measured in monospace columns (tabs count as 2). */
+  maxColumns: number;
+  hasNonAscii: boolean;
+}
+
+/**
+ * Single-pass scan used to decide whether the textarea can soft-wrap any line.
+ */
+export function analyzeDocumentText(text: string): DocumentTextAnalysis {
+  let lineCount = 1;
+  let columns = 0;
+  let maxColumns = 0;
+  let hasNonAscii = false;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code === 10) {
+      lineCount++;
+      if (columns > maxColumns) maxColumns = columns;
+      columns = 0;
+    } else {
+      if (code > 127) hasNonAscii = true;
+      columns += code === 9 ? 2 : 1;
+    }
+  }
+  if (columns > maxColumns) maxColumns = columns;
+  return { lineCount, maxColumns, hasNonAscii };
+}
+
+export interface GutterLine {
+  number: number;
+  /** Offset from the top of the rendered gutter window, in px. */
+  top: number;
+  height: number;
+}
+
+export interface GutterWindowState {
+  start: number;
+  offsetTop: number;
+  totalHeight: number;
+  items: GutterLine[];
+}
+
+/**
+ * Selects the virtualized slice of line numbers to render. `topOf` maps a
+ * logical line index to its offset inside the scrollable content; it may
+ * account for soft-wrapped lines (`measured`) or assume one row per line.
+ */
+export function computeGutterWindow(opts: {
+  lineCount: number;
+  rowHeight: number;
+  scrollTop: number;
+  viewportHeight: number;
+  measured: boolean;
+  topOf: (index: number) => number;
+  totalHeight: number;
+}): GutterWindowState {
+  const { lineCount, rowHeight, scrollTop, viewportHeight, measured, topOf, totalHeight } = opts;
+  const count = Math.max(1, lineCount);
+  const overscan = GUTTER_OVERSCAN_ROWS * rowHeight;
+  const viewTop = scrollTop - CODE_PADDING;
+  const windowTop = Math.max(0, viewTop - overscan);
+  const windowBottom = viewTop + viewportHeight + overscan;
+
+  let start = Math.max(0, Math.min(count - 1, Math.floor(windowTop / rowHeight)));
+  if (measured) {
+    // Start at the line whose block contains `windowTop` (the last line that
+    // begins at or above it), so a tall wrapped line spanning the viewport
+    // keeps its number instead of being skipped.
+    let lo = 0;
+    let hi = count - 1;
+    let firstAfter = count;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (topOf(mid) > windowTop) {
+        firstAfter = mid;
+        hi = mid - 1;
+      } else {
+        lo = mid + 1;
+      }
+    }
+    start = Math.max(0, firstAfter - 1);
+  }
+
+  const offsetTop = topOf(start);
+  const items: GutterLine[] = [];
+  for (let i = start; i < count && items.length < GUTTER_MAX_ROWS; i++) {
+    const top = topOf(i);
+    const nextTop = topOf(i + 1);
+    items.push({
+      number: i + 1,
+      top: top - offsetTop,
+      height: Math.max(1, nextTop - top),
+    });
+    if (top > windowBottom) break;
+  }
+  return { start, offsetTop, totalHeight, items };
+}
+
+interface GutterMetrics {
+  text: string;
+  width: number;
+  fontSize: number;
+  rowHeight: number;
+  lineCount: number;
+  /** Per-line blocks of the offscreen mirror; only present in measured mode. */
+  lines: string[] | null;
+  lineDivs: HTMLDivElement[] | null;
+  measured: boolean;
+  totalHeight: number;
+}
+
 export const CodeView: Component = () => {
   let textareaRef!: HTMLTextAreaElement;
   let lineGutterRef!: HTMLDivElement;
@@ -142,15 +268,220 @@ export const CodeView: Component = () => {
   };
 
   const content = () => currentDocument().content;
-  const lineCount = createMemo(() => countDocumentLines(content()));
   const [scrollTop, setScrollTop] = createSignal(0);
   const [viewportHeight, setViewportHeight] = createSignal(800);
+  const [layoutTick, setLayoutTick] = createSignal(0);
+  const [mounted, setMounted] = createSignal(false);
   const rowHeight = () => Math.round(fontSize() * 1.5);
-  const firstLine = createMemo(() => Math.max(0, Math.floor(scrollTop() / rowHeight()) - 8));
-  const lineNumbers = createMemo(() => {
-    const start = Math.min(firstLine(), Math.max(0, lineCount() - 1));
-    const count = Math.min(lineCount() - start, Math.ceil(viewportHeight() / rowHeight()) + 16);
-    return Array.from({ length: count }, (_, i) => start + i + 1);
+
+  // Line numbers must follow the first visual row of each logical line. Long
+  // lines soft-wrap, so a fixed rowHeight per logical line drifts; when a line
+  // can wrap we mirror the textarea as one offscreen block per logical line and
+  // position the gutter from those measured block offsets. Only edited lines
+  // are updated after the mirror is built, so typing stays cheap.
+  let measureMirror: HTMLDivElement | null = null;
+  let metrics: GutterMetrics | null = null;
+  let normalizedCache: { source: string; normalized: string } | null = null;
+
+  const normalizedContent = (): string => {
+    const source = content();
+    if (normalizedCache && normalizedCache.source === source) return normalizedCache.normalized;
+    const normalized = source.includes("\r") ? source.replace(/\r\n?/g, "\n") : source;
+    normalizedCache = { source, normalized };
+    return normalized;
+  };
+
+  const contentWidth = createMemo(() => {
+    mounted();
+    layoutTick();
+    const textarea = textareaRef;
+    if (!textarea) return 0;
+    const style = getComputedStyle(textarea);
+    const paddingLeft = parseFloat(style.paddingLeft) || CODE_PADDING;
+    const paddingRight = parseFloat(style.paddingRight) || CODE_PADDING;
+    return Math.max(0, textarea.clientWidth - paddingLeft - paddingRight);
+  });
+
+  const ensureMeasureMirror = (): HTMLDivElement | null => {
+    if (typeof document === "undefined") return null;
+    if (measureMirror) return measureMirror;
+    const mirror = document.createElement("div");
+    mirror.setAttribute("aria-hidden", "true");
+    const style = mirror.style;
+    style.position = "fixed";
+    style.top = "0";
+    style.left = "-100000px";
+    style.visibility = "hidden";
+    style.pointerEvents = "none";
+    style.margin = "0";
+    style.padding = "0";
+    style.border = "0";
+    style.boxSizing = "content-box";
+    style.whiteSpace = "pre-wrap";
+    style.wordBreak = "break-word";
+    style.tabSize = "2";
+    style.direction = "ltr";
+    style.fontFamily = CODE_FONT_FAMILY;
+    document.body.appendChild(mirror);
+    measureMirror = mirror;
+    return mirror;
+  };
+
+  const setMirrorLine = (div: HTMLDivElement, line: string) => {
+    // A zero-width space keeps empty lexical lines exactly one row tall.
+    div.textContent = line.length > 0 ? line : "\u200b";
+  };
+
+  /**
+   * Keeps the mirror's per-line blocks in sync with `nextLines`. Unchanged
+   * lines are left untouched so the browser only re-shapes the edited lines.
+   */
+  const syncMirrorLines = (
+    mirror: HTMLDivElement,
+    nextLines: string[],
+    previous: GutterMetrics | null
+  ): HTMLDivElement[] => {
+    const prevLines = previous?.measured ? previous.lines : null;
+    const prevDivs = previous?.measured ? previous.lineDivs : null;
+    if (!prevLines || !prevDivs) {
+      const fragment = document.createDocumentFragment();
+      const divs: HTMLDivElement[] = [];
+      for (const line of nextLines) {
+        const div = document.createElement("div");
+        setMirrorLine(div, line);
+        divs.push(div);
+        fragment.appendChild(div);
+      }
+      mirror.replaceChildren(fragment);
+      return divs;
+    }
+
+    const minLength = Math.min(prevLines.length, nextLines.length);
+    let prefix = 0;
+    while (prefix < minLength && prevLines[prefix] === nextLines[prefix]) prefix++;
+    let suffix = 0;
+    const maxSuffix = minLength - prefix;
+    while (
+      suffix < maxSuffix &&
+      prevLines[prevLines.length - 1 - suffix] === nextLines[nextLines.length - 1 - suffix]
+    ) {
+      suffix++;
+    }
+
+    const prevMiddleCount = prevLines.length - prefix - suffix;
+    const nextMiddleCount = nextLines.length - prefix - suffix;
+    if (prevMiddleCount === nextMiddleCount) {
+      for (let i = 0; i < nextMiddleCount; i++) {
+        setMirrorLine(prevDivs[prefix + i], nextLines[prefix + i]);
+      }
+      return prevDivs;
+    }
+
+    const reusable: HTMLDivElement[] = [];
+    for (let i = 0; i < prevMiddleCount; i++) {
+      const div = prevDivs[prefix + i];
+      div.remove();
+      reusable.push(div);
+    }
+    const anchor = suffix > 0 ? prevDivs[prevDivs.length - suffix] : null;
+    const middleDivs: HTMLDivElement[] = [];
+    for (let i = 0; i < nextMiddleCount; i++) {
+      const div = reusable[i] ?? document.createElement("div");
+      setMirrorLine(div, nextLines[prefix + i]);
+      mirror.insertBefore(div, anchor);
+      middleDivs.push(div);
+    }
+    return [
+      ...prevDivs.slice(0, prefix),
+      ...middleDivs,
+      ...prevDivs.slice(prevDivs.length - suffix),
+    ];
+  };
+
+  const buildMetrics = (): GutterMetrics | null => {
+    mounted();
+    const textarea = textareaRef;
+    if (!textarea) return null;
+
+    const text = normalizedContent();
+    const width = contentWidth();
+    const font = fontSize();
+    const row = rowHeight();
+
+    if (
+      metrics &&
+      metrics.text === text &&
+      metrics.width === width &&
+      metrics.fontSize === font &&
+      metrics.rowHeight === row
+    ) {
+      return metrics;
+    }
+
+    const previous = metrics;
+    const analysis = analyzeDocumentText(text);
+    const needsMeasurement =
+      width > 0 &&
+      (analysis.hasNonAscii || analysis.maxColumns * font * WIDEST_MONO_ADVANCE_EM > width);
+
+    const base: GutterMetrics = {
+      text,
+      width,
+      fontSize: font,
+      rowHeight: row,
+      lineCount: analysis.lineCount,
+      lines: null,
+      lineDivs: null,
+      measured: false,
+      totalHeight: analysis.lineCount * row,
+    };
+    metrics = base;
+    if (!needsMeasurement) return base;
+
+    const mirror = ensureMeasureMirror();
+    if (!mirror) return base;
+
+    mirror.style.width = `${width}px`;
+    mirror.style.fontSize = `${font}px`;
+    mirror.style.lineHeight = `${row}px`;
+
+    const lines = text.split("\n");
+    const lineDivs = syncMirrorLines(mirror, lines, previous);
+    const totalHeight = mirror.offsetHeight;
+    if (!(totalHeight > 0) || lineDivs.length !== lines.length) return base;
+
+    const measured: GutterMetrics = {
+      ...base,
+      lineCount: lines.length,
+      lines,
+      lineDivs,
+      measured: true,
+      totalHeight,
+    };
+    metrics = measured;
+    return measured;
+  };
+
+  const lineTop = (m: GutterMetrics, index: number): number => {
+    if (!m.measured || !m.lineDivs) return index * m.rowHeight;
+    if (index >= m.lineDivs.length) return m.totalHeight;
+    return m.lineDivs[index].offsetTop;
+  };
+
+  const gutterWindow = createMemo(() => {
+    const m = buildMetrics();
+    const row = rowHeight();
+    const count = m ? m.lineCount : countDocumentLines(content());
+    const measured = !!(m && m.measured);
+    return computeGutterWindow({
+      lineCount: count,
+      rowHeight: row,
+      scrollTop: scrollTop(),
+      viewportHeight: viewportHeight(),
+      measured,
+      topOf: (index) => (m && m.measured ? lineTop(m, index) : index * row),
+      totalHeight: m ? m.totalHeight : count * row,
+    });
   });
 
   const handleInput = (e: InputEvent & { currentTarget: HTMLTextAreaElement }) => {
@@ -340,10 +671,25 @@ export const CodeView: Component = () => {
   };
 
   onMount(() => {
+    setMounted(true);
     if (typeof ResizeObserver !== "undefined") {
-      const observer = new ResizeObserver(() => setViewportHeight(textareaRef.clientHeight || 800));
+      const observer = new ResizeObserver(() => {
+        setViewportHeight(textareaRef.clientHeight || 800);
+        setLayoutTick((tick) => tick + 1);
+      });
       observer.observe(textareaRef);
       onCleanup(() => observer.disconnect());
+    }
+    let cancelled = false;
+    if (typeof document !== "undefined" && document.fonts?.ready) {
+      document.fonts.ready
+        .then(() => {
+          if (!cancelled) setLayoutTick((tick) => tick + 1);
+        })
+        .catch(() => {});
+      onCleanup(() => {
+        cancelled = true;
+      });
     }
     registerCodeFormatter(executeCodeFormat);
     registerCodeMatchRevealer(revealMatchInCode);
@@ -353,6 +699,10 @@ export const CodeView: Component = () => {
 
   onCleanup(() => {
     if (typingTimer) clearTimeout(typingTimer);
+    measureMirror?.remove();
+    measureMirror = null;
+    metrics = null;
+    normalizedCache = null;
     registerCodeFormatter(null);
     registerCodeMatchRevealer(null);
     registerCodeInserter(null);
@@ -403,9 +753,24 @@ export const CodeView: Component = () => {
         class="w-12 flex-shrink-0 select-none py-6 text-right pr-3 overflow-hidden text-xs opacity-40 border-r border-[var(--color-border)] bg-[var(--color-sidebar-bg)] pointer-events-none"
         aria-hidden="true"
       >
-        <div style={{ height: `${lineCount() * rowHeight()}px`, position: "relative" }}>
-          <div style={{ position: "absolute", top: `${(lineNumbers()[0] - 1) * rowHeight()}px`, right: "0" }}>
-            <Index each={lineNumbers()}>{(line) => <div data-testid="gutter-line-number" style={{ height: dynamicLineHeight(), "line-height": dynamicLineHeight() }}>{line()}</div>}</Index>
+        <div style={{ height: `${gutterWindow().totalHeight}px`, position: "relative" }}>
+          <div style={{ position: "absolute", top: `${gutterWindow().offsetTop}px`, right: "0", width: "0" }}>
+            <Index each={gutterWindow().items}>
+              {(line) => (
+                <div
+                  data-testid="gutter-line-number"
+                  style={{
+                    position: "absolute",
+                    top: `${line().top}px`,
+                    right: "0",
+                    height: `${line().height}px`,
+                    "line-height": dynamicLineHeight(),
+                  }}
+                >
+                  {line().number}
+                </div>
+              )}
+            </Index>
           </div>
         </div>
       </div>
@@ -419,7 +784,7 @@ export const CodeView: Component = () => {
             "box-sizing": "border-box",
             "line-height": dynamicLineHeight(),
             "font-size": `${fontSize()}px`,
-            "font-family": "Consolas, 'Cascadia Code', 'Fira Code', Menlo, Monaco, 'Courier New', monospace",
+            "font-family": CODE_FONT_FAMILY,
             "white-space": "pre-wrap",
             "word-break": "break-word",
             "tab-size": "2",

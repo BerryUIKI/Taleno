@@ -1,6 +1,11 @@
 import { render } from "solid-js/web";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { CodeView, countDocumentLines } from "./CodeView";
+import {
+  CodeView,
+  analyzeDocumentText,
+  computeGutterWindow,
+  countDocumentLines,
+} from "./CodeView";
 import { currentDocument, setCurrentDocument, resetDocument } from "../../store/editor";
 
 describe("CodeView Line Gutter & Performance", () => {
@@ -42,6 +47,111 @@ describe("CodeView Line Gutter & Performance", () => {
 
       expect(count).toBe(5001);
       expect(duration).toBeLessThan(10);
+    });
+  });
+
+  describe("analyzeDocumentText", () => {
+    it("reports line count and the longest monospace line", () => {
+      expect(analyzeDocumentText("abc\nlonger line\n")).toEqual({
+        lineCount: 3,
+        maxColumns: 11,
+        hasNonAscii: false,
+      });
+    });
+
+    it("counts tabs as two columns and detects non-ASCII text", () => {
+      expect(analyzeDocumentText("\ta\n中文").maxColumns).toBe(3);
+      expect(analyzeDocumentText("\ta\n中文").hasNonAscii).toBe(true);
+      expect(analyzeDocumentText("plain ASCII").hasNonAscii).toBe(false);
+      expect(analyzeDocumentText("").lineCount).toBe(1);
+    });
+  });
+
+  describe("computeGutterWindow", () => {
+    it("keeps the uniform row model when no line wraps", () => {
+      const rowHeight = 24;
+      const state = computeGutterWindow({
+        lineCount: 1000,
+        rowHeight,
+        scrollTop: 2400,
+        viewportHeight: 800,
+        measured: false,
+        topOf: (index) => index * rowHeight,
+        totalHeight: 1000 * rowHeight,
+      });
+
+      expect(state.start).toBe(91);
+      expect(state.items[0].number).toBe(92);
+      expect(state.items.length).toBeLessThan(100);
+      expect(state.items.every((item) => item.height === rowHeight)).toBe(true);
+    });
+
+    it("positions numbers on the first row of wrapped lines", () => {
+      const rowHeight = 24;
+      // Line 2 wraps to three visual rows.
+      const heights = [24, 24, 72, 24, 24];
+      const tops = heights.reduce<number[]>((acc, height) => {
+        acc.push(acc[acc.length - 1] + height);
+        return acc;
+      }, [0]);
+
+      const state = computeGutterWindow({
+        lineCount: heights.length,
+        rowHeight,
+        scrollTop: 0,
+        viewportHeight: 800,
+        measured: true,
+        topOf: (index) => tops[index],
+        totalHeight: tops[tops.length - 1],
+      });
+
+      expect(state.start).toBe(0);
+      expect(state.offsetTop).toBe(0);
+      expect(state.items.map((item) => item.top)).toEqual([0, 24, 48, 120, 144]);
+      expect(state.items.map((item) => item.height)).toEqual([24, 24, 72, 24, 24]);
+    });
+
+    it("keeps the number of a tall wrapped line that spans the viewport", () => {
+      const rowHeight = 24;
+      // Line 0 wraps to 100 visual rows; lines 1-2 are normal.
+      const tops = [0, 2400, 2424, 2448];
+      const state = computeGutterWindow({
+        lineCount: 3,
+        rowHeight,
+        scrollTop: 1200,
+        viewportHeight: 240,
+        measured: true,
+        topOf: (index) => tops[index],
+        totalHeight: 2448,
+      });
+
+      expect(state.start).toBe(0);
+      expect(state.offsetTop).toBe(0);
+      expect(state.items[0]).toMatchObject({ number: 1, top: 0, height: 2400 });
+      expect(state.items[1]).toMatchObject({ number: 2, top: 2400, height: 24 });
+    });
+
+    it("finds the scrolled start line through wrapped-and-empty-line heights", () => {
+      const rowHeight = 24;
+      const heights = Array.from({ length: 100 }, (_, index) => (index === 10 ? 240 : 24));
+      const tops = heights.reduce<number[]>((acc, height) => {
+        acc.push(acc[acc.length - 1] + height);
+        return acc;
+      }, [0]);
+
+      const state = computeGutterWindow({
+        lineCount: heights.length,
+        rowHeight,
+        scrollTop: tops[11] + 24 + 8 * rowHeight,
+        viewportHeight: 240,
+        measured: true,
+        topOf: (index) => tops[index],
+        totalHeight: tops[tops.length - 1],
+      });
+
+      expect(state.start).toBe(11);
+      expect(state.offsetTop).toBe(tops[11]);
+      expect(state.items[0]).toMatchObject({ number: 12, top: 0, height: 24 });
     });
   });
 
