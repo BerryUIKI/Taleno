@@ -8,7 +8,7 @@
 
 **A Typora-style, local-first, high-performance Markdown reader & in-place WYSIWYG editor.**
 
-<span style="font-size: 13px;">v0.1.6 Released · AGPL-3.0 Open Source</span>
+<span style="font-size: 13px;">v0.1.10 Released · AGPL-3.0 Open Source</span>
 
 [![Website](https://img.shields.io/badge/website-berryuiki.github.io%2FTaleno-4895ef.svg?style=for-the-badge)](https://berryuiki.github.io/Taleno/)
 [![Release](https://img.shields.io/badge/release-latest-4361ee.svg?style=for-the-badge)](https://github.com/BerryUIKI/Taleno/releases/latest)
@@ -20,12 +20,13 @@
 [![SolidJS](https://img.shields.io/badge/SolidJS-1.9+-2C4F7C?style=for-the-badge&logo=solid&logoColor=white)](https://www.solidjs.com/)
 
 <p align="center">
-  <b>🚀 Local-first</b> • <b>⚡ Blazing fast (&lt;400ms startup)</b> • <b>📝 Zero split-panes</b> • <b>🌐 9 Languages</b> • <b>📦 Lightweight (~3.6 MB)</b>
-</p>
+  <b>🚀 Local-first</b> • <b>📝 Zero split-panes</b> • <b>🌐 9 Languages</b> • </p>
 
 [**📥 Download**](#-instant-downloads) · [**🖥️ Interface Preview**](#-interface-preview) · [**🌟 Key Features**](#-key-features) · [**⌨️ Keyboard Shortcuts**](#-keyboard-shortcuts) · [**📚 Documentation**](#-documentation) · [**🌐 Website**](https://berryuiki.github.io/Taleno/)
 
 </div>
+
+> Published desktop release: **v0.1.10 (2026-10-28)**. Later development changes are unreleased. See the [implementation and platform matrix](docs/ARCHITECTURE.md#11-feature--platform-implementation-status-matrix) for actual dependencies, source paths and verification limits. Android/iOS external files, saves and keyboard/safe-area behavior still require device acceptance; signed mobile release jobs are not configured. Startup time and package size vary by build and platform; the performance record, rather than a fixed marketing figure, is authoritative.
 
 ---
 
@@ -34,6 +35,7 @@
 - [🖥️ Interface Preview](#-interface-preview)
 - [📥 Instant Downloads](#-instant-downloads)
 - [🌟 Key Features](#-key-features)
+- [📊 Feature & Platform Status Matrix](#-feature--platform-status-matrix)
 - [💡 Why Taleno?](#-why-Taleno)
 - [⌨️ Keyboard Shortcuts](#-keyboard-shortcuts)
 - [🛠️ Architecture & Tech Stack](#-architecture--tech-stack)
@@ -94,12 +96,41 @@ Built on **Tauri 2** and **Rust** with a fine-grained reactive **SolidJS** front
 | 📂 **Workspace Tree & Tabs** | Multi-document tabs, recursive file tree CRUD operations, and quick file switcher (<kbd>Ctrl+P</kbd>) | ✅ Complete |
 | 🌈 **Code Syntax Highlighting** | High-performance code block highlighting via `syntect` with language tags and copy button | ✅ Complete |
 | 📑 **Dynamic Table of Contents** | Interactive document outline with smooth anchor scrolling across all display modes | ✅ Complete |
-| 📊 **Mermaid Diagrams & Math** | Rich interactive flowchart, sequence, class diagrams, and LaTeX math formatting | ✅ Complete |
-| 🔍 **Full-Text Ripgrep Search** | Instant whole-workspace full-text search (<kbd>Ctrl+Shift+F</kbd>) and in-document Find & Replace (<kbd>Ctrl+F</kbd> / <kbd>Ctrl+H</kbd>) | ✅ Complete |
+| 📊 **Mermaid Diagrams & Math Layout** | HTML/CSS containers for flowcharts, sequence diagrams (`mermaid`), and serif LaTeX math formatting (`math`/`katex`/`$$`) | ✅ Complete |
+| 🔍 **Native Workspace Search** | Recursive file search in Rust backend (`src-tauri/src/commands/search.rs`) with line match extraction (<kbd>Ctrl+Shift+F</kbd>) and in-document Find & Replace (<kbd>Ctrl+F</kbd> / <kbd>Ctrl+H</kbd>) | ✅ Complete |
 | 📤 **Standalone HTML Export** | Export any document to self-contained, offline-styled HTML (<kbd>Ctrl+E</kbd>) | ✅ Complete |
-| 🧩 **Plugin System & Extensibility** | Modular extension engine with `%APPDATA%` directory scanning, hot-reload, JS sandbox runtime, and Preferences sub-menu (<kbd>Ctrl+Shift+X</kbd>) | ✅ Complete |
+| 🧩 **Plugin System & Extensibility** | Modular extension engine with identifier-derived directory scanning (`plugins/`), hot-reload, sandboxed JS context, and Preferences sub-menu (<kbd>Ctrl+Shift+X</kbd>) | ✅ Complete |
 
-*See the [Roadmap](docs/ROADMAP.md) for what's planned next.*
+*See the [Roadmap](docs/ROADMAP.md) and [Milestones](docs/MILESTONES.md) for what's planned next.*
+
+---
+
+## 📊 Feature & Platform Status Matrix
+
+### Core Feature Implementation Pathways
+
+| Component | Technology & Implementation Path | Architecture Details | Verification Status |
+| :--- | :--- | :--- | :---: |
+| **Markdown WYSIWYG Editor** | Milkdown v7 + ProseMirror | In-place editing, ProseMirror transactions, history stack | ✅ Production Ready |
+| **GFM AST Parser** | Rust `pulldown-cmark` crate | Zero-copy AST traversal, slugified heading anchors | ✅ Production Ready |
+| **Syntax Highlighting** | Rust `syntect` crate | Sublime syntax definitions, language badges, copy button | ✅ Production Ready |
+| **Diagram Containers** | Rust parser HTML wrapper | Fenced `mermaid` code transformed into `.mermaid-diagram` container | ✅ Production Ready |
+| **Math Block Containers** | Rust parser HTML wrapper | `math`/`katex` and `$$...$$` rendered into styled `.math-block` | ✅ Production Ready |
+| **Workspace Search** | Rust async recursive walker | `tokio::fs` directory recursion, case-insensitive line matches | ✅ Production Ready |
+| **Crash-Safe File I/O** | Rust atomic tempfile writer | `<filename>.tmp` write + buffer flush + atomic `fs::rename` | ✅ Production Ready |
+| **Plugin Runtime** | Sandboxed `TalenoPluginContext` | Isolated storage, lifecycle hooks, identifier-derived data path | ✅ Production Ready |
+| **Theme Runtime** | CSS variable token injector | Hot CSS variable overrides on `:root` via `theme.json` + `theme.css` | ✅ Production Ready |
+| **Cloud Synchronization** | *None (Intentionally omitted)* | 100% local-first architecture; zero telemetry or cloud lock-in | ⛔ Out of Scope |
+
+### Target Platform Support Matrix
+
+| Platform | Target Architecture | Distribution Formats | Verification Status | Known Limitations & Notes |
+| :--- | :--- | :--- | :---: | :--- |
+| **Windows** | x86_64, aarch64 | NSIS Installer (`.exe`), WiX MSI (`.msi`) | ✅ Verified | Fully tested on Windows 10/11 local host and CI runners. |
+| **macOS** | Apple Silicon (`aarch64`), Intel (`x86_64`) | Apple Disk Image (`.dmg`), App Bundle (`.app`) | ⚠️ CI Verified | Compiles cleanly in GitHub Actions CI. Code signing and notarization require Apple Developer certificate (see [macOS Signing](docs/MACOS_RELEASE_SIGNING.md)). |
+| **Linux** | x86_64, aarch64 | AppImage, Debian Package (`.deb`), RPM Package (`.rpm`) | ⚠️ CI Verified | Built in CI matrix. Requires system `webkit2gtk-4.1` and `gtk3` runtime libraries. |
+| **Android** | arm64-v8a, armeabi-v7a, x86_64 | Android Package (`.apk`), App Bundle (`.aab`) | 🔄 In Progress | Responsive single-column UI, navigation drawer, and visual viewport virtual keyboard scrolling implemented. Physical device hardware testing and SAF scoped storage validation pending. |
+| **iOS** | arm64 | iOS App Archive (`.ipa`) | 🔄 In Progress | Responsive mobile shell and safe-area insets implemented. Physical device testing and security-scoped bookmark sandbox validation pending. |
 
 ---
 
@@ -110,7 +141,6 @@ Built on **Tauri 2** and **Rust** with a fine-grained reactive **SolidJS** front
 | **Rendering** | In-place WYSIWYG, zero panes | Side-by-side preview | Browser tab juggling |
 | **Startup** | < 400 ms native cold start | Depends on Electron weight | Page load + sync wait |
 | **Privacy** | 100% local-first, zero telemetry | Local files | Data stored on cloud |
-| **Size** | ~3.6 MB installer | 100+ MB installers | N/A |
 | **Offline** | Fully offline | Fully offline | Requires network |
 | **Formatting** | Pure Markdown on disk | Proprietary formats possible | Vendor lock-in |
 
@@ -180,7 +210,7 @@ Taleno keeps your documents as **pure Markdown on disk** — portable, diffable,
 ## 💻 Developer Setup
 
 ### Prerequisites
-* [Node.js](https://nodejs.org/) 20+
+* [Node.js](https://nodejs.org/) ^22.22.2 || ^24.15.0 || >=26.0.0 (Node 24 LTS recommended)
 * [pnpm](https://pnpm.io/) 9+
 * [Rust](https://rustup.rs/) 1.85+
 * [Tauri Prerequisites](https://v2.tauri.app/start/prerequisites/)
@@ -199,11 +229,11 @@ pnpm tauri dev
 
 ### Tests & Verification
 ```bash
+# Strict TypeScript type check and linter
+pnpm lint
+
 # Run all Rust unit tests
 cargo test --manifest-path src-tauri/Cargo.toml
-
-# Strict TypeScript type check
-pnpm tsc --noEmit
 
 # Run frontend unit tests (Vitest)
 pnpm test
@@ -268,7 +298,7 @@ Taleno stands on the shoulders of these amazing open-source projects:
 - [pulldown-cmark](https://github.com/pulldown-cmark/pulldown-cmark) — zero-copy GFM AST parsing
 - [syntect](https://github.com/trishume/syntect) — code syntax highlighting
 - [notify](https://github.com/notify-rs/notify) — file system watching
-- [ripgrep](https://github.com/BurntSushi/ripgrep) — full-text search
+- [tokio](https://tokio.rs) — asynchronous runtime & file search
 - [Mermaid](https://mermaid.js.org) — diagrams
 - [KaTeX](https://katex.org) — math rendering
 - [Tailwind CSS](https://tailwindcss.com) — utility-first styling

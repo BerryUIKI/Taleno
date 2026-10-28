@@ -8,7 +8,7 @@
 
 **Typora スタイルのローカルファースト、超高速 Markdown リーダー & インプレース WYSIWYG エディター。**
 
-<span style="font-size: 13px;">v0.1.6 リリース · AGPL-3.0 オープンソース</span>
+<span style="font-size: 13px;">v0.1.10 リリース · AGPL-3.0 オープンソース</span>
 
 [![Website](https://img.shields.io/badge/website-berryuiki.github.io%2FTaleno-4895ef.svg?style=for-the-badge)](https://berryuiki.github.io/Taleno/)
 [![Release](https://img.shields.io/badge/release-latest-4361ee.svg?style=for-the-badge)](https://github.com/BerryUIKI/Taleno/releases/latest)
@@ -20,12 +20,13 @@
 [![SolidJS](https://img.shields.io/badge/SolidJS-1.9+-2C4F7C?style=for-the-badge&logo=solid&logoColor=white)](https://www.solidjs.com/)
 
 <p align="center">
-  <b>🚀 ローカルファースト</b> • <b>⚡ 超高速起動 (&lt;400ms)</b> • <b>📝 画面分割なしの即時レンダリング</b> • <b>🌐 9言語対応</b> • <b>📦 軽量 (~3.6 MB)</b>
-</p>
+  <b>🚀 ローカルファースト</b> • <b>📝 画面分割なしの即時レンダリング</b> • <b>🌐 9言語対応</b> • </p>
 
 [**📥 ダウンロード**](#-ダイレクトダウンロード) · [**🖥️ インターフェースプレビュー**](#-インターフェースプレビュー) · [**🌟 主な機能**](#-主な機能) · [**⌨️ ショートカット**](#-ショートカット一覧) · [**📚 ドキュメント**](#-ドキュメント) · [**🌐 ウェブサイト**](https://berryuiki.github.io/Taleno/)
 
 </div>
+
+> 公開済みデスクトップ版は **v0.1.10（2026-10-28）** です。その後の開発変更は未公開です。依存関係、実装箇所、検証範囲は[機能・プラットフォーム一覧](docs/ARCHITECTURE.md#11-feature--platform-implementation-status-matrix)を参照してください。Android/iOS の外部ファイル、保存、キーボードと安全領域は実機検証待ちです。モバイルの署名付きリリースジョブは未設定です。起動時間と配布サイズはビルドと環境に依存し、実測記録を基準とします。
 
 ---
 
@@ -94,10 +95,10 @@ OS とパッケージを選択してください：
 | 📂 **ワークスペースとタブ** | 複数ドキュメントタブ、再帰ファイルツリー CRUD、クイックスイッチャー (<kbd>Ctrl+P</kbd>) | ✅ 完了 |
 | 🌈 **コードシンタックスハイライト** | `syntect` による高速ハイライト、言語タグとコピーボタン付き | ✅ 完了 |
 | 📑 **動的目次** | 見出しから階層アウトラインを生成、全モードでスムーズスクロール | ✅ 完了 |
-| 📊 **Mermaid & 数式** | フローチャート、シーケンス図、クラス図、KaTeX 数式レンダリング | ✅ 完了 |
-| 🔍 **Ripgrep 全文検索** | ワークスペース全体の高速全文検索 (<kbd>Ctrl+Shift+F</kbd>) とドキュメント内検索・置換 (<kbd>Ctrl+F</kbd> / <kbd>Ctrl+H</kbd>) | ✅ 完了 |
+| 📊 **Mermaid & 数式レイアウト** | フローチャート、シーケンス図 (`mermaid`) とセリフ体 LaTeX 数式 (`math`/`katex`/`$$`) のコンテナ描画 | ✅ 完了 |
+| 🔍 **Rust ネイティブ全文検索** | Rust バックエンド再帰検索 (`src-tauri/src/commands/search.rs`) による行マッチ抽出 (<kbd>Ctrl+Shift+F</kbd>) とドキュメント内検索・置換 (<kbd>Ctrl+F</kbd> / <kbd>Ctrl+H</kbd>) | ✅ 完了 |
 | 📤 **単体 HTML エクスポート** | 自己完結のオフライン HTML にワンクリックエクスポート (<kbd>Ctrl+E</kbd>) | ✅ 完了 |
-| 🧩 **プラグインシステムと拡張性** | モジュール式プラグインエンジン、`%APPDATA%` ディレクトリ検出、ホットリロード、JS サンドボックス実行環境と設定サブメニュー (<kbd>Ctrl+Shift+X</kbd>) | ✅ 完了 |
+| 🧩 **プラグインシステムと拡張性** | モジュール式プラグインエンジン、標準アプリデータディレクトリ走査 (`plugins/`)、ホットリロード、JS サンドボックス実行環境と設定サブメニュー (<kbd>Ctrl+Shift+X</kbd>) | ✅ 完了 |
 
 *今後の計画は[ロードマップ](docs/ROADMAP.md)をご覧ください。*
 
@@ -110,7 +111,6 @@ OS とパッケージを選択してください：
 | **レンダリング** | インプレース WYSIWYG、分割なし | 左右分割プレビュー | ブラウザタブの行き来 |
 | **起動速度** | < 400 ms ネイティブ起動 | Electron 依存 | ページ読み込み + 同期待ち |
 | **プライバシー** | 100% ローカル、テレメトリなし | ローカルファイル | クラウド保存 |
-| **サイズ** | 約 3.6 MB インストーラー | 100+ MB インストーラー | なし |
 | **オフライン** | 完全オフライン | 完全オフライン | ネットワーク必須 |
 | **保存形式** | 純粋な Markdown | 独自形式の可能性 | ベンダーロックイン |
 
@@ -266,7 +266,7 @@ Taleno は以下の素晴らしいオープンソースプロジェクトの上�
 - [pulldown-cmark](https://github.com/pulldown-cmark/pulldown-cmark) — ゼロコピー GFM AST パーサー
 - [syntect](https://github.com/trishume/syntect) — コードシンタックスハイライト
 - [notify](https://github.com/notify-rs/notify) — ファイルシステム監視
-- [ripgrep](https://github.com/BurntSushi/ripgrep) — 全文検索
+- [tokio](https://tokio.rs) — 非同期ランタイムとファイル検索
 - [Mermaid](https://mermaid.js.org) — ダイアグラム
 - [KaTeX](https://katex.org) — 数式レンダリング
 - [Tailwind CSS](https://tailwindcss.com) — ユーティリティファーストなスタイリング

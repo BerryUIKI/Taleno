@@ -1,0 +1,48 @@
+{
+  "baseUrl": "http://127.0.0.1:1425",
+  "measuredAt": "2026-10-21T10:02:15.861Z",
+  "browser": "155.0.8059.85",
+  "platform": "win32",
+  "node": "v24.15.0",
+  "startupMs": [
+    174.5,
+    48,
+    51.900000002235174,
+    86.69999999925494,
+    39.30000000074506
+  ],
+  "initialScripts": [
+    "http://127.0.0.1:1425/assets/index-CIoXoyE-.js"
+  ],
+  "source": {
+    "lines": 10000,
+    "handlerMs": {
+      "count": 60,
+      "p50": 43,
+      "p95": 54,
+      "max": 62.69999999925494
+    },
+    "nextAnimationFrameMs": {
+      "count": 60,
+      "p50": 130.19999999925494,
+      "p95": 145.30000000074506,
+      "max": 159.30000000074506
+    }
+  },
+  "writing": {
+    "paragraphs": 500,
+    "handlerMs": {
+      "count": 60,
+      "p50": 3,
+      "p95": 4.699999999254942,
+      "max": 9.399999998509884
+    },
+    "nextAnimationFrameMs": {
+      "count": 60,
+      "p50": 5.099999997764826,
+      "p95": 17,
+      "max": 18
+    }
+  },
+  "limits": "Browser on this host with mocked IPC; no native Tauri startup, device acceptance or universal frame-budget guarantee. Input samples run after document-level delegated handlers, excluding idle serialization. Animation-frame samples include scheduling, not GPU presentation. Startup probe: new browser context, then four reloads; time until the New Document action is available."
+}

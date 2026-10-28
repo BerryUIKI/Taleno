@@ -8,7 +8,7 @@
 
 **Un lecteur & éditeur Markdown WYSIWYG ultra-rapide, local-first, dans le style de Typora.**
 
-<span style="font-size: 13px;">v0.1.6 publiée · Open source sous AGPL-3.0</span>
+<span style="font-size: 13px;">v0.1.10 publiée · Open source sous AGPL-3.0</span>
 
 [![Website](https://img.shields.io/badge/website-berryuiki.github.io%2FTaleno-4895ef.svg?style=for-the-badge)](https://berryuiki.github.io/Taleno/)
 [![Release](https://img.shields.io/badge/release-latest-4361ee.svg?style=for-the-badge)](https://github.com/BerryUIKI/Taleno/releases/latest)
@@ -20,12 +20,14 @@
 [![SolidJS](https://img.shields.io/badge/SolidJS-1.9+-2C4F7C?style=for-the-badge&logo=solid&logoColor=white)](https://www.solidjs.com/)
 
 <p align="center">
-  <b>🚀 Local-first</b> • <b>⚡ Démarrage instantané (&lt;400ms)</b> • <b>📝 Pas de double volet</b> • <b>🌐 9 langues</b> • <b>📦 Ultra-léger (~3.6 Mo)</b>
+  <b>🚀 Local-first</b> • <b>📝 Pas de double volet</b> • <b>🌐 9 langues</b> • <b>📦 Ultra-léger (~3.6 Mo)</b>
 </p>
 
 [**📥 Télécharger**](#-téléchargements-directs) · [**🖥️ Aperçu de l'interface**](#-aperçu-de-linterface) · [**🌟 Fonctionnalités**](#-fonctionnalités-principales) · [**⌨️ Raccourcis**](#-raccourcis-clavier) · [**📚 Documentation**](#-documentation) · [**🌐 Site web**](https://berryuiki.github.io/Taleno/)
 
 </div>
+
+> Version de bureau publiée : **v0.1.10 (2026-10-28)**. Les modifications de développement ultérieures ne sont pas publiées. Consultez la [matrice des fonctions et plateformes](docs/ARCHITECTURE.md#11-feature--platform-implementation-status-matrix) pour les dépendances, les chemins sources et les limites de validation. Les fichiers externes, la sauvegarde, le clavier et les zones sûres Android/iOS attendent des tests sur appareil. Les tâches de publication mobile signée ne sont pas configurées. Le démarrage et la taille varient selon la compilation et la plateforme ; les mesures font référence.
 
 ---
 
@@ -94,9 +96,10 @@ Construit sur **Tauri 2** et **Rust** avec un frontend **SolidJS** réactif à g
 | 📂 **Espace de travail & onglets** | Onglets multi-documents, arborescence récursive avec opérations CRUD et commutateur rapide (<kbd>Ctrl+P</kbd>) | ✅ Terminé |
 | 🌈 **Coloration syntaxique** | Coloration haute performance via `syntect` avec étiquettes de langage et bouton de copie | ✅ Terminé |
 | 📑 **Table des matières dynamique** | Plan de document interactif avec défilement fluide vers les ancres dans tous les modes | ✅ Terminé |
-| 📊 **Diagrammes Mermaid & maths** | Diagrammes de flux, de séquence et de classes interactifs, plus formules LaTeX | ✅ Terminé |
-| 🔍 **Recherche plein texte Ripgrep** | Recherche instantanée dans tout l'espace de travail (<kbd>Ctrl+Shift+F</kbd>) et rechercher/remplacer dans le document (<kbd>Ctrl+F</kbd> / <kbd>Ctrl+H</kbd>) | ✅ Terminé |
+| 📊 **Diagrammes Mermaid & rendu maths** | Rendu conteneur pour flux/séquences (`mermaid`) et formules LaTeX à empattement (`math`/`katex`/`$$`) | ✅ Terminé |
+| 🔍 **Recherche native d'espace de travail** | Recherche récursive dans le backend Rust (`src-tauri/src/commands/search.rs`) avec correspondances de ligne (<kbd>Ctrl+Shift+F</kbd>) et recherche/remplacement (<kbd>Ctrl+F</kbd> / <kbd>Ctrl+H</kbd>) | ✅ Terminé |
 | 📤 **Export HTML autonome** | Exportez tout document en HTML autonome et stylé hors ligne (<kbd>Ctrl+E</kbd>) | ✅ Terminé |
+| 🧩 **Système de plugins & extensibilité** | Moteur modulaire avec scan du répertoire de données applicatif standard (`plugins/`), rechargement à chaud, bac à sable JS et sous-menu Préférences (<kbd>Ctrl+Shift+X</kbd>) | ✅ Terminé |
 
 *Ce qui est prévu ensuite figure dans la [Feuille de route](docs/ROADMAP.md).*
 
@@ -263,7 +266,7 @@ Taleno se tient sur les épaules de ces merveilleux projets open source :
 - [pulldown-cmark](https://github.com/pulldown-cmark/pulldown-cmark) — parsing AST GFM zéro copie
 - [syntect](https://github.com/trishume/syntect) — coloration syntaxique
 - [notify](https://github.com/notify-rs/notify) — surveillance du système de fichiers
-- [ripgrep](https://github.com/BurntSushi/ripgrep) — recherche plein texte
+- [tokio](https://tokio.rs) — exécution asynchrone et recherche de fichiers
 - [Mermaid](https://mermaid.js.org) — diagrammes
 - [KaTeX](https://katex.org) — rendu mathématique
 - [Tailwind CSS](https://tailwindcss.com) — styles utilitaires

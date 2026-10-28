@@ -1,6 +1,7 @@
 import { Component, Show, For } from "solid-js";
-import { currentDocument } from "../../store/editor";
-import { openTabs, activeTabId, selectTab, closeTab } from "../../store/files";
+import { currentDocument, type TocEntry } from "../../store/editor";
+import { navigateToHeading } from "../../lib/headingNavigation";
+import { openTabs, activeTabId, selectTab } from "../../store/files";
 import { theme, setTheme, cycleTheme, fontSize, setFontSize, markdownTheme, setMarkdownTheme } from "../../store/settings";
 import { Sidebar } from "../Sidebar/Sidebar";
 import { t } from "../../i18n";
@@ -11,19 +12,19 @@ interface MobileDrawerSheetProps {
   onClose: () => void;
   onOpenFile: (path: string) => Promise<void>;
   onNewDocument: () => void;
+  onCloseTab?: (id: string) => void;
+  onSaveFile?: () => Promise<void> | void;
+  onSaveFileAs?: () => Promise<void> | void;
 }
 
 export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
   const doc = () => currentDocument();
   const tabs = () => openTabs();
 
-  const scrollToHeading = (id: string) => {
+  const handleSelectHeading = (entry: TocEntry, index: number) => {
     props.onClose();
     setTimeout(() => {
-      const element = document.getElementById(id);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+      navigateToHeading(entry, index);
     }, 150);
   };
 
@@ -56,20 +57,20 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
         <div class="px-4 py-2 flex items-center justify-between border-b border-[var(--color-border)]">
           <h2 class="font-bold text-sm tracking-tight">
             <Show when={props.view === "files"}>
-              <span>📁 {t("menu.file")} & 工作区</span>
+              <span>📁 {t("mobile.filesAndWorkspace")}</span>
             </Show>
             <Show when={props.view === "outline"}>
-              <span>📑 文档大纲 (TOC)</span>
+              <span>📑 {t("mobile.outlineTitle")}</span>
             </Show>
             <Show when={props.view === "settings"}>
-              <span>⚙️ 偏好设置 & 主题</span>
+              <span>⚙️ {t("mobile.preferencesTitle")}</span>
             </Show>
           </h2>
 
           <button
             class="p-1.5 rounded-full hover:bg-[var(--color-hover)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-xs"
             onClick={props.onClose}
-            aria-label="Close"
+            aria-label={t("dialogs.close")}
           >
             ✕
           </button>
@@ -83,7 +84,7 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
             <Show when={tabs().length > 0}>
               <div class="space-y-1.5">
                 <span class="text-[11px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
-                  已打开的文档 ({tabs().length})
+                  {t("mobile.openDocuments")} ({tabs().length})
                 </span>
                 <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
                   <For each={tabs()}>
@@ -107,8 +108,10 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
                           class="hover:opacity-75 ml-0.5 text-xs"
                           onClick={(e) => {
                             e.stopPropagation();
-                            closeTab(tab.id);
+                            props.onCloseTab?.(tab.id);
+                            props.onClose();
                           }}
+                          aria-label={t("file.closeTab")}
                         >
                           ✕
                         </button>
@@ -119,11 +122,55 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
               </div>
             </Show>
 
+            {/* Quick Document Actions: Save & Save As */}
+            <div class="flex items-center gap-2 pt-1">
+              <button
+                class={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-semibold transition-all ${
+                  doc().isDirty
+                    ? "bg-[var(--color-accent)] text-white border-transparent shadow-xs"
+                    : "bg-[var(--color-bg-secondary)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                }`}
+                onClick={async () => {
+                  if (props.onSaveFile) {
+                    await props.onSaveFile();
+                  }
+                }}
+                aria-label={t("file.save")}
+              >
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" />
+                </svg>
+                <span>{t("file.save")}</span>
+                <Show when={doc().isDirty}>
+                  <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                </Show>
+              </button>
+
+              <button
+                class="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] text-xs font-semibold hover:bg-[var(--color-hover)] transition-all"
+                onClick={async () => {
+                  if (props.onSaveFileAs) {
+                    await props.onSaveFileAs();
+                  }
+                }}
+                aria-label={t("file.saveAs")}
+              >
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" />
+                </svg>
+                <span>{t("file.saveAs")}</span>
+              </button>
+            </div>
+
             {/* Workspace File Tree */}
             <div class="space-y-1.5 pt-2">
               <div class="flex items-center justify-between">
                 <span class="text-[11px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
-                  工作区文件树
+                  {t("mobile.workspaceTree")}
                 </span>
                 <button
                   class="text-xs text-[var(--color-accent)] font-medium hover:underline"
@@ -132,7 +179,7 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
                     props.onClose();
                   }}
                 >
-                  + 新建笔记
+                  {t("mobile.newNote")}
                 </button>
               </div>
 
@@ -153,19 +200,19 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
               when={doc().toc && doc().toc.length > 0}
               fallback={
                 <div class="py-8 text-center text-xs text-[var(--color-text-secondary)]">
-                  当前文档暂无标题大纲 (H1~H6)
+                  {t("mobile.noOutline")}
                 </div>
               }
             >
               <div class="space-y-1">
                 <For each={doc().toc}>
-                  {(item) => (
+                  {(item, index) => (
                     <button
                       class="w-full text-left py-2 px-3 rounded-lg hover:bg-[var(--color-hover)] text-xs transition-colors flex items-center gap-2 group"
                       style={{
                         "padding-left": `${Math.max(12, (item.level - 1) * 16 + 12)}px`,
                       }}
-                      onClick={() => scrollToHeading(item.id)}
+                      onClick={() => handleSelectHeading(item, index())}
                     >
                       <span class="text-[10px] font-bold text-[var(--color-accent)] opacity-70 group-hover:opacity-100">
                         H{item.level}
@@ -185,7 +232,7 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
             {/* Color Mode (Light / Dark / System) */}
             <div class="space-y-2">
               <span class="text-[11px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
-                外观颜色模式
+                {t("mobile.colorMode")}
               </span>
               <div class="grid grid-cols-3 gap-2">
                 <button
@@ -197,7 +244,7 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
                   onClick={() => setTheme("light")}
                 >
                   <span>☀️</span>
-                  <span>浅色</span>
+                  <span>{t("view.lightTheme")}</span>
                 </button>
                 <button
                   class={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
@@ -208,7 +255,7 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
                   onClick={() => setTheme("dark")}
                 >
                   <span>🌙</span>
-                  <span>深色</span>
+                  <span>{t("view.darkTheme")}</span>
                 </button>
                 <button
                   class={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
@@ -219,7 +266,7 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
                   onClick={() => setTheme("system")}
                 >
                   <span>⚙️</span>
-                  <span>跟随系统</span>
+                  <span>{t("view.systemTheme")}</span>
                 </button>
               </div>
             </div>
@@ -227,7 +274,7 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
             {/* Markdown Theme Presets */}
             <div class="space-y-2 pt-2">
               <span class="text-[11px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
-                排版主题预设
+                {t("mobile.markdownThemePresets")}
               </span>
               <div class="grid grid-cols-3 gap-2">
                 <button
@@ -267,7 +314,7 @@ export const MobileDrawerSheet: Component<MobileDrawerSheetProps> = (props) => {
             <div class="space-y-2 pt-2">
               <div class="flex items-center justify-between">
                 <span class="text-[11px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
-                  字号大小
+                  {t("mobile.fontSize")}
                 </span>
                 <span class="text-xs font-bold text-[var(--color-accent)]">{fontSize()}px</span>
               </div>

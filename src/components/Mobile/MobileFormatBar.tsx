@@ -20,8 +20,8 @@ export const MobileFormatBar: Component<MobileFormatBarProps> = (props) => {
       <button
         class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--color-hover)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] active:scale-95 transition-all flex-shrink-0"
         onClick={() => dispatchFormat("undo")}
-        title="Undo"
-        aria-label="Undo"
+        title={t("edit.undo")}
+        aria-label={t("edit.undo")}
       >
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 7v6h6" />
@@ -32,8 +32,8 @@ export const MobileFormatBar: Component<MobileFormatBarProps> = (props) => {
       <button
         class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--color-hover)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] active:scale-95 transition-all flex-shrink-0"
         onClick={() => dispatchFormat("redo")}
-        title="Redo"
-        aria-label="Redo"
+        title={t("edit.redo")}
+        aria-label={t("edit.redo")}
       >
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 7v6h-6" />
@@ -47,7 +47,8 @@ export const MobileFormatBar: Component<MobileFormatBarProps> = (props) => {
       <button
         class="px-2 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--color-hover)] text-[var(--color-text-primary)] font-bold text-xs active:scale-95 transition-all flex-shrink-0"
         onClick={() => dispatchFormat("h1")}
-        title="Heading 1"
+        title={t("edit.heading1")}
+        aria-label={t("edit.heading1")}
       >
         H1
       </button>
@@ -55,7 +56,8 @@ export const MobileFormatBar: Component<MobileFormatBarProps> = (props) => {
       <button
         class="px-2 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--color-hover)] text-[var(--color-text-primary)] font-bold text-xs active:scale-95 transition-all flex-shrink-0"
         onClick={() => dispatchFormat("h2")}
-        title="Heading 2"
+        title={t("edit.heading2")}
+        aria-label={t("edit.heading2")}
       >
         H2
       </button>
@@ -63,7 +65,8 @@ export const MobileFormatBar: Component<MobileFormatBarProps> = (props) => {
       <button
         class="px-2 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--color-hover)] text-[var(--color-text-primary)] font-bold text-xs active:scale-95 transition-all flex-shrink-0"
         onClick={() => dispatchFormat("h3")}
-        title="Heading 3"
+        title={t("edit.heading3")}
+        aria-label={t("edit.heading3")}
       >
         H3
       </button>
@@ -158,8 +161,8 @@ export const MobileFormatBar: Component<MobileFormatBarProps> = (props) => {
         <button
           class="w-8 h-8 ml-auto flex items-center justify-center rounded-lg bg-[var(--color-hover)] text-[var(--color-text-secondary)] active:scale-95 transition-all flex-shrink-0"
           onClick={props.onCloseKeyboard}
-          title="Dismiss Keyboard"
-          aria-label="Dismiss Keyboard"
+          title={t("mobile.dismissKeyboard")}
+          aria-label={t("mobile.dismissKeyboard")}
         >
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="6 9 12 15 18 9" />

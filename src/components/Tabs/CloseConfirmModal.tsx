@@ -1,4 +1,4 @@
-import { Component, Show, onMount, onCleanup } from "solid-js";
+import { Component, Show, onMount, onCleanup, createEffect } from "solid-js";
 import { t } from "../../i18n";
 
 export interface CloseConfirmModalProps {
@@ -10,26 +10,79 @@ export interface CloseConfirmModalProps {
 }
 
 export const CloseConfirmModal: Component<CloseConfirmModalProps> = (props) => {
+  let cancelBtnRef!: HTMLButtonElement;
+  let discardBtnRef!: HTMLButtonElement;
+  let saveBtnRef!: HTMLButtonElement;
+  let previousActiveElement: HTMLElement | null = null;
+
+  createEffect(() => {
+    if (props.isOpen) {
+      previousActiveElement = document.activeElement as HTMLElement | null;
+      // Focus the primary safe action (Save) by default
+      setTimeout(() => {
+        saveBtnRef?.focus();
+      }, 0);
+    } else if (previousActiveElement) {
+      previousActiveElement.focus();
+      previousActiveElement = null;
+    }
+  });
+
   const handleKeyDown = (e: KeyboardEvent) => {
     if (!props.isOpen) return;
+
+    // Suppress background app shortcuts while dialog is modal
+    e.stopPropagation();
+
     if (e.key === "Escape") {
       e.preventDefault();
       props.onCancel();
     } else if (e.key === "Enter") {
       e.preventDefault();
-      props.onSave();
-    } else if ((e.key === "d" || e.key === "D") && (e.altKey || !e.ctrlKey)) {
+      // Honor the explicitly focused action button
+      if (document.activeElement === cancelBtnRef) {
+        props.onCancel();
+      } else if (document.activeElement === discardBtnRef) {
+        props.onDiscard();
+      } else {
+        props.onSave();
+      }
+    } else if ((e.key === "d" || e.key === "D") && (e.altKey || e.metaKey)) {
+      // Require advertised modifier (Alt+D or Cmd+D) - never bare 'd'
       e.preventDefault();
       props.onDiscard();
+    } else if (e.key === "Tab") {
+      // Trap keyboard focus within modal action buttons
+      const buttons = [cancelBtnRef, discardBtnRef, saveBtnRef].filter(Boolean);
+      if (buttons.length === 0) return;
+
+      const firstBtn = buttons[0];
+      const lastBtn = buttons[buttons.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstBtn) {
+          e.preventDefault();
+          lastBtn.focus();
+        }
+      } else {
+        if (document.activeElement === lastBtn) {
+          e.preventDefault();
+          firstBtn.focus();
+        }
+      }
     }
   };
 
   onMount(() => {
-    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown, true);
   });
 
   onCleanup(() => {
-    window.removeEventListener("keydown", handleKeyDown);
+    window.removeEventListener("keydown", handleKeyDown, true);
+    if (previousActiveElement) {
+      previousActiveElement.focus();
+      previousActiveElement = null;
+    }
   });
 
   const titleText = () => {
@@ -73,14 +126,16 @@ export const CloseConfirmModal: Component<CloseConfirmModalProps> = (props) => {
           {/* Action Buttons: Cancel, Don't Save, Save */}
           <div class="flex items-center justify-end gap-2 pt-2 border-t border-[var(--color-border)]">
             <button
-              class="px-3.5 py-1.5 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-hover)] text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
+              ref={cancelBtnRef}
+              class="px-3.5 py-1.5 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-hover)] text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
               onClick={props.onCancel}
               data-action="cancel"
             >
               {t("dialogs.cancel")}
             </button>
             <button
-              class="px-3.5 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-medium transition-colors cursor-pointer"
+              ref={discardBtnRef}
+              class="px-3.5 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-medium transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-500/50"
               onClick={props.onDiscard}
               title="Alt+D"
               data-action="discard"
@@ -88,7 +143,8 @@ export const CloseConfirmModal: Component<CloseConfirmModalProps> = (props) => {
               {t("dialogs.dontSave")}
             </button>
             <button
-              class="px-4 py-1.5 rounded-lg bg-[var(--color-accent)] hover:opacity-90 text-white text-xs font-semibold transition-all shadow-xs cursor-pointer"
+              ref={saveBtnRef}
+              class="px-4 py-1.5 rounded-lg bg-[var(--color-accent)] hover:opacity-90 text-white text-xs font-semibold transition-all shadow-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:ring-offset-2"
               onClick={props.onSave}
               title="Enter"
               data-action="save"

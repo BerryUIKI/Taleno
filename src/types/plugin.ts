@@ -8,6 +8,7 @@ export interface PluginManifest {
   homepage?: string;
   permissions?: string[];
   tags?: string[];
+  main?: string;
 }
 
 export interface RemotePlugin {

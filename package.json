@@ -1,14 +1,21 @@
 {
   "name": "taleno",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "A seamless in-place WYSIWYG Markdown reader-editor built on Tauri + Rust",
   "type": "module",
   "license": "AGPL-3.0-only",
+  "packageManager": "pnpm@10.5.2",
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0",
+    "pnpm": ">=9.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "lint": "tsc --noEmit",
+    "pretest": "node scripts/check-node-version.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test"
@@ -28,12 +35,16 @@
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-shell": "^2.3.5",
     "@tauri-apps/plugin-updater": "^2.9.0",
+    "katex": "^0.19.0",
+    "mermaid": "^12.2.0",
     "solid-js": "^1.9.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/vite": "^4.1.11",
     "@tauri-apps/cli": "^2.5.0",
     "@types/jsdom": "^30.0.0",
+    "@types/katex": "^0.16.8",
     "autoprefixer": "^10.4.21",
     "jsdom": "^30.0.1",
     "postcss": "^8.5.6",

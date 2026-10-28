@@ -9,7 +9,7 @@ use tauri::{Emitter, Manager};
 
 /// Holds the file watcher so it doesn't get dropped.
 struct WatcherState {
-    _watcher: Mutex<Option<notify::RecommendedWatcher>>,
+    _watcher: Mutex<std::collections::HashMap<String, notify::RecommendedWatcher>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -46,18 +46,20 @@ pub fn run() {
     builder
         .manage(AppState::default())
         .manage(WatcherState {
-            _watcher: Mutex::new(None),
+            _watcher: Mutex::new(std::collections::HashMap::new()),
         })
         .invoke_handler(tauri::generate_handler![
             commands::greet,
             commands::file::open_file,
             commands::file::save_file,
+            commands::file::read_file_baseline,
             commands::file::get_active_document,
             commands::file::list_directory_tree,
             commands::file::create_entry,
             commands::file::delete_entry,
             commands::file::rename_entry,
             commands::markdown::render_markdown,
+            commands::markdown::resolve_document_image,
             commands::markdown::highlight_code,
             commands::markdown::export_document,
             commands::search::search_workspace,
@@ -106,9 +108,10 @@ fn start_watching_file(
     path: String,
     watcher_state: tauri::State<'_, WatcherState>,
 ) -> Result<(), String> {
-    let watcher = services::watcher::watch_file(app_handle, path)?;
-    if let Ok(mut w) = watcher_state._watcher.lock() {
-        *w = Some(watcher);
+    let mut watchers = watcher_state._watcher.lock().map_err(|e| e.to_string())?;
+    if let std::collections::hash_map::Entry::Vacant(e) = watchers.entry(path.clone()) {
+        let watcher = services::watcher::watch_file(app_handle, path)?;
+        e.insert(watcher);
     }
     Ok(())
 }
@@ -116,10 +119,14 @@ fn start_watching_file(
 /// Stop watching the current file.
 #[tauri::command]
 fn stop_watching_file(
+    path: Option<String>,
     watcher_state: tauri::State<'_, WatcherState>,
 ) -> Result<(), String> {
-    if let Ok(mut w) = watcher_state._watcher.lock() {
-        *w = None;
+    let mut watchers = watcher_state._watcher.lock().map_err(|e| e.to_string())?;
+    if let Some(path) = path {
+        watchers.remove(&path);
+    } else {
+        watchers.clear();
     }
     Ok(())
 }

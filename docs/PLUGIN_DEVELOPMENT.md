@@ -22,7 +22,7 @@ Taleno uses a **local-first, sandboxed extensibility model** designed to keep ed
 │                        Rust Native Backend Core                        │
 │                                                                        │
 │   [Plugin Service (src-tauri/src/services/plugin_service.rs)]          │
-│   ├── Resolves `%APPDATA%/Taleno/plugins/` directory                   │
+│   ├── Resolves identifier-derived app_data_dir `plugins/` directory     │
 │   ├── Validates `manifest.json` schemas & reads scripts                │
 │   ├── Fetches online registry from `BerryUIKI/Taleno-Plugins`          │
 │   └── Performs crash-resilient atomic downloads & installations        │
@@ -33,11 +33,14 @@ Taleno uses a **local-first, sandboxed extensibility model** designed to keep ed
 
 ## 2. Plugin Directory & File Structure
 
-Plugins live in individual folders inside the platform application data directory:
+Plugins live in individual folders inside the application data directory resolved by Tauri's native `app_data_dir()` from the bundle identifier (`com.berryuiki.taleno`):
 
-- **Windows**: `%APPDATA%\Taleno\plugins\<plugin-id>\`
-- **macOS**: `~/Library/Application Support/Taleno/plugins/<plugin-id>/`
-- **Linux**: `~/.config/Taleno/plugins/<plugin-id>/`
+- **Windows**: `%APPDATA%\com.berryuiki.taleno\plugins\<plugin-id>\`
+- **macOS**: `~/Library/Application Support/com.berryuiki.taleno/plugins/<plugin-id>/`
+- **Linux**: `~/.local/share/com.berryuiki.taleno/plugins/<plugin-id>/` (or `$XDG_DATA_HOME/com.berryuiki.taleno/plugins/<plugin-id>/`)
+
+> [!TIP]
+> **Prefer In-App Navigation**: You do not need to construct or locate paths manually. In Taleno, navigate to **Settings ➔ Plugins** and click **"Open Plugins Folder"**. The app automatically opens the exact platform-resolved directory using native OS shell integration.
 
 A standard plugin must contain at minimum:
 
@@ -160,19 +163,37 @@ const pref = ctx.storage.getItem("userPreference");
 
 ---
 
-## 5. Security & Sandbox Constraints
+## 5. Security, Sandbox & Execution Boundary
 
-Taleno's architecture prioritizes user data protection and stability:
+Taleno's architecture prioritizes user data protection, least-privilege execution, and editor stability:
 
-1. **Least-Privilege Scopes**:
-   - `commands`: Ability to register actions into the command palette.
+1. **Production Content Security Policy (CSP)**:
+   - The main window runs under a strict production CSP (`default-src 'self'`) that strictly prohibits `unsafe-eval`.
+   - Script evaluation is hosted within an isolated sandboxed iframe (`public/plugin-sandbox.html`) running with `sandbox="allow-scripts"` and an opaque `null` origin, or mediated via a broker boundary.
+   - The sandbox execution realm has **no access** to parent DOM, `localStorage`, `window.__TAURI_INTERNALS__`, or native system APIs. Communication occurs exclusively via structured RPC messages.
+
+2. **Least-Privilege Scopes & Permission Broker**:
+   - `commands`: Ability to register actions into the command palette / Quick Switcher.
    - `editor:read`: Ability to inspect document Markdown text.
-   - `editor:write`: Ability to append or replace Markdown text.
-   - `storage`: Isolated persistent key-value configuration.
-2. **Forbidden Practices**:
-   - Dynamic remote code execution (`eval`, unpinned remote `import()`).
-   - Unsandboxed network exfiltration or background telemetry.
-   - Modifying non-Markdown binary formats or tampering with system files.
+   - `editor:write`: Ability to insert or modify document text.
+   - `storage`: Isolated persistent key-value configuration scoped strictly to `Taleno_plugin_<id>_<key>`.
+   - Attempting to access an undeclared capability throws `PluginPermissionError` at the broker boundary, blocking execution.
+
+3. **Editor Selection Insertion**:
+   - `ctx.editor.insertText(text)` routes through the active editor adapter (`insertTextAtSelection`):
+     - In **Writing Mode (Milkdown)**: Uses ProseMirror transaction insertion at the active selection range (`state.tr.insertText(text, from, to)`), preserving undo history and marking document dirty.
+     - In **Code Mode**: Replaces the active `<textarea>` selection range and preserves cursor position.
+     - If no editor selection exists or in Reading Mode: safely appends to the document and marks dirty state.
+
+4. **Command Reachability & Shortcut Conflict Handling**:
+   - Commands registered via `ctx.commands.registerCommand` are exposed in the **Quick Switcher / Command Palette** (<kbd>Ctrl+P</kbd> / <kbd>Cmd+P</kbd>).
+   - Declared keyboard shortcuts are normalized and validated against core reserved shortcuts (`Ctrl+S`, `Ctrl+O`, `Ctrl+N`, `Ctrl+P`, `Ctrl+F`, `Ctrl+Shift+X`, etc.). Conflicts with reserved application shortcuts are rejected with a warning.
+   - All registered commands and shortcut listeners are automatically unregistered and disposed when the plugin is toggled off or unloaded.
+
+5. **Failure Reporting & Enabled Intent**:
+   - If a plugin fails to load (e.g. missing file, syntax error, or runtime exception), the error is **never swallowed into a silent no-op**.
+   - An actionable error message is recorded in the UI (`pluginErrors`) and displayed directly on the plugin card in Settings.
+   - The user's enabled intent (`enabled: true`) is preserved in configuration so that repairing the source script automatically restores functionality upon reload.
 
 ---
 
@@ -180,7 +201,7 @@ Taleno's architecture prioritizes user data protection and stability:
 
 1. Open Taleno.
 2. Navigate to **File ➔ Preferences ➔ Plugins** (<kbd>Ctrl+Shift+X</kbd>).
-3. Click the **"Open Plugins Folder"** button to reveal `%APPDATA%/Taleno/plugins/`.
+3. Click the **"Open Plugins Folder"** button to automatically reveal the application data `plugins/` directory in your native file manager.
 4. Create a new folder (e.g. `my-awesome-plugin`) and add `manifest.json` and `main.js`.
 5. Return to Taleno and click **"Reload Plugins"**.
 6. Your new plugin will immediately appear in the list! Toggle it on and verify execution in DevTools (<kbd>Ctrl+Shift+I</kbd>).

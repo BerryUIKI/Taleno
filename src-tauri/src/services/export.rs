@@ -1,10 +1,28 @@
 use crate::services::parser;
-use std::path::Path;
+#[cfg(test)]
 use tokio::fs;
 
+#[derive(serde::Deserialize)]
+pub struct HtmlPresentation {
+    pub html: String,
+    pub styles: String,
+}
+
 /// Export markdown to a self-contained, standalone styled HTML document.
+#[cfg(test)]
 pub async fn export_to_html(markdown: &str, title: &str, output_path: &str) -> Result<(), String> {
-    let body_html = parser::markdown_to_html(markdown);
+    export_presentation(markdown, title, output_path, None).await
+}
+
+pub async fn export_presentation(
+    markdown: &str,
+    title: &str,
+    output_path: &str,
+    presentation: Option<HtmlPresentation>,
+) -> Result<(), String> {
+    let (body_html, styles) = presentation
+        .map(|p| (p.html, p.styles))
+        .unwrap_or_else(|| (parser::markdown_to_html(markdown), String::new()));
 
     let full_html = format!(
         r#"<!DOCTYPE html>
@@ -82,20 +100,18 @@ pub async fn export_to_html(markdown: &str, title: &str, output_path: &str) -> R
       pre {{ white-space: pre-wrap; }}
     }}
   </style>
+  <style>{}</style>
 </head>
 <body>
   {}
 </body>
 </html>"#,
-        title, body_html
+        parser::html_escape(title),
+        styles,
+        body_html
     );
 
-    let path = Path::new(output_path);
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).await.map_err(|e| e.to_string())?;
-    }
-
-    fs::write(path, full_html.as_bytes())
+    crate::services::fs_service::write_file_atomic(output_path, &full_html)
         .await
         .map_err(|e| e.to_string())?;
 

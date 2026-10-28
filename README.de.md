@@ -8,7 +8,7 @@
 
 **Ein lokaler, blitzschneller Markdown-Reader & In-Place-WYSIWYG-Editor im Typora-Stil.**
 
-<span style="font-size: 13px;">v0.1.6 veröffentlicht · AGPL-3.0 Open Source</span>
+<span style="font-size: 13px;">v0.1.10 veröffentlicht · AGPL-3.0 Open Source</span>
 
 [![Website](https://img.shields.io/badge/website-berryuiki.github.io%2FTaleno-4895ef.svg?style=for-the-badge)](https://berryuiki.github.io/Taleno/)
 [![Release](https://img.shields.io/badge/release-latest-4361ee.svg?style=for-the-badge)](https://github.com/BerryUIKI/Taleno/releases/latest)
@@ -20,12 +20,13 @@
 [![SolidJS](https://img.shields.io/badge/SolidJS-1.9+-2C4F7C?style=for-the-badge&logo=solid&logoColor=white)](https://www.solidjs.com/)
 
 <p align="center">
-  <b>🚀 Lokal zuerst</b> • <b>⚡ Schneller Start (&lt;400ms)</b> • <b>📝 Keine Split-Panes</b> • <b>🌐 9 Sprachen</b> • <b>📦 Leichtgewicht (~3.6 MB)</b>
-</p>
+  <b>🚀 Lokal zuerst</b> • <b>📝 Keine Split-Panes</b> • <b>🌐 9 Sprachen</b> • </p>
 
 [**📥 Download**](#-sofort-downloads) · [**🖥️ Oberflächen-Vorschau**](#-oberflächen-vorschau) · [**🌟 Funktionen**](#-hauptfunktionen) · [**⌨️ Tastenkürzel**](#-tastenkürzel) · [**📚 Dokumentation**](#-dokumentation) · [**🌐 Website**](https://berryuiki.github.io/Taleno/)
 
 </div>
+
+> Veröffentlichte Desktop-Version: **v0.1.10 (2026-10-28)**. Spätere Entwicklungsänderungen sind noch nicht veröffentlicht. Abhängigkeiten, Quellpfade und Prüfgrenzen stehen in der [Funktions- und Plattformmatrix](docs/ARCHITECTURE.md#11-feature--platform-implementation-status-matrix). Externe Dateien, Speichern, Tastatur und sichere Bereiche unter Android/iOS warten auf Gerätetests. Signierte mobile Release-Jobs sind nicht eingerichtet. Startzeit und Paketgröße hängen von Build und Plattform ab; maßgeblich sind Messprotokolle.
 
 ---
 
@@ -94,9 +95,10 @@ Mit dem modernen **Tauri 2 + Rust + SolidJS**-Stack kombiniert Taleno native Des
 | 📂 **Arbeitsbereich & Tabs** | Mehrere Dokument-Tabs, rekursives Dateibaum-CRUD und Schnellwechsler (<kbd>Ctrl+P</kbd>) | ✅ Fertig |
 | 🌈 **Syntax-Hervorhebung** | Hochleistungs-Hervorhebung von Codeblöcken via `syntect` mit Sprach-Tags und Kopier-Button | ✅ Fertig |
 | 📑 **Dynamisches Inhaltsverzeichnis** | Interaktive Dokumentgliederung mit sanftem Anker-Scrollen in allen Anzeigemodi | ✅ Fertig |
-| 📊 **Mermaid-Diagramme & Mathematik** | Interaktive Fluss-, Sequenz- und Klassendiagramme sowie LaTeX-Matheformatierung | ✅ Fertig |
-| 🔍 **Ripgrep-Volltextsuche** | Sofortige Volltextsuche im gesamten Arbeitsbereich (<kbd>Ctrl+Shift+F</kbd>) sowie Suchen & Ersetzen im Dokument (<kbd>Ctrl+F</kbd> / <kbd>Ctrl+H</kbd>) | ✅ Fertig |
+| 📊 **Mermaid-Diagramme & Mathe-Layout** | Container-Rendering für Fluss- und Sequenzdiagramme (`mermaid`) sowie Serif-LaTeX-Matheblöcke (`math`/`katex`/`$$`) | ✅ Fertig |
+| 🔍 **Native Arbeitsbereich-Suche** | Schnelle rekursive Suche im Rust-Backend (`src-tauri/src/commands/search.rs`) mit Zeilentreffern (<kbd>Ctrl+Shift+F</kbd>) sowie Suchen & Ersetzen im Dokument (<kbd>Ctrl+F</kbd> / <kbd>Ctrl+H</kbd>) | ✅ Fertig |
 | 📤 **Standalone-HTML-Export** | Export jedes Dokuments in eigenständiges, offline gestaltetes HTML (<kbd>Ctrl+E</kbd>) | ✅ Fertig |
+| 🧩 **Plugin-System & Erweiterbarkeit** | Modulare Erweiterungs-Engine mit Standard-App-Datenordner (`plugins/`), Hot-Reload, JS-Sandbox und Einstellungsmenü (<kbd>Ctrl+Shift+X</kbd>) | ✅ Fertig |
 
 *Was als Nächstes geplant ist, finden Sie in der [Roadmap](docs/ROADMAP.md).*
 
@@ -109,7 +111,6 @@ Mit dem modernen **Tauri 2 + Rust + SolidJS**-Stack kombiniert Taleno native Des
 | **Rendering** | In-Place-WYSIWYG, keine Panes | Seite-an-Seite-Vorschau | Browser-Tab-Wechsel |
 | **Startzeit** | < 400 ms nativer Start | hängt vom Electron-Gewicht ab | Seitenladen + Sync-Wartezeit |
 | **Datenschutz** | 100 % lokal, keine Telemetrie | Lokale Dateien | Daten in der Cloud |
-| **Größe** | ~3.6 MB Installer | 100+ MB Installer | N/A |
 | **Offline** | Vollständig offline | Vollständig offline | Netzwerk erforderlich |
 | **Speicherformat** | Reines Markdown auf der Platte | Proprietäre Formate möglich | Anbieterbindung |
 
@@ -263,7 +264,7 @@ Taleno steht auf den Schultern dieser großartigen Open-Source-Projekte:
 - [pulldown-cmark](https://github.com/pulldown-cmark/pulldown-cmark) — Zero-Copy-GFM-AST-Parsing
 - [syntect](https://github.com/trishume/syntect) — Code-Syntax-Hervorhebung
 - [notify](https://github.com/notify-rs/notify) — Dateisystem-Überwachung
-- [ripgrep](https://github.com/BurntSushi/ripgrep) — Volltextsuche
+- [tokio](https://tokio.rs) — Asynchrone Runtime & Dateisuche
 - [Mermaid](https://mermaid.js.org) — Diagramme
 - [KaTeX](https://katex.org) — Mathematik-Rendering
 - [Tailwind CSS](https://tailwindcss.com) — Utility-First-Styling

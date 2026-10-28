@@ -36,4 +36,19 @@ describe("closeWindow", () => {
 
     await expect(closeWindow()).rejects.toThrow("native close failed");
   });
+
+  it("passes markdown and docPath to render_markdown", async () => {
+    const { renderMarkdown } = await import("./commands");
+    vi.mocked(invoke).mockResolvedValue({
+      html: "<p>test</p>",
+      toc: [],
+      word_count: 1,
+    });
+
+    await renderMarkdown("# Title", "/path/to/doc.md");
+    expect(invoke).toHaveBeenCalledWith("render_markdown", {
+      markdown: "# Title",
+      docPath: "/path/to/doc.md",
+    });
+  });
 });

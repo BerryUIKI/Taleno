@@ -17,7 +17,7 @@ export const MobileBottomNav: Component<MobileBottomNavProps> = (props) => {
         background: "var(--color-bg-secondary)",
         color: "var(--color-text-secondary)",
       }}
-      aria-label="Mobile Navigation"
+      aria-label={t("mobile.navigation")}
     >
       <div class="h-14 px-2 flex items-center justify-around">
         {/* 1. Files & Workspace */}
@@ -28,7 +28,7 @@ export const MobileBottomNav: Component<MobileBottomNavProps> = (props) => {
               : "hover:text-[var(--color-text-primary)]"
           }`}
           onClick={() => props.onToggleSheet(props.activeSheet === "files" ? null : "files")}
-          aria-label="Files"
+          aria-label={t("menu.file")}
         >
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
@@ -44,14 +44,14 @@ export const MobileBottomNav: Component<MobileBottomNavProps> = (props) => {
               : "hover:text-[var(--color-text-primary)]"
           }`}
           onClick={() => props.onToggleSheet(props.activeSheet === "outline" ? null : "outline")}
-          aria-label="Outline"
+          aria-label={t("sidebar.outline")}
         >
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="21" y1="6" x2="3" y2="6" />
             <line x1="15" y1="12" x2="3" y2="12" />
             <line x1="17" y1="18" x2="3" y2="18" />
           </svg>
-          <span class="text-[10px]">大纲</span>
+          <span class="text-[10px]">{t("sidebar.outline")}</span>
         </button>
 
         {/* 3. Center Mode Toggle (Quick Read/Write Switch) */}
@@ -59,7 +59,7 @@ export const MobileBottomNav: Component<MobileBottomNavProps> = (props) => {
           class="flex flex-col items-center justify-center -mt-2 w-11 h-11 rounded-full bg-[var(--color-accent)] text-white shadow-md active:scale-90 transition-transform"
           onClick={cycleDisplayMode}
           title={`Mode: ${displayMode()}`}
-          aria-label="Toggle Display Mode"
+          aria-label={t("mobile.switchMode")}
         >
           <Show when={displayMode() === "reading"}>
             <span class="text-base">📖</span>
@@ -80,13 +80,13 @@ export const MobileBottomNav: Component<MobileBottomNavProps> = (props) => {
               : "hover:text-[var(--color-text-primary)]"
           }`}
           onClick={() => props.onToggleSheet(props.activeSheet === "search" ? null : "search")}
-          aria-label="Search"
+          aria-label={t("mobile.search")}
         >
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
-          <span class="text-[10px]">搜索</span>
+          <span class="text-[10px]">{t("mobile.search")}</span>
         </button>
 
         {/* 5. Settings */}
@@ -97,7 +97,7 @@ export const MobileBottomNav: Component<MobileBottomNavProps> = (props) => {
               : "hover:text-[var(--color-text-primary)]"
           }`}
           onClick={() => props.onToggleSheet(props.activeSheet === "settings" ? null : "settings")}
-          aria-label="Settings"
+          aria-label={t("settings.title")}
         >
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="3" />
