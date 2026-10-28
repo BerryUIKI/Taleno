@@ -1,6 +1,6 @@
 # Taleno Architecture
 
-Implementation reference: current development source, reviewed 2026-10-21. Published desktop baseline: v0.1.9 (2026-10-16). Development changes are unreleased until a later tag completes the release workflow. Historical plans in ROADMAP.md and MILESTONES.md do not establish release or platform acceptance.
+Implementation reference: current development source, reviewed 2026-10-28. Published desktop baseline: v0.1.10 (2026-10-28). Development changes after v0.1.10 are unreleased until a later tag completes the release workflow. Historical plans in ROADMAP.md and MILESTONES.md do not establish release or platform acceptance.
 
 ## 1. Application layers
 
@@ -81,7 +81,7 @@ See ISSUE_REPAIR_PLAN.md for issue-level evidence, DESIGN_DECISIONS.md for guara
 
 ### 11.1 Core implementation paths
 
-The published desktop baseline is v0.1.9 (2026-10-16). The following describes current development source, including unreleased changes; implementation is distinct from verification.
+The published desktop baseline is v0.1.10 (2026-10-28). The following describes current development source; implementation is distinct from verification.
 
 | Capability | Implementation | Verification boundary |
 | :--- | :--- | :--- |

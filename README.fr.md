@@ -8,7 +8,7 @@
 
 **Un lecteur & éditeur Markdown WYSIWYG ultra-rapide, local-first, dans le style de Typora.**
 
-<span style="font-size: 13px;">v0.1.9 publiée · Open source sous AGPL-3.0</span>
+<span style="font-size: 13px;">v0.1.10 publiée · Open source sous AGPL-3.0</span>
 
 [![Website](https://img.shields.io/badge/website-berryuiki.github.io%2FTaleno-4895ef.svg?style=for-the-badge)](https://berryuiki.github.io/Taleno/)
 [![Release](https://img.shields.io/badge/release-latest-4361ee.svg?style=for-the-badge)](https://github.com/BerryUIKI/Taleno/releases/latest)
@@ -27,7 +27,7 @@
 
 </div>
 
-> Version de bureau publiée : **v0.1.9 (2026-10-16)**. Les modifications de développement ultérieures ne sont pas publiées. Consultez la [matrice des fonctions et plateformes](docs/ARCHITECTURE.md#11-feature--platform-implementation-status-matrix) pour les dépendances, les chemins sources et les limites de validation. Les fichiers externes, la sauvegarde, le clavier et les zones sûres Android/iOS attendent des tests sur appareil. Les tâches de publication mobile signée ne sont pas configurées. Le démarrage et la taille varient selon la compilation et la plateforme ; les mesures font référence.
+> Version de bureau publiée : **v0.1.10 (2026-10-28)**. Les modifications de développement ultérieures ne sont pas publiées. Consultez la [matrice des fonctions et plateformes](docs/ARCHITECTURE.md#11-feature--platform-implementation-status-matrix) pour les dépendances, les chemins sources et les limites de validation. Les fichiers externes, la sauvegarde, le clavier et les zones sûres Android/iOS attendent des tests sur appareil. Les tâches de publication mobile signée ne sont pas configurées. Le démarrage et la taille varient selon la compilation et la plateforme ; les mesures font référence.
 
 ---
 

@@ -8,7 +8,7 @@
 
 **Typora スタイルのローカルファースト、超高速 Markdown リーダー & インプレース WYSIWYG エディター。**
 
-<span style="font-size: 13px;">v0.1.9 リリース · AGPL-3.0 オープンソース</span>
+<span style="font-size: 13px;">v0.1.10 リリース · AGPL-3.0 オープンソース</span>
 
 [![Website](https://img.shields.io/badge/website-berryuiki.github.io%2FTaleno-4895ef.svg?style=for-the-badge)](https://berryuiki.github.io/Taleno/)
 [![Release](https://img.shields.io/badge/release-latest-4361ee.svg?style=for-the-badge)](https://github.com/BerryUIKI/Taleno/releases/latest)
@@ -26,7 +26,7 @@
 
 </div>
 
-> 公開済みデスクトップ版は **v0.1.9（2026-10-16）** です。その後の開発変更は未公開です。依存関係、実装箇所、検証範囲は[機能・プラットフォーム一覧](docs/ARCHITECTURE.md#11-feature--platform-implementation-status-matrix)を参照してください。Android/iOS の外部ファイル、保存、キーボードと安全領域は実機検証待ちです。モバイルの署名付きリリースジョブは未設定です。起動時間と配布サイズはビルドと環境に依存し、実測記録を基準とします。
+> 公開済みデスクトップ版は **v0.1.10（2026-10-28）** です。その後の開発変更は未公開です。依存関係、実装箇所、検証範囲は[機能・プラットフォーム一覧](docs/ARCHITECTURE.md#11-feature--platform-implementation-status-matrix)を参照してください。Android/iOS の外部ファイル、保存、キーボードと安全領域は実機検証待ちです。モバイルの署名付きリリースジョブは未設定です。起動時間と配布サイズはビルドと環境に依存し、実測記録を基準とします。
 
 ---
 

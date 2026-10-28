@@ -7,10 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-10-28
+
+### Added
+- **Workspace Search & Quick Switcher**:
+  - Keyboard-selectable workspace search results that open the matching file, line and text, including files that are not already open in a tab.
+  - Quick Switcher lists registered plugin commands and their declared shortcuts, with reserved-core-shortcut conflict protection.
+- **In-Document Find & Replace**:
+  - Find Next/Previous and Replace One/Replace All across Reading, Writing and Code modes, with match highlighting and scrolling to the active match.
+  - Consistent regex replacement semantics (`$1`, `$&`, `$$`), live regex feedback and zero-width match advancement.
+  - The Find panel is anchored inside the document viewport instead of covering application chrome.
+- **Testing & CI**:
+  - A runnable Playwright end-to-end suite with document-integrity journeys.
+  - Frontend unit tests and `pnpm lint` run in CI, and Rust formatting and Clippy checks are enforced.
+
+### Changed
+- **Accessibility & Keyboard Navigation**:
+  - Document tabs expose tablist semantics and Arrow/Home/End navigation, with an accessible close action.
+  - Dialogs focus their input on open, trap focus, restore the previously focused element and require an explicit discard shortcut.
+- **Plugin Runtime**:
+  - Plugins execute in an isolated sandbox with a permission broker, domain-typed IPC responses and actionable load errors.
+  - Plugin text inserts at the active selection in Writing and Code modes instead of appending to the document.
+- **Mobile & Desktop UI**:
+  - Mobile actions and viewport handling are localized and adapted for virtual keyboards and display cutouts.
+  - Zen Mode records native fullscreen state, and Writing focus mode highlights the active caret block.
+  - Reading and Writing text follow the configured text size, and narrow desktop windows retain their window controls.
+- **Performance & Release Tooling**:
+  - Cached immutable Syntect syntax registries and moved CPU-heavy render/highlight work off synchronous command execution; heavy frontend modules load lazily with retry.
+  - Platform release tags are classified and validated separately, and unsupported mobile release tags fail explicitly before desktop packaging.
+  - Removed dead Rust code and normalized formatting.
+
 ### Fixed
-- **Code Mode Line Numbers on Wrapped Lines**:
-  - Line numbers now stay on the first visual row of each logical line when long lines soft-wrap, instead of drifting further behind with every wrapped row.
-  - Wrapped heights are measured for ASCII and non-ASCII (CJK) text, and trailing empty lines, tabs and scrolled virtual windows keep their alignment.
+- **Document Integrity & Save Flow**:
+  - Edits are preserved across tab switches, external reloads and failed saves; save, close and reload are serialized against document transitions.
+  - The updater re-checks unsaved edits before installing and restarting.
+  - Relative image previews refresh after Save As, and images resolve against the originating document.
+- **Files, Search & Packages**:
+  - Workspace traversal and search are bounded by root containment, depth and directory-link cycle checks, with a global match cap and truncation notice.
+  - Plugin and theme package paths are contained within their directories, and failed installs preserve existing files.
+- **Rendering & Code Mode**:
+  - Mermaid diagrams and KaTeX formulas render offline and in static HTML exports; invalid diagrams and formulas preserve their source.
+  - Outline navigation uses occurrence-aware heading anchors and rejects stale results.
+  - Code mode line numbers now stay on the first visual row of each logical line when long lines soft-wrap, including CJK text, empty/trailing lines, tabs and scrolled virtual windows.
+  - The source editor keeps per-document undo histories, and link, image, task-list, undo and redo actions work in Writing and Code modes.
 
 ## [0.1.9] - 2026-10-16
 

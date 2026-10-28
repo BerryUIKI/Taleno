@@ -1,6 +1,6 @@
 # Taleno Project Roadmap
 
-> Current release baseline (2026-10-21): the latest published desktop release is **v0.1.9**, released 2026-10-16. The v0.2.x/v1.x labels and dates below are historical planning labels, not evidence of published releases. Their original numbering is preserved. Development after v0.1.9 is unreleased. See [implementation status](ARCHITECTURE.md#11-feature--platform-implementation-status-matrix) and [issue acceptance](ISSUE_REPAIR_PLAN.md) for current evidence and outstanding work. Mobile file access, save, keyboard and safe-area acceptance remain pending Android/iOS hardware; no mobile packaging/signing workflow is configured.
+> Current release baseline (2026-10-28): the latest published desktop release is **v0.1.10**, released 2026-10-28. The v0.2.x/v1.x labels and dates below are historical planning labels, not evidence of published releases. Their original numbering is preserved. Development after v0.1.10 is unreleased. See [implementation status](ARCHITECTURE.md#11-feature--platform-implementation-status-matrix) and [issue acceptance](ISSUE_REPAIR_PLAN.md) for current evidence and outstanding work. Mobile file access, save, keyboard and safe-area acceptance remain pending Android/iOS hardware; no mobile packaging/signing workflow is configured.
 
 
 This document outlines the phased development roadmap and milestone deliverables for Taleno, from the initial scaffold through the production MVP and future internationalized releases.
