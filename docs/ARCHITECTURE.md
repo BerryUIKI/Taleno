@@ -98,9 +98,9 @@ The published desktop baseline is v0.1.10 (2026-10-28). The following describes 
 
 | Platform | Distribution evidence | Remaining limits |
 | :--- | :--- | :--- |
-| Windows x86_64 | v0.1.9 release CI built MSI/NSIS | No claim of Windows ARM or all Windows versions |
-| macOS ARM64 and x86_64 | v0.1.9 release CI built signed app/DMG | Notarization depends on credentials; native interaction requires a Mac |
-| Linux x86_64 | v0.1.9 release CI built packages | No ARM build in the release matrix; native runtime requires matching GTK/WebKit libraries |
+| Windows x86_64 | v0.1.10 release CI built MSI/NSIS | No claim of Windows ARM or all Windows versions |
+| macOS ARM64 and x86_64 | v0.1.10 release CI built signed app/DMG | Notarization depends on credentials; native interaction requires a Mac |
+| Linux x86_64 | v0.1.10 release CI built packages | No ARM build in the release matrix; native runtime requires matching GTK/WebKit libraries |
 | Android / iOS | Responsive shared shell source | No configured signed mobile release jobs; file access, save and viewport hardware acceptance pending |
 
 ### 11.3 Application data locations
