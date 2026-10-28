@@ -1,6 +1,6 @@
 {
   "name": "taleno",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "A seamless in-place WYSIWYG Markdown reader-editor built on Tauri + Rust",
   "type": "module",
   "license": "AGPL-3.0-only",

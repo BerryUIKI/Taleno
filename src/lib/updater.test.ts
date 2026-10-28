@@ -119,7 +119,7 @@ describe("native updater", () => {
 
   it("cancels installation for active unsaved edits and rechecks edits made during download", async () => {
     addOrSwitchTab(documentFromResponse({ path: "/a.md", filename: "a.md", content: "disk", html: "", toc: [], word_count: 1 }));
-    mocks.check.mockResolvedValue({ currentVersion: "0.1.9", version: "0.1.10", download: mocks.downloadAndInstall, install: mocks.install });
+    mocks.check.mockResolvedValue({ currentVersion: "0.1.10", version: "0.1.11", download: mocks.downloadAndInstall, install: mocks.install });
     await checkForUpdates(true);
     updateDocumentContent("active unsaved");
     await installPendingUpdate();
@@ -137,10 +137,10 @@ describe("native updater", () => {
 
   it("checks updates in-place without opening a modal and highlights available updates", async () => {
     mocks.check.mockResolvedValue({
-      currentVersion: "0.1.9",
-      version: "0.1.10",
-      date: "2026-09-11T00:00:00Z",
-      body: "v0.1.10 release",
+      currentVersion: "0.1.10",
+      version: "0.1.11",
+      date: "2026-10-28T00:00:00Z",
+      body: "v0.1.11 release",
       downloadAndInstall: mocks.downloadAndInstall,
     });
 
