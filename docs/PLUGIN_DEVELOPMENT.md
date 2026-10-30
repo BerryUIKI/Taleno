@@ -182,7 +182,7 @@ Taleno's architecture prioritizes user data protection, least-privilege executio
 3. **Editor Selection Insertion**:
    - `ctx.editor.insertText(text)` routes through the active editor adapter (`insertTextAtSelection`):
      - In **Writing Mode (Milkdown)**: Uses ProseMirror transaction insertion at the active selection range (`state.tr.insertText(text, from, to)`), preserving undo history and marking document dirty.
-     - In **Code Mode**: Replaces the active `<textarea>` selection range and preserves cursor position.
+     - In **Code Mode**: Replaces the active selection range in the code editor (CodeMirror) and preserves cursor position.
      - If no editor selection exists or in Reading Mode: safely appends to the document and marks dirty state.
 
 4. **Command Reachability & Shortcut Conflict Handling**:
