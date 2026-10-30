@@ -1,71 +1,59 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { EditorState } from "@codemirror/state";
 import {
-  getCodeViewHistory,
-  clearCodeViewHistory,
+  getCodeViewSession,
+  setCodeViewSession,
+  clearCodeViewSessions,
 } from "./CodeView";
-import {
-  setCurrentDocument,
-  updateDocumentContent,
-  currentDocument,
-} from "../../store/editor";
 
-describe("CodeView History and Isolation (#93)", () => {
+const documentState = (doc: string) => EditorState.create({ doc });
+
+describe("CodeView per-document sessions", () => {
   beforeEach(() => {
-    clearCodeViewHistory();
-    setCurrentDocument({
-      path: "/test/doc1.md",
-      filename: "doc1.md",
-      content: "# Document 1 Initial",
-      renderedContent: "",
-      html: "",
-      toc: [],
-      wordCount: 3,
-      isDirty: false,
-      externallyModified: false,
-    });
+    clearCodeViewSessions();
   });
 
-  it("isolates history stacks between different documents", () => {
-    const hist1 = getCodeViewHistory("/test/doc1.md");
-    hist1.past.push({
-      content: "doc 1 edit 1",
-      selectionStart: 0,
-      selectionEnd: 0,
-    });
+  it("isolates editor state between different documents", () => {
+    const first = documentState("doc 1");
+    setCodeViewSession("/test/doc1.md", first);
 
-    const hist2 = getCodeViewHistory("/test/doc2.md");
-    expect(hist2.past).toHaveLength(0);
-    expect(hist1.past).toHaveLength(1);
+    expect(getCodeViewSession("/test/doc2.md")).toBeUndefined();
+    expect(getCodeViewSession("/test/doc1.md")).toBe(first);
 
-    hist2.past.push({
-      content: "doc 2 edit 1",
-      selectionStart: 5,
-      selectionEnd: 5,
-    });
+    const second = documentState("doc 2");
+    setCodeViewSession("/test/doc2.md", second);
 
-    expect(getCodeViewHistory("/test/doc1.md").past).toHaveLength(1);
-    expect(getCodeViewHistory("/test/doc2.md").past).toHaveLength(1);
-    expect(getCodeViewHistory("/test/doc1.md").past[0].content).toBe("doc 1 edit 1");
-    expect(getCodeViewHistory("/test/doc2.md").past[0].content).toBe("doc 2 edit 1");
+    expect(getCodeViewSession("/test/doc1.md")?.doc.toString()).toBe("doc 1");
+    expect(getCodeViewSession("/test/doc2.md")?.doc.toString()).toBe("doc 2");
   });
 
-  it("clears history for a specific document or all documents", () => {
-    getCodeViewHistory("/test/doc1.md").past.push({
-      content: "edit 1",
-      selectionStart: 0,
-      selectionEnd: 0,
-    });
-    getCodeViewHistory("/test/doc2.md").past.push({
-      content: "edit 2",
-      selectionStart: 0,
-      selectionEnd: 0,
-    });
+  it("replaces the stored state for an existing document key", () => {
+    setCodeViewSession("/test/doc1.md", documentState("before"));
+    const replacement = documentState("after");
+    setCodeViewSession("/test/doc1.md", replacement);
 
-    clearCodeViewHistory("/test/doc1.md");
-    expect(getCodeViewHistory("/test/doc1.md").past).toHaveLength(0);
-    expect(getCodeViewHistory("/test/doc2.md").past).toHaveLength(1);
+    expect(getCodeViewSession("/test/doc1.md")).toBe(replacement);
+  });
 
-    clearCodeViewHistory();
-    expect(getCodeViewHistory("/test/doc2.md").past).toHaveLength(0);
+  it("evicts the oldest sessions instead of growing without bound", () => {
+    for (let index = 0; index < 30; index++) {
+      setCodeViewSession(`doc-${index}`, documentState(`content ${index}`));
+    }
+
+    expect(getCodeViewSession("doc-0")).toBeUndefined();
+    expect(getCodeViewSession("doc-5")).toBeUndefined();
+    expect(getCodeViewSession("doc-29")?.doc.toString()).toBe("content 29");
+  });
+
+  it("clears a single document session or all of them", () => {
+    setCodeViewSession("/test/doc1.md", documentState("one"));
+    setCodeViewSession("/test/doc2.md", documentState("two"));
+
+    clearCodeViewSessions("/test/doc1.md");
+    expect(getCodeViewSession("/test/doc1.md")).toBeUndefined();
+    expect(getCodeViewSession("/test/doc2.md")).toBeDefined();
+
+    clearCodeViewSessions();
+    expect(getCodeViewSession("/test/doc2.md")).toBeUndefined();
   });
 });

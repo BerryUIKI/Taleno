@@ -478,9 +478,11 @@ body,
   }
 }
 
-/* ===== Code View Editor Font Scaling ===== */
-.code-view-textarea {
-  font-size: var(--editor-font-size, 14px) !important;
+/* ===== Code View (CodeMirror) ===== */
+/* The editor theme sets its own colours; only the outer fill is needed here so
+   the lazy chunk's editor covers the viewport before the first measure. */
+[data-testid="code-view"] .cm-editor {
+  height: 100%;
 }
 
 /* ===== Focus Mode (Active Block Focus, Peripheral Dimming) ===== */
