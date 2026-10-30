@@ -105,7 +105,7 @@ test.describe("Document Integrity & Editor Journeys", () => {
     await codeBtn.click();
 
     // Code view should contain source markdown
-    await expect(page.locator("textarea").first()).toHaveValue(/Heading Test Content/);
+    await expect(page.locator(".cm-content").first()).toContainText("Heading Test Content");
 
     // 4. Switch back to Writing mode
     const writingBtn = page.locator('button[title*="Writing Mode"]').first();

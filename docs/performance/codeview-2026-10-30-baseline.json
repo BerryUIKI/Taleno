@@ -1,0 +1,142 @@
+{
+  "baseUrl": "http://localhost:4173",
+  "measuredAt": "2026-10-30T05:56:36.912Z",
+  "browser": "156.0.8078.76",
+  "platform": "win32",
+  "node": "v24.15.0",
+  "lines": 10000,
+  "keysPerRun": 60,
+  "runs": [
+    {
+      "app": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 11.9,
+          "p95": 12.7,
+          "max": 26.4
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 19,
+          "p95": 24.9,
+          "max": 32.5
+        }
+      },
+      "floor": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 9.8,
+          "p95": 10.4,
+          "max": 25.4
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 10.3,
+          "p95": 19.5,
+          "max": 25.4
+        }
+      }
+    },
+    {
+      "app": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 11.8,
+          "p95": 14.5,
+          "max": 20.5
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 19.4,
+          "p95": 25,
+          "max": 26.3
+        }
+      },
+      "floor": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 10.2,
+          "p95": 10.9,
+          "max": 18.6
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 10.6,
+          "p95": 19.4,
+          "max": 20.3
+        }
+      }
+    },
+    {
+      "app": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 12.2,
+          "p95": 12.9,
+          "max": 21
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 19.1,
+          "p95": 25.6,
+          "max": 26.6
+        }
+      },
+      "floor": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 10.3,
+          "p95": 11.2,
+          "max": 18.6
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 11.3,
+          "p95": 19.3,
+          "max": 20.6
+        }
+      }
+    },
+    {
+      "app": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 12.2,
+          "p95": 14.1,
+          "max": 20.4
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 19.2,
+          "p95": 25.3,
+          "max": 26.8
+        }
+      },
+      "floor": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 10.2,
+          "p95": 10.9,
+          "max": 19.1
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 11,
+          "p95": 19.8,
+          "max": 20.4
+        }
+      }
+    }
+  ],
+  "medians": {
+    "app": {
+      "handlerP50": 12.1,
+      "handlerP95": 13.5
+    },
+    "floor": {
+      "handlerP50": 10.2,
+      "handlerP95": 10.9
+    }
+  },
+  "limits": "Browser and mocked IPC on one host; no native Tauri startup or mobile hardware. Samples start at beforeinput and end after document-level delegated handlers, so they exclude idle serialization and GPU presentation. The floor page is a bare textarea with the same text, font, padding and wrap settings and no application code."
+}

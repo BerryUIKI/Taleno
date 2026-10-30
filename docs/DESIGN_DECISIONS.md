@@ -12,6 +12,7 @@ This document records the foundational architectural decisions made during the d
 - [ADR-004: Atomic File Writes for Document Persistence](#adr-004-atomic-file-writes-for-document-persistence)
 - [ADR-005: Tauri v2 Capability-Based Security Model](#adr-005-tauri-v2-capability-based-security-model)
 - [ADR-006: Native Title Bar for MVP](#adr-006-native-title-bar-for-mvp)
+- [ADR-007: CodeMirror 6 for Code Mode](#adr-007-codemirror-6-for-code-mode)
 
 ---
 
@@ -128,3 +129,23 @@ menu row that respects those controls.
 ### Consequences & Trade-offs
 - Platform chrome changes must be verified against both the base Tauri configuration and `tauri.macos.conf.json`.
 - The menu bar must reserve enough leading space for macOS traffic-light controls.
+
+---
+
+## ADR-007: CodeMirror 6 for Code Mode
+
+### Context
+Code mode is the raw Markdown surface: it must stay responsive with very large files, and raw Markdown must remain the only source of truth. It was a single `<textarea>`, which is simple and IME-safe but makes the browser lay out the entire document on every edit. On the reference Windows host a bare textarea holding 10,000 lines costs about 10 ms p50 per keystroke, and application code cannot remove that floor (see the [2026-10-30 record](performance/2026-10-30.md)).
+
+### Decision
+Render code mode through **CodeMirror 6** (`@codemirror/state`, `@codemirror/view`, `@codemirror/commands`), loaded in the same lazily imported `CodeView` chunk and still exchanging plain Markdown strings with the store.
+
+### Rationale
+- **Only visible lines are laid out.** Per-keystroke cost stops scaling with document length; the 10,000-line input-handler p95 fell from ~13–15 ms to ~2 ms on the same host.
+- **Editor-native features replace hand-written ones.** Soft wrap, line numbers, IME composition, selection and typing-grouped undo come from the editor, so the offscreen measurement mirror and the per-tab selection-snapshot history could be deleted.
+- **Fit for the existing stack.** MIT licensed, tree-shakeable, framework-free and DOM-only; it needs no Tauri permission or IPC change.
+
+### Consequences & Trade-offs
+- The lazy code-view chunk grows from ~11 kB to ~277 kB raw (~4.7 kB to ~90 kB gzip). The initial entry chunk, IPC surface and capabilities are unchanged, and CodeMirror is not downloaded until code mode is opened.
+- Editing semantics now follow the editor: external content replacements create a new `EditorState` (undo history restarts), and per-document editor states live in a bounded map (24 sessions) instead of an unbounded history map.
+- Mobile IME behaviour follows CodeMirror's contenteditable handling. It is covered by unit and browser tests here but is not device-verified; iOS/Android targets should be re-checked before a mobile release.

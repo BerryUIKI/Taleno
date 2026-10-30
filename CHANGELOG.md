@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Code Mode Editor**: Code mode now renders through CodeMirror 6 instead of a full-document `<textarea>`, so a keystroke lays out only the visible lines. Soft-wrapped line numbers, IME composition, selection grouping and per-document undo/redo come from the editor; the custom virtual gutter and the snapshot history are removed. Formatting, find/replace reveal, heading navigation and plugin insertion keep working through the same bridges. The code view stays a lazy chunk: it grows from 11.4 kB to 277.5 kB raw (4.7 kB to 90.3 kB gzip) and adds nothing to the initial payload beyond a 1.5 kB shared module. See [ADR-007](docs/DESIGN_DECISIONS.md#adr-007-codemirror-6-for-code-mode).
+
+### Performance
+- **Code Mode Keystroke Latency**:
+  - The source textarea is no longer rewritten with the identical text on every keystroke, and the line-number gutter skips DOM updates when the rendered window has not changed.
+  - Gutter document analysis splits once instead of visiting every UTF-16 code unit, and the split is reused by the measurement path.
+  - On a 10,000-line document, the source input handler measured p95 13.5 ms → 12.2 ms (median of four runs), with application work down from ~2.6 ms to ~1.1 ms above a bare textarea. See [docs/performance/2026-10-30.md](docs/performance/2026-10-30.md).
+  - Replacing the textarea with CodeMirror puts that same 10,000-line measurement at p95 1.9 ms (median of eight runs, worst sample 5.4 ms), down from 12.7 ms in the same measurement window.
+
 ## [0.1.10] - 2026-10-28
 
 ### Added

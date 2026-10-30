@@ -19,7 +19,7 @@
 | #102（部分完成，保留） | visualViewport height/offsetTop、resize/scroll 清理、安全区域 CSS 和键盘布局测试；旋转、输入法、cutout 和真实触屏滚动保留真机验收。 |
 | #103 | HTML title 与 Tauri productName/window title 为 Taleno；生产前端和 Windows 原生构建检查。 |
 | #104 | 可恢复操作错误，保存失败不关闭；重试/另存绑定原标签实例。App 完整性测试、Rust 写入/替换失败测试。 |
-| #105、#106、#107、#108、#109 | 不变语法库缓存、虚拟稳定行号、延迟统计/避免重复序列化、blocking worker、按需分块与重试。见[实测方法和原始结果](performance/2026-10-21.md)。没有将包大小或 debug 数值当作启动/帧率结论；一万行 Source p95 仍高于 16 ms，明确保留性能边界。 |
+| #105、#106、#107、#108、#109 | 不变语法库缓存、虚拟稳定行号、延迟统计/避免重复序列化、blocking worker、按需分块与重试。见[实测方法和原始结果](performance/2026-10-21.md)。没有将包大小或 debug 数值当作启动/帧率结论；一万行 Source p95 仍高于 16 ms，明确保留性能边界。2026-10-30 复测见 [performance/2026-10-30.md](performance/2026-10-30.md)：去掉逐键全量回写与空转 gutter 更新后，应用自身开销约 1 ms，p95 仍随主机负载波动。 |
 | #112、#113 | 菜单/工具栏共用导出（先 flush、捕获源、统一默认名/错误）；App/Sidebar 共用 workspace picker 和 Rust tree。工作流测试与类型检查。 |
 | #122、#123、#124、#125、#126 | 九语言当前版本说明、保留历史规划编号、真实路径/依赖/平台矩阵、identifier 数据目录与主题分类、原子写入 ADR、desktop/mobile 标签分类及不支持的移动签名发布说明。版本验证测试通过，手工发布默认值已去除。 |
 
