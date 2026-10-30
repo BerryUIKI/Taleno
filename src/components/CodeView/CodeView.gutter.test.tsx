@@ -4,6 +4,7 @@ import {
   CodeView,
   analyzeDocumentText,
   computeGutterWindow,
+  sameGutterWindow,
   countDocumentLines,
 } from "./CodeView";
 import { currentDocument, setCurrentDocument, resetDocument } from "../../store/editor";
@@ -227,6 +228,30 @@ describe("CodeView Line Gutter & Performance", () => {
       expect(updatedNodes[0]).toBe(initialNodes[0]);
       expect(updatedNodes[1]).toBe(initialNodes[1]);
       expect(updatedNodes[2].textContent).toBe("3");
+    });
+  });
+
+  describe("sameGutterWindow", () => {
+    const state = (overrides = {}) => ({
+      start: 10,
+      offsetTop: 240,
+      totalHeight: 24000,
+      items: [
+        { number: 11, top: 0, height: 24 },
+        { number: 12, top: 24, height: 24 },
+      ],
+      ...overrides,
+    });
+
+    it("treats an identically rendered window as unchanged", () => {
+      expect(sameGutterWindow(state(), state())).toBe(true);
+    });
+
+    it("detects a changed start line, scroll offset, total height or row geometry", () => {
+      expect(sameGutterWindow(state(), state({ start: 11 }))).toBe(false);
+      expect(sameGutterWindow(state(), state({ offsetTop: 264 }))).toBe(false);
+      expect(sameGutterWindow(state(), state({ totalHeight: 24024 }))).toBe(false);
+      expect(sameGutterWindow(state(), state({ items: [{ number: 11, top: 0, height: 48 }] }))).toBe(false);
     });
   });
 });

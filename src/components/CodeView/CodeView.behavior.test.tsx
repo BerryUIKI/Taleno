@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { Show } from "solid-js";
 import { render } from "solid-js/web";
 import { CodeView, clearCodeViewHistory } from "./CodeView";
-import { currentDocument, documentFromResponse } from "../../store/editor";
+import { currentDocument, documentFromResponse, setCurrentDocument } from "../../store/editor";
 import { activeTabId, addOrSwitchTab, selectTab, setActiveTabId, setOpenTabs } from "../../store/files";
 
 let dispose: (() => void) | undefined;
@@ -31,4 +31,18 @@ it("restores the source selection and keeps identical untitled filenames isolate
   expect([textarea().selectionStart, textarea().selectionEnd]).toEqual([1, 4]);
   textarea().dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "z", ctrlKey: true, shiftKey: true }));
   expect(currentDocument().content).toBe("AXa");
+});
+
+it("pushes reloaded or externally changed content into the textarea", async () => {
+  const doc = (content: string) => ({ ...documentFromResponse({ path: "", filename: "Untitled.md", content, html: "", toc: [], word_count: 1 }), path: null });
+  addOrSwitchTab(doc("Alpha"));
+  const host = document.createElement("div"); document.body.append(host);
+  dispose = render(() => <Show keyed when={activeTabId()}>{(_identity) => <CodeView />}</Show>, host);
+  const textarea = () => host.querySelector("textarea")!;
+  expect(textarea().value).toBe("Alpha");
+
+  // State changed outside the textarea, as on reload, a plugin insert or a tab switch.
+  setCurrentDocument({ ...currentDocument(), content: "Reloaded" });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(textarea().value).toBe("Reloaded");
 });

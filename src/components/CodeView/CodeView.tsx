@@ -1,4 +1,4 @@
-import { Component, createMemo, createSignal, Index, onMount, onCleanup } from "solid-js";
+import { Component, createEffect, createMemo, createSignal, Index, onMount, onCleanup } from "solid-js";
 import { currentDocument, updateDocumentContent, type TocEntry } from "../../store/editor";
 import { registerCodeFormatter, registerCodeMatchRevealer, registerCodeInserter, type FormatAction } from "../../lib/formatter";
 import { registerCodeHeadingRevealer } from "../../lib/headingNavigation";
@@ -69,27 +69,30 @@ export interface DocumentTextAnalysis {
   hasNonAscii: boolean;
 }
 
+const NON_ASCII_PATTERN = /[^\x00-\x7F]/;
+
 /**
- * Single-pass scan used to decide whether the textarea can soft-wrap any line.
+ * Summarizes a document for the gutter: how many lines it has, whether any line
+ * can soft-wrap, and whether non-ASCII text needs measuring. Splitting once and
+ * reading `line.length` is cheaper than visiting every UTF-16 code unit, and the
+ * split array is reused by the measurement path.
  */
 export function analyzeDocumentText(text: string): DocumentTextAnalysis {
-  let lineCount = 1;
-  let columns = 0;
+  return analyzeDocumentLines(text.split("\n"), text);
+}
+
+function analyzeDocumentLines(lines: string[], text: string): DocumentTextAnalysis {
   let maxColumns = 0;
-  let hasNonAscii = false;
-  for (let i = 0; i < text.length; i++) {
-    const code = text.charCodeAt(i);
-    if (code === 10) {
-      lineCount++;
-      if (columns > maxColumns) maxColumns = columns;
-      columns = 0;
-    } else {
-      if (code > 127) hasNonAscii = true;
-      columns += code === 9 ? 2 : 1;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    let columns = line.length;
+    // A tab occupies two monospace columns.
+    for (let tab = line.indexOf("\t"); tab !== -1; tab = line.indexOf("\t", tab + 1)) {
+      columns++;
     }
+    if (columns > maxColumns) maxColumns = columns;
   }
-  if (columns > maxColumns) maxColumns = columns;
-  return { lineCount, maxColumns, hasNonAscii };
+  return { lineCount: lines.length, maxColumns, hasNonAscii: NON_ASCII_PATTERN.test(text) };
 }
 
 export interface GutterLine {
@@ -160,6 +163,29 @@ export function computeGutterWindow(opts: {
     if (top > windowBottom) break;
   }
   return { start, offsetTop, totalHeight, items };
+}
+
+/**
+ * Compares rendered gutter windows. Typing inside the visible document rarely
+ * changes which line numbers are mounted, so an equal window must not wake the
+ * gutter's DOM bindings on every keystroke.
+ */
+export function sameGutterWindow(a: GutterWindowState, b: GutterWindowState): boolean {
+  if (a === b) return true;
+  if (
+    a.start !== b.start ||
+    a.offsetTop !== b.offsetTop ||
+    a.totalHeight !== b.totalHeight ||
+    a.items.length !== b.items.length
+  ) {
+    return false;
+  }
+  for (let i = 0; i < a.items.length; i++) {
+    const x = a.items[i];
+    const y = b.items[i];
+    if (x.number !== y.number || x.top !== y.top || x.height !== y.height) return false;
+  }
+  return true;
 }
 
 interface GutterMetrics {
@@ -273,6 +299,17 @@ export const CodeView: Component = () => {
   const [layoutTick, setLayoutTick] = createSignal(0);
   const [mounted, setMounted] = createSignal(false);
   const rowHeight = () => Math.round(fontSize() * 1.5);
+
+  // While typing, the textarea already holds the new text; assigning the same
+  // value back is a write that can invalidate layout for a large document. Only
+  // push content the DOM does not have yet (reload, undo, tab switch, plugins).
+  createEffect(() => {
+    const next = content();
+    const textarea = textareaRef;
+    if (textarea && textarea.value !== next) {
+      textarea.value = next;
+    }
+  });
 
   // Line numbers must follow the first visual row of each logical line. Long
   // lines soft-wrap, so a fixed rowHeight per logical line drifts; when a line
@@ -419,7 +456,8 @@ export const CodeView: Component = () => {
     }
 
     const previous = metrics;
-    const analysis = analyzeDocumentText(text);
+    const lines = text.split("\n");
+    const analysis = analyzeDocumentLines(lines, text);
     const needsMeasurement =
       width > 0 &&
       (analysis.hasNonAscii || analysis.maxColumns * font * WIDEST_MONO_ADVANCE_EM > width);
@@ -445,7 +483,6 @@ export const CodeView: Component = () => {
     mirror.style.fontSize = `${font}px`;
     mirror.style.lineHeight = `${row}px`;
 
-    const lines = text.split("\n");
     const lineDivs = syncMirrorLines(mirror, lines, previous);
     const totalHeight = mirror.offsetHeight;
     if (!(totalHeight > 0) || lineDivs.length !== lines.length) return base;
@@ -468,21 +505,25 @@ export const CodeView: Component = () => {
     return m.lineDivs[index].offsetTop;
   };
 
-  const gutterWindow = createMemo(() => {
-    const m = buildMetrics();
-    const row = rowHeight();
-    const count = m ? m.lineCount : countDocumentLines(content());
-    const measured = !!(m && m.measured);
-    return computeGutterWindow({
-      lineCount: count,
-      rowHeight: row,
-      scrollTop: scrollTop(),
-      viewportHeight: viewportHeight(),
-      measured,
-      topOf: (index) => (m && m.measured ? lineTop(m, index) : index * row),
-      totalHeight: m ? m.totalHeight : count * row,
-    });
-  });
+  const gutterWindow = createMemo(
+    () => {
+      const m = buildMetrics();
+      const row = rowHeight();
+      const count = m ? m.lineCount : countDocumentLines(content());
+      const measured = !!(m && m.measured);
+      return computeGutterWindow({
+        lineCount: count,
+        rowHeight: row,
+        scrollTop: scrollTop(),
+        viewportHeight: viewportHeight(),
+        measured,
+        topOf: (index) => (m && m.measured ? lineTop(m, index) : index * row),
+        totalHeight: m ? m.totalHeight : count * row,
+      });
+    },
+    undefined,
+    { equals: sameGutterWindow }
+  );
 
   const handleInput = (e: InputEvent & { currentTarget: HTMLTextAreaElement }) => {
     const target = e.currentTarget;
@@ -790,7 +831,6 @@ export const CodeView: Component = () => {
             "tab-size": "2",
             "caret-color": "var(--color-accent)",
           }}
-          value={content()}
           onBeforeInput={() => { if (!typingTimer) recordSnapshot(textareaRef); }}
           onInput={handleInput}
           onCompositionStart={handleCompositionStart}
