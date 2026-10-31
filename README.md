@@ -8,7 +8,7 @@
 
 **A Typora-style, local-first, high-performance Markdown reader & in-place WYSIWYG editor.**
 
-<span style="font-size: 13px;">v0.1.10 Released · AGPL-3.0 Open Source</span>
+<span style="font-size: 13px;">v0.1.11 Released · AGPL-3.0 Open Source</span>
 
 [![Website](https://img.shields.io/badge/website-berryuiki.github.io%2FTaleno-4895ef.svg?style=for-the-badge)](https://berryuiki.github.io/Taleno/)
 [![Release](https://img.shields.io/badge/release-latest-4361ee.svg?style=for-the-badge)](https://github.com/BerryUIKI/Taleno/releases/latest)
@@ -26,7 +26,7 @@
 
 </div>
 
-> Published desktop release: **v0.1.10 (2026-10-28)**. Later development changes are unreleased. See the [implementation and platform matrix](docs/ARCHITECTURE.md#11-feature--platform-implementation-status-matrix) for actual dependencies, source paths and verification limits. Android/iOS external files, saves and keyboard/safe-area behavior still require device acceptance; signed mobile release jobs are not configured. Startup time and package size vary by build and platform; the performance record, rather than a fixed marketing figure, is authoritative.
+> Published desktop release: **v0.1.11 (2026-11-01)**. Later development changes are unreleased. See the [implementation and platform matrix](docs/ARCHITECTURE.md#11-feature--platform-implementation-status-matrix) for actual dependencies, source paths and verification limits. Android/iOS external files, saves and keyboard/safe-area behavior still require device acceptance; signed mobile release jobs are not configured. Startup time and package size vary by build and platform; the performance record, rather than a fixed marketing figure, is authoritative.
 
 ---
 

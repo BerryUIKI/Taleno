@@ -40,7 +40,7 @@ const [updateInfo, setUpdateInfo] = createSignal<UpdateInfo | null>(null);
 const [isCheckingUpdate, setIsCheckingUpdate] = createSignal(false);
 const [updatePhase, setUpdatePhase] = createSignal<UpdatePhase>("idle");
 const [downloadProgress, setDownloadProgress] = createSignal(0);
-const [appVersion, setAppVersion] = createSignal("0.1.10");
+const [appVersion, setAppVersion] = createSignal("0.1.11");
 const [inPlaceCheckStatus, setInPlaceCheckStatus] = createSignal<InPlaceCheckStatus>("idle");
 
 if (typeof window !== "undefined") {
