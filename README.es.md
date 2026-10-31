@@ -8,7 +8,7 @@
 
 **Un lector y editor Markdown WYSIWYG local, ultrarrápido y al estilo de Typora.**
 
-<span style="font-size: 13px;">v0.1.10 publicada · Código abierto AGPL-3.0</span>
+<span style="font-size: 13px;">v0.1.11 publicada · Código abierto AGPL-3.0</span>
 
 [![Website](https://img.shields.io/badge/website-berryuiki.github.io%2FTaleno-4895ef.svg?style=for-the-badge)](https://berryuiki.github.io/Taleno/)
 [![Release](https://img.shields.io/badge/release-latest-4361ee.svg?style=for-the-badge)](https://github.com/BerryUIKI/Taleno/releases/latest)
@@ -26,7 +26,7 @@
 
 </div>
 
-> Versión de escritorio publicada: **v0.1.10 (2026-10-28)**. Los cambios posteriores de desarrollo aún no se han publicado. Consulte la [matriz de funciones y plataformas](docs/ARCHITECTURE.md#11-feature--platform-implementation-status-matrix) para dependencias, rutas de código y límites de verificación. Los archivos externos, el guardado, el teclado y las áreas seguras de Android/iOS esperan pruebas en dispositivos. No hay tareas de publicación móvil firmada configuradas. El arranque y el tamaño dependen de la compilación y la plataforma; consulte las mediciones.
+> Versión de escritorio publicada: **v0.1.11 (2026-11-01)**. Los cambios posteriores de desarrollo aún no se han publicado. Consulte la [matriz de funciones y plataformas](docs/ARCHITECTURE.md#11-feature--platform-implementation-status-matrix) para dependencias, rutas de código y límites de verificación. Los archivos externos, el guardado, el teclado y las áreas seguras de Android/iOS esperan pruebas en dispositivos. No hay tareas de publicación móvil firmada configuradas. El arranque y el tamaño dependen de la compilación y la plataforma; consulte las mediciones.
 
 ---
 

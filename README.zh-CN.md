@@ -8,7 +8,7 @@
 
 **一款 Typora 风格、本地优先、极速响应的 Markdown 阅读与原位所见即所得编辑器。**
 
-<span style="font-size: 13px;">v0.1.10 已发布 · AGPL-3.0 开源</span>
+<span style="font-size: 13px;">v0.1.11 已发布 · AGPL-3.0 开源</span>
 
 [![Website](https://img.shields.io/badge/website-berryuiki.github.io%2FTaleno-4895ef.svg?style=for-the-badge)](https://berryuiki.github.io/Taleno/)
 [![Release](https://img.shields.io/badge/release-latest-4361ee.svg?style=for-the-badge)](https://github.com/BerryUIKI/Taleno/releases/latest)
@@ -26,7 +26,7 @@
 
 </div>
 
-> 已发布桌面版本：**v0.1.10（2026-10-28）**。后续开发修改尚未发布。实际依赖、实现路径和验证边界见[功能与平台状态矩阵](docs/ARCHITECTURE.md#11-feature--platform-implementation-status-matrix)。Android/iOS 外部文件、保存、键盘与安全区域仍待真机验收，尚未配置移动签名发布任务。启动耗时与安装包大小因构建和平台而异，以实测记录为准。
+> 已发布桌面版本：**v0.1.11（2026-11-01）**。后续开发修改尚未发布。实际依赖、实现路径和验证边界见[功能与平台状态矩阵](docs/ARCHITECTURE.md#11-feature--platform-implementation-status-matrix)。Android/iOS 外部文件、保存、键盘与安全区域仍待真机验收，尚未配置移动签名发布任务。启动耗时与安装包大小因构建和平台而异，以实测记录为准。
 
 ---
 
