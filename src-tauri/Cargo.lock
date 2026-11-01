@@ -3896,7 +3896,7 @@ dependencies = [
 
 [[package]]
 name = "taleno"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "notify",
  "notify-debouncer-mini",

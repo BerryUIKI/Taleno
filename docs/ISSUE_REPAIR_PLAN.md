@@ -12,20 +12,37 @@
 | #85、#86 | 捆绑 Mermaid/KaTeX；错误保留源，图表只替换自身；静态 SVG、数学标记、内嵌 CSS/字体导出。真实 Chrome 阻断外部网络验证显示与导出。 |
 | #87、#88、#89 | 实时后台 TOC、版本/文档替换取消、全局唯一锚点、Rust 源行位置；重复/带格式/setext/围栏标题测试；Reading/Writing/Code 导航适配及移动抽屉入口。 |
 | #90、#91、#92 | Writing 链接/图片输入对话框、任务列表；ProseMirror 原生事务与独立撤销组。真实浏览器验证 URL/alt、任务列表、Undo、原文字保留。 |
-| #93 | Source Undo/Redo、选区快照、标签 ID/实例/Reload 版本隔离；真实 textarea 输入/撤销/重做及同名未保存文档隔离测试。 |
+| #93 | Source Undo/Redo、选区快照、标签 ID/实例/Reload 版本隔离；真实 textarea 输入/撤销/重做及同名未保存文档隔离测试。实施时 Source 仍为 `<textarea>`；2026-10-30 起由 CodeMirror 6 接管，撤销/选区改由每个文档的 `EditorState` 承载，见下方[迁移记录](#2026-10-30-代码模式迁移记录codemirror-6)。 |
 | #94、#95 | 代码语言标签转义，委托复制事件、精确 textContent 与失败反馈；Rust 与前端测试，生产 CSP 无 inline-script 放宽。 |
 | #96（部分完成，保留） | 移动 Save/Save As 接入统一保存与关闭保护；取消/失败保持 dirty，浏览器/IPC 回归通过。Android/iOS picker/provider 写入、权限和真机验收待补。 |
 | #97、#98、#99、#100、#101 | 窄桌面窗口按钮、跨模式持久字号、原生 decoration 活动块聚焦、Zen 全屏前态恢复与退出、移动可访问标签本地化。Chrome 窄窗口/字号/聚焦及单元测试通过。 |
 | #102（部分完成，保留） | visualViewport height/offsetTop、resize/scroll 清理、安全区域 CSS 和键盘布局测试；旋转、输入法、cutout 和真实触屏滚动保留真机验收。 |
 | #103 | HTML title 与 Tauri productName/window title 为 Taleno；生产前端和 Windows 原生构建检查。 |
 | #104 | 可恢复操作错误，保存失败不关闭；重试/另存绑定原标签实例。App 完整性测试、Rust 写入/替换失败测试。 |
-| #105、#106、#107、#108、#109 | 不变语法库缓存、虚拟稳定行号、延迟统计/避免重复序列化、blocking worker、按需分块与重试。见[实测方法和原始结果](performance/2026-10-21.md)。没有将包大小或 debug 数值当作启动/帧率结论；一万行 Source p95 仍高于 16 ms，明确保留性能边界。 |
+| #105、#106、#107、#108、#109 | 不变语法库缓存、虚拟稳定行号、延迟统计/避免重复序列化、blocking worker、按需分块与重试。见[实测方法和原始结果](performance/2026-10-21.md)。没有将包大小或 debug 数值当作启动/帧率结论；一万行 Source p95 仍高于 16 ms，明确保留性能边界。2026-10-30 复测见 [performance/2026-10-30.md](performance/2026-10-30.md)：去掉逐键全量回写与空转 gutter 更新后，应用自身开销约 1 ms，p95 仍随主机负载波动。同日随后的 CodeMirror 迁移删除了自建虚拟 gutter，一万行 Source p95 降到 1.9 ms，见下方[迁移记录](#2026-10-30-代码模式迁移记录codemirror-6)。 |
 | #112、#113 | 菜单/工具栏共用导出（先 flush、捕获源、统一默认名/错误）；App/Sidebar 共用 workspace picker 和 Rust tree。工作流测试与类型检查。 |
 | #122、#123、#124、#125、#126 | 九语言当前版本说明、保留历史规划编号、真实路径/依赖/平台矩阵、identifier 数据目录与主题分类、原子写入 ADR、desktop/mobile 标签分类及不支持的移动签名发布说明。版本验证测试通过，手工发布默认值已去除。 |
 
 验证记录：TypeScript 通过；前端 41 个测试文件、200 项通过；Rust 全量 54 项通过，性能项单独以 release 运行；Chrome 9 项端到端验收通过。完整性回归使用真实 Milkdown，不以 formatter mock 替代编辑事务。Clippy `--all-targets -- -D warnings` 与 rustfmt 通过。`pnpm tauri build --no-sign` 与 `pnpm tauri bundle --no-sign --ci` 本地 EXE/MSI/NSIS 检查成功；不包含发布签名。最终以整合 PR 的 CI 记录为准。
 
 本地 `pnpm tauri build` 已构建原生 EXE、MSI 和 NSIS，随后因未提供本机 updater 私钥而在签名阶段退出非零。正式配置保留 updater 签名要求；本地未签名包验证不构成签名发布。正式签名须在 GitHub release workflow 的密钥环境中进行。本轮没有创建新发布 tag。
+
+## 2026-10-30 代码模式迁移记录（CodeMirror 6）
+
+上表描述的是 v0.1.10 时的实现。v0.1.10 之后，代码模式（Source）已从 `<textarea>` 换成 CodeMirror 6（PR #147，随 `dev` 于 2026-10-30 合入，随 v0.1.11 于 2026-11-01 发布）：
+
+| 原实现 | 现状 |
+| --- | --- |
+| 单个 `<textarea>`，每次按键由浏览器排版整篇文档 | CodeMirror 6 `EditorView`，只排版可见行；代码模式仍是懒加载分块，不打开代码模式就不会下载 |
+| 自建虚拟行号 gutter（离屏测量镜像、`computeGutterWindow`、`analyzeDocumentText`、`sameGutterWindow`） | 已删除，改用 CodeMirror 自带行号 gutter；软换行行的行号落在该逻辑行的首个可视行 |
+| 模块级选区快照 + 快照撤销历史 | 每个文档一份 `EditorState`（含撤销历史与选区），有界保留 24 份；外部整体替换会新建状态并重新开始撤销历史 |
+| #93 的 textarea 输入/撤销/重做验收测试 | 已重写为编辑器测试，覆盖存储绑定、外部替换、按文档撤销与选区、格式化桥接、表格插入、匹配定位、标题导航、行号与 10,000 行挂载上限 |
+
+格式化、查找替换定位、标题导航和插件插入仍通过原有 `registerCode*` 桥接派发编辑器事务，IPC 命令与 Tauri 能力没有变化。实测数据、分块体积与限制见 [performance/2026-10-30.md](performance/2026-10-30.md)，决策记录见 [ADR-007](DESIGN_DECISIONS.md#adr-007-codemirror-6-for-code-mode)。
+
+**仍未验收**：CodeMirror 的移动端 IME 走 contenteditable，只有浏览器与单测覆盖，没有 iOS/Android 设备验证。该限制与 #96、#102 同属真机验收范围，不因本次迁移而关闭。
+
+复核（2026-11-01，`dev 2233537`，Node 24.22.2）：TypeScript 通过；前端 41 个文件 / 203 项通过；Playwright 12 项通过；Rust 54 项通过（2 ignored）；`pnpm build` 通过，CodeView 懒加载分块 277.51 kB raw / 90.32 kB gzip，与性能记录一致。
 
 ---
 
@@ -36,7 +53,7 @@
 
 ## 1. 范围与执行原则
 
-GitHub 当前清单为 **74 个开放 Issue：15 个 P1、50 个 P2、8 个 P3、1 个总追踪项**。索引：[#127](https://github.com/BerryUIKI/Taleno/issues/127)。v0.1.10 已于北京时间 2026-10-28 正式发布（上一版 v0.1.9 发布于 2026-10-16）。
+GitHub 当前清单为 **74 个开放 Issue：15 个 P1、50 个 P2、8 个 P3、1 个总追踪项**。索引：[#127](https://github.com/BerryUIKI/Taleno/issues/127)。v0.1.11 已于北京时间 2026-11-01 正式发布（上一版 v0.1.10 发布于 2026-10-28）。
 
 按用户最新安排：Codex 先检查并修复 P0/P1，其余批次交给 AGY。本文件描述工作区中的实际变更和后续验收；未自动关闭 Issue、推送分支、合并 PR 或修改发布状态。AGY 开始前先运行 `git status` / `git diff`，保留当前修改，不要 reset/覆盖交接工作区。
 

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { installTauriMock } from "./helpers/mockTauri";
 
 test.beforeEach(async ({ page }) => {
@@ -6,232 +6,121 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/");
 });
 
-test("code mode line numbers stay on the first row of soft-wrapped lines", async ({ page }) => {
+async function openCodeMode(page: Page) {
   await page.getByRole("button", { name: /New Document/i }).first().click();
   await page.locator(".ProseMirror").waitFor();
   await page.locator('button[title*="Source Code"]').first().click();
+  await page.locator(".cm-content").waitFor();
+}
 
-  const textarea = page.locator("textarea.code-view-textarea");
-  await textarea.waitFor();
+async function setContent(page: Page, content: string) {
+  await page.evaluate(async (value) => {
+    const { updateDocumentContent } = await import("/src/store/editor.ts");
+    updateDocumentContent(value);
+  }, content);
+  await page.evaluate(
+    () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+  );
+}
 
-  const setContent = async (content: string) => {
-    await page.evaluate(async (value) => {
-      const { updateDocumentContent } = await import("/src/store/editor.ts");
-      updateDocumentContent(value);
-    }, content);
-    await page.evaluate(
-      () =>
-        new Promise<void>((resolve) => {
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-        })
+/**
+ * Visible line numbers and the visible lines they belong to, in document order.
+ * CodeMirror only mounts the visible slice, so both lists cover the same range.
+ */
+async function readGutter(page: Page) {
+  return page.evaluate(() => {
+    const numbers = Array.from(
+      document.querySelectorAll<HTMLElement>(".cm-lineNumbers .cm-gutterElement")
+    )
+      .filter((node) => node.style.visibility !== "hidden")
+      .map((node) => ({
+        number: Number(node.textContent),
+        top: node.getBoundingClientRect().top,
+      }));
+    const lines = Array.from(document.querySelectorAll<HTMLElement>(".cm-content .cm-line")).map(
+      (node) => node.getBoundingClientRect().top
     );
-  };
+    return { numbers, lines };
+  });
+}
+
+function expectNumbersOnTheirLines({ numbers, lines }: Awaited<ReturnType<typeof readGutter>>) {
+  expect(numbers.length).toBeGreaterThan(5);
+  for (let index = 1; index < numbers.length; index++) {
+    expect(numbers[index].number).toBe(numbers[index - 1].number + 1);
+  }
+  // Both lists are virtualized and their edges can differ: a tall line whose
+  // first row has scrolled away keeps its content mounted but loses its number.
+  // Every rendered number must therefore sit exactly on a rendered line.
+  for (const entry of numbers) {
+    const aligned = lines.some((top) => Math.abs(top - entry.top) <= 1);
+    expect(aligned, `line number ${entry.number} has no line at its offset`).toBe(true);
+  }
+}
+
+test("code mode line numbers stay on the first row of soft-wrapped lines", async ({ page }) => {
+  await openCodeMode(page);
 
   const trailing = "x\n".repeat(200);
-  await setContent(`short\n${trailing}`);
-  const shortHeight = await textarea.evaluate((element) => element.scrollHeight);
+  await setContent(page, `short\n${trailing}`);
+  const shortGutter = await readGutter(page);
 
   const longLine = "wrap ".repeat(160);
-  await setContent(`${longLine}\n${trailing}`);
-  const longHeight = await textarea.evaluate((element) => element.scrollHeight);
+  await setContent(page, `${longLine}\n${trailing}`);
+  const longGutter = await readGutter(page);
+
+  expectNumbersOnTheirLines(longGutter);
 
   const rowHeight = 24;
-  // The textarea reserves one row for the short line, so the extra rows belong
-  // to the long line itself.
-  const wrappedRows = Math.round((longHeight - shortHeight) / rowHeight) + 1;
-  expect(wrappedRows).toBeGreaterThan(1);
+  // The wrapped first line occupies several visual rows, so number 2 sits below
+  // all of them rather than one row under number 1.
+  const firstLineRows = (await page.evaluate(() => {
+    const line = document.querySelector<HTMLElement>(".cm-content .cm-line")!;
+    return line.getBoundingClientRect().height;
+  })) / rowHeight;
+  expect(firstLineRows).toBeGreaterThan(1);
 
-  const gutter = page.locator('[data-testid="gutter-line-number"]');
-  await expect(gutter.first()).toHaveText("1");
-
-  const tops = await gutter.evaluateAll((nodes) =>
-    nodes.slice(0, 3).map((node) => node.getBoundingClientRect().top)
-  );
-
-  // Number 2 must sit below every visual row of the wrapped first line, and
-  // number 3 must follow it one row later.
-  expect(Math.abs(tops[1] - tops[0] - wrappedRows * rowHeight)).toBeLessThanOrEqual(1);
-  expect(Math.abs(tops[2] - tops[1] - rowHeight)).toBeLessThanOrEqual(1);
+  expect(Math.abs(longGutter.numbers[1].top - longGutter.numbers[0].top - firstLineRows * rowHeight)).toBeLessThanOrEqual(1);
+  expect(Math.abs(longGutter.numbers[2].top - longGutter.numbers[1].top - rowHeight)).toBeLessThanOrEqual(1);
+  // The unwrapped baseline shifts by exactly one row between the two documents.
+  expect(Math.abs(shortGutter.numbers[1].top - shortGutter.numbers[0].top - rowHeight)).toBeLessThanOrEqual(1);
 });
 
 test("code mode line numbers handle CJK wrapping, empty lines and scrolling", async ({ page }) => {
-  await page.getByRole("button", { name: /New Document/i }).first().click();
-  await page.locator(".ProseMirror").waitFor();
-  await page.locator('button[title*="Source Code"]').first().click();
-
-  const textarea = page.locator("textarea.code-view-textarea");
-  await textarea.waitFor();
-
-  const setContent = async (content: string) => {
-    await page.evaluate(async (value) => {
-      const { updateDocumentContent } = await import("/src/store/editor.ts");
-      updateDocumentContent(value);
-    }, content);
-    await page.evaluate(
-      () =>
-        new Promise<void>((resolve) => {
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-        })
-    );
-  };
+  await openCodeMode(page);
 
   const trailing = "x\n".repeat(200);
-  await setContent(`s\n\nb\n${trailing}`);
-  const shortHeight = await textarea.evaluate((element) => element.scrollHeight);
+  await setContent(page, `s\n\nb\n${trailing}`);
+  const shortGutter = await readGutter(page);
 
   const cjkLine = "中文内容测试".repeat(60);
-  await setContent(`${cjkLine}\n\nb\n${trailing}`);
-  const longHeight = await textarea.evaluate((element) => element.scrollHeight);
+  await setContent(page, `${cjkLine}\n\nb\n${trailing}`);
+  const cjkGutter = await readGutter(page);
 
+  expectNumbersOnTheirLines(cjkGutter);
+  expect(cjkGutter.numbers[0].number).toBe(1);
+  // Line 2 is empty and needs its own row, line 3 holds "b".
   const rowHeight = 24;
-  const wrappedRows = Math.round((longHeight - shortHeight) / rowHeight) + 1;
-  expect(wrappedRows).toBeGreaterThan(1);
+  expect(cjkGutter.numbers[1].top - cjkGutter.numbers[0].top).toBeGreaterThan(rowHeight);
+  expect(Math.abs(cjkGutter.numbers[2].top - cjkGutter.numbers[1].top - rowHeight)).toBeLessThanOrEqual(1);
+  expect(Math.abs(shortGutter.numbers[2].top - shortGutter.numbers[1].top - rowHeight)).toBeLessThanOrEqual(1);
 
-  // Scroll a little so the gutter must stay synced with the textarea.
-  await textarea.evaluate((element) => {
-    element.scrollTop = 150;
-    element.dispatchEvent(new Event("scroll", { bubbles: true }));
+  // Deep scroll: the visible slice must be numbered from its own first line and
+  // stay aligned with the lines themselves.
+  await page.evaluate(() => {
+    document.querySelector<HTMLElement>(".cm-scroller")!.scrollTop = 2000;
   });
   await page.evaluate(
-    () =>
-      new Promise<void>((resolve) => {
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-      })
+    () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
   );
 
-  const gutter = page.locator('[data-testid="gutter-line-number"]');
-  await expect(gutter.first()).toHaveText("1");
-  const tops = await gutter.evaluateAll((nodes) => {
-    const byNumber = new Map(
-      nodes.map((node) => [node.textContent?.trim(), node.getBoundingClientRect().top])
-    );
-    return [1, 2, 3, 4].map((number) => byNumber.get(String(number))!);
-  });
-
-  // Line 1 wraps, line 2 is empty, line 3 holds "b", line 4 is the trailing
-  // empty line. Numbers must sit on each logical line's first visual row.
-  expect(Math.abs(tops[1] - tops[0] - wrappedRows * rowHeight)).toBeLessThanOrEqual(1);
-  expect(Math.abs(tops[2] - tops[1] - rowHeight)).toBeLessThanOrEqual(1);
-  expect(Math.abs(tops[3] - tops[2] - rowHeight)).toBeLessThanOrEqual(1);
-
-  // Deep scroll: the virtualized window must still anchor the number for the
-  // line under the viewport at its measured content offset.
-  const contentTop = 2000;
-  await textarea.evaluate((element, top) => {
-    element.scrollTop = top;
-    element.dispatchEvent(new Event("scroll", { bubbles: true }));
-  }, contentTop + 24);
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve) => {
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-      })
-  );
-
-  const deep = await page.evaluate(
-    ({ rows }) => {
-      const numbers = Array.from(
-        document.querySelectorAll<HTMLElement>('[data-testid="gutter-line-number"]')
-      );
-      const gutter = numbers[0]?.parentElement?.parentElement?.parentElement as HTMLElement | undefined;
-      if (!gutter) return null;
-      const paddingTop = parseFloat(getComputedStyle(gutter).paddingTop) || 0;
-      const gutterTop = gutter.getBoundingClientRect().top;
-      const windowContentTop = 2000;
-      // From number 3 onward every line is a single row.
-      const target = Math.floor(windowContentTop / 24) - rows + 2;
-      const element = numbers.find((node) => Number(node.textContent) === target);
-      return {
-        target,
-        top: element
-          ? element.getBoundingClientRect().top - gutterTop - paddingTop + gutter.scrollTop
-          : null,
-      };
-    },
-    { rows: wrappedRows }
-  );
-
-  expect(deep?.top).not.toBeNull();
-  expect(deep!.top!).toBeGreaterThanOrEqual(contentTop - rowHeight);
-  expect(deep!.top!).toBeLessThanOrEqual(contentTop);
+  const scrolled = await readGutter(page);
+  expectNumbersOnTheirLines(scrolled);
+  expect(scrolled.numbers[0].number).toBeGreaterThan(1);
 });
 
 test("code mode gutter stays aligned after incremental line edits", async ({ page }) => {
-  await page.getByRole("button", { name: /New Document/i }).first().click();
-  await page.locator(".ProseMirror").waitFor();
-  await page.locator('button[title*="Source Code"]').first().click();
-
-  const textarea = page.locator("textarea.code-view-textarea");
-  await textarea.waitFor();
-
-  const setContent = async (content: string) => {
-    await page.evaluate(async (value) => {
-      const { updateDocumentContent } = await import("/src/store/editor.ts");
-      updateDocumentContent(value);
-    }, content);
-    await page.evaluate(
-      () =>
-        new Promise<void>((resolve) => {
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-        })
-    );
-  };
-
-  /** Freshly lays out the same content as one block per logical line. */
-  const referenceTops = (content: string) =>
-    page.evaluate((value) => {
-      const textarea = document.querySelector<HTMLTextAreaElement>("textarea.code-view-textarea")!;
-      const style = getComputedStyle(textarea);
-      const mirror = document.createElement("div");
-      Object.assign(mirror.style, {
-        position: "fixed",
-        left: "-100000px",
-        top: "0",
-        visibility: "hidden",
-        margin: "0",
-        padding: "0",
-        border: "0",
-        boxSizing: "content-box",
-        width: `${
-          textarea.clientWidth -
-          (parseFloat(style.paddingLeft) || 0) -
-          (parseFloat(style.paddingRight) || 0)
-        }px`,
-        fontFamily: style.fontFamily,
-        fontSize: style.fontSize,
-        lineHeight: style.lineHeight,
-        whiteSpace: "pre-wrap",
-        wordBreak: "break-word",
-        tabSize: "2",
-        direction: "ltr",
-      });
-      const fragment = document.createDocumentFragment();
-      const divs = value.split("\n").map((line) => {
-        const div = document.createElement("div");
-        div.textContent = line.length > 0 ? line : "\u200b";
-        fragment.appendChild(div);
-        return div;
-      });
-      mirror.appendChild(fragment);
-      document.body.appendChild(mirror);
-      const tops = divs.map((div) => div.offsetTop);
-      mirror.remove();
-      return tops;
-    }, content);
-
-  const gutterTops = () =>
-    page.evaluate(() => {
-      const numbers = Array.from(
-        document.querySelectorAll<HTMLElement>('[data-testid="gutter-line-number"]')
-      );
-      const gutter = numbers[0]?.parentElement?.parentElement?.parentElement as HTMLElement;
-      const paddingTop = parseFloat(getComputedStyle(gutter).paddingTop) || 0;
-      const gutterTop = gutter.getBoundingClientRect().top;
-      return numbers.map((node) => ({
-        number: Number(node.textContent),
-        top: node.getBoundingClientRect().top - gutterTop - paddingTop + gutter.scrollTop,
-      }));
-    });
+  await openCodeMode(page);
 
   const trailing = "x\n".repeat(120);
   const base = `中文内容测试${"很长的一行".repeat(20)}\n\nb\n${trailing}`;
@@ -248,16 +137,7 @@ test("code mode gutter stays aligned after incremental line edits", async ({ pag
   ];
 
   for (const content of edits) {
-    await setContent(content);
-    await textarea.evaluate((element) => {
-      element.scrollTop = 0;
-      element.dispatchEvent(new Event("scroll", { bubbles: true }));
-    });
-    const expected = await referenceTops(content);
-    const actual = await gutterTops();
-    expect(actual.length).toBeGreaterThan(5);
-    for (const item of actual) {
-      expect(Math.abs(item.top - expected[item.number - 1])).toBeLessThanOrEqual(1);
-    }
+    await setContent(page, content);
+    expectNumbersOnTheirLines(await readGutter(page));
   }
 });

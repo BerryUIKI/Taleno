@@ -1,6 +1,6 @@
 {
   "name": "taleno",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "A seamless in-place WYSIWYG Markdown reader-editor built on Tauri + Rust",
   "type": "module",
   "license": "AGPL-3.0-only",
@@ -21,6 +21,9 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@codemirror/commands": "^6.10.0",
+    "@codemirror/state": "^6.7.1",
+    "@codemirror/view": "^6.43.9",
     "@milkdown/core": "^7.6.2",
     "@milkdown/ctx": "^7.6.2",
     "@milkdown/kit": "^7.6.2",

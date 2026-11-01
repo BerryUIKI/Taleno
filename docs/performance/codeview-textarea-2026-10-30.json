@@ -1,0 +1,267 @@
+{
+  "baseUrl": "http://localhost:1427 , http://localhost:1427",
+  "measuredAt": "2026-10-30T09:15:58.609Z , 2026-10-30T09:16:54.056Z",
+  "browser": "156.0.8078.76",
+  "platform": "win32",
+  "node": "v24.15.0",
+  "editor": "textarea",
+  "lines": 10000,
+  "keysPerRun": 60,
+  "runs": [
+    {
+      "app": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 11.3,
+          "p95": 14.1,
+          "max": 25.5
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 18.5,
+          "p95": 25,
+          "max": 31.3
+        }
+      },
+      "floor": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 10.1,
+          "p95": 12,
+          "max": 24.9
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 11,
+          "p95": 19.6,
+          "max": 24.9
+        }
+      }
+    },
+    {
+      "app": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 11.4,
+          "p95": 12.8,
+          "max": 19.4
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 17.9,
+          "p95": 24.7,
+          "max": 25.2
+        }
+      },
+      "floor": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 10.5,
+          "p95": 11.9,
+          "max": 19.1
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 12,
+          "p95": 19.2,
+          "max": 19.9
+        }
+      }
+    },
+    {
+      "app": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 11.6,
+          "p95": 12.6,
+          "max": 20.2
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 19.6,
+          "p95": 25.3,
+          "max": 26.1
+        }
+      },
+      "floor": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 10.3,
+          "p95": 11.1,
+          "max": 20.3
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 12.2,
+          "p95": 20.1,
+          "max": 20.4
+        }
+      }
+    },
+    {
+      "app": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 11.7,
+          "p95": 13.2,
+          "max": 21.6
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 19.1,
+          "p95": 25,
+          "max": 27
+        }
+      },
+      "floor": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 10.3,
+          "p95": 11.2,
+          "max": 19.2
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 11,
+          "p95": 19.2,
+          "max": 19.4
+        }
+      }
+    },
+    {
+      "app": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 11.2,
+          "p95": 12.1,
+          "max": 25.6
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 18,
+          "p95": 25,
+          "max": 31.6
+        }
+      },
+      "floor": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 10,
+          "p95": 11,
+          "max": 24.6
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 11.9,
+          "p95": 20.2,
+          "max": 24.6
+        }
+      }
+    },
+    {
+      "app": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 11.2,
+          "p95": 13.8,
+          "max": 20.2
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 17.9,
+          "p95": 25,
+          "max": 26
+        }
+      },
+      "floor": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 10.3,
+          "p95": 11.9,
+          "max": 18.3
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 11.9,
+          "p95": 20.3,
+          "max": 20.4
+        }
+      }
+    },
+    {
+      "app": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 11.3,
+          "p95": 12.3,
+          "max": 19.9
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 18.3,
+          "p95": 24.9,
+          "max": 25.7
+        }
+      },
+      "floor": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 10.3,
+          "p95": 11.2,
+          "max": 19.5
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 12.5,
+          "p95": 19.8,
+          "max": 20.3
+        }
+      }
+    },
+    {
+      "app": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 11.6,
+          "p95": 12.5,
+          "max": 20.6
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 18.6,
+          "p95": 25.3,
+          "max": 26.1
+        }
+      },
+      "floor": {
+        "handlerMs": {
+          "count": 60,
+          "p50": 10.3,
+          "p95": 11.3,
+          "max": 18.9
+        },
+        "frameMs": {
+          "count": 60,
+          "p50": 11.4,
+          "p95": 19.5,
+          "max": 20
+        }
+      }
+    }
+  ],
+  "medians": {
+    "app": {
+      "handlerP50": 11.4,
+      "handlerP95": 12.7,
+      "frameP50": 18.4,
+      "frameP95": 25
+    },
+    "floor": {
+      "handlerP50": 10.3,
+      "handlerP95": 11.3,
+      "frameP50": 11.9,
+      "frameP95": 19.7
+    }
+  },
+  "limits": "Browser and mocked IPC on one host; no native Tauri startup or mobile hardware. Samples start at beforeinput and end once the keystroke has been applied and the application notified (a textarea synchronously in its input listener, CodeMirror in the MutationObserver callback that dispatches its transaction), so they exclude idle serialization and GPU presentation. The floor page is a bare textarea with the same text, font, padding and wrap settings and no application code."
+}

@@ -1,6 +1,6 @@
 # Taleno Architecture
 
-Implementation reference: current development source, reviewed 2026-10-28. Published desktop baseline: v0.1.10 (2026-10-28). Development changes after v0.1.10 are unreleased until a later tag completes the release workflow. Historical plans in ROADMAP.md and MILESTONES.md do not establish release or platform acceptance.
+Implementation reference: current development source, reviewed 2026-11-01. Published desktop baseline: v0.1.11 (2026-11-01). Development changes after v0.1.11 are unreleased until a later tag completes the release workflow. Historical plans in ROADMAP.md and MILESTONES.md do not establish release or platform acceptance.
 
 ## 1. Application layers
 
@@ -13,9 +13,9 @@ SolidJS signals hold frontend document state; Rust `AppState` holds read/write b
 `src/store/editor.ts` stores source, saved baseline, rendered-source snapshot, HTML, TOC and dirty state. `src/store/files.ts` synchronizes each tab by ID and instance. Save responses update only their originating instance; intervening edits remain dirty. Reload increments a load version to reset editing history.
 
 - Writing uses Milkdown 7 / ProseMirror in `src/components/Editor/Editor.tsx`. Transactions immediately mark edits dirty. Serialization is deferred until idle and synchronously flushed before save, close, tab or mode changes. Published user content bypasses redundant external replacement; external replacements remain undoable.
-- Source mode uses a textarea in `src/components/CodeView/CodeView.tsx`, per-tab history with selection snapshots, and a bounded virtual gutter with stable indexed nodes. Word counts are deferred during input. Heading navigation consumes Rust parser source lines, including setext headings and excluding fenced-code examples.
+- Source mode renders through CodeMirror 6 in `src/components/CodeView/CodeView.tsx`: only the visible lines are laid out, soft wrap and the line-number gutter belong to the editor, and each document keeps its `EditorState` — undo history and selection included — in a bounded module map so tab switches restore them. Formatting, match reveal, heading navigation and plugin insertion dispatch editor transactions. Word counts are deferred during input. Heading navigation consumes Rust parser source lines, including setext headings and excluding fenced-code examples.
 - Reading uses `src/components/MarkdownView/MarkdownView.tsx`. Request versions discard obsolete render responses. Live outlines likewise cancel work on document replacement and reject stale content/version results. Heading anchors are globally unique across duplicate and suffix-like headings.
-- Font size is persisted by `src/store/settings.ts` and applied through `--editor-font-size`. Focus mode dims other top-level blocks: Writing follows the caret block through a ProseMirror decoration, Reading highlights the pointer/focus block, and Source remains a plain textarea. Toggling focus does not rebuild document nodes.
+- Font size is persisted by `src/store/settings.ts` and applied through `--editor-font-size`. Focus mode dims other top-level blocks: Writing follows the caret block through a ProseMirror decoration, Reading highlights the pointer/focus block, and Source mode keeps its plain editor surface. Toggling focus does not rebuild document nodes.
 - Zen mode hides surrounding controls and, on desktop, enters native fullscreen. The state before entry is restored on exit/disposal; Escape and the floating exit button remain available.
 
 ## 3. Rendering and export
@@ -81,7 +81,7 @@ See ISSUE_REPAIR_PLAN.md for issue-level evidence, DESIGN_DECISIONS.md for guara
 
 ### 11.1 Core implementation paths
 
-The published desktop baseline is v0.1.10 (2026-10-28). The following describes current development source; implementation is distinct from verification.
+The published desktop baseline is v0.1.11 (2026-11-01). The following describes current development source; implementation is distinct from verification.
 
 | Capability | Implementation | Verification boundary |
 | :--- | :--- | :--- |

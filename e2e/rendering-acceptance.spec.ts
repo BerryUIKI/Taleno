@@ -89,7 +89,7 @@ test("task lists preserve text on undo and focus follows the caret without rebui
   await page.evaluate(async () => { const { setFocusMode } = await import("/src/store/settings.ts"); setFocusMode(false); });
   await expect(editor.locator("p").first()).toHaveCSS("opacity", "1");
   await page.locator('button[title*="Source Code"]').first().click();
-  await expect(page.locator("textarea").first()).toHaveCSS("font-size", "24px");
+  await expect(page.locator(".cm-content").first()).toHaveCSS("font-size", "24px");
   expect(await page.evaluate(() => localStorage.getItem("taleno-font-size"))).toBe("24");
 });
 
@@ -122,5 +122,5 @@ test("Writing resolves local image display through IPC while preserving relative
   });
   await expect(page.locator('.ProseMirror img[alt="Picture"]')).toHaveAttribute("src", "http://asset.localhost/other-picture.png");
   await page.locator('button[title*="Source Code"]').first().click();
-  await expect(page.locator("textarea").first()).toHaveValue("![Picture](./images/picture.png)");
+  await expect(page.locator(".cm-content").first()).toContainText("![Picture](./images/picture.png)");
 });
