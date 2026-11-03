@@ -31,14 +31,14 @@ pub async fn open_file(
     app: tauri::AppHandle,
 ) -> Result<OpenFileResponse, String> {
     let location = DocumentLocation::parse(&path);
-    if location.is_uri() {
+    let Some(local_path) = location.as_path() else {
         return Err(unsupported_location(&path));
-    }
+    };
     let _io = state.document_io.lock().await;
     let content = fs_service::read_file(&path)
         .await
         .map_err(|e| e.to_string())?;
-    let path = tokio::fs::canonicalize(path)
+    let path = tokio::fs::canonicalize(local_path)
         .await
         .map_err(|e| e.to_string())?
         .to_string_lossy()
@@ -90,14 +90,14 @@ pub async fn save_file(
     app: tauri::AppHandle,
 ) -> Result<OpenFileResponse, String> {
     let location = DocumentLocation::parse(&path);
-    if location.is_uri() {
+    let Some(local_path) = location.as_path() else {
         return Err(unsupported_location(&path));
-    }
+    };
     let _io = state.document_io.lock().await;
     fs_service::write_file_checked(&path, &content, expected_content.as_deref())
         .await
         .map_err(|e| e.to_string())?;
-    let path = tokio::fs::canonicalize(path)
+    let path = tokio::fs::canonicalize(local_path)
         .await
         .map_err(|e| e.to_string())?
         .to_string_lossy()
@@ -141,10 +141,10 @@ pub async fn save_file(
 #[tauri::command]
 pub async fn read_file_baseline(path: String) -> Result<Option<String>, String> {
     let location = DocumentLocation::parse(&path);
-    if location.is_uri() {
+    let Some(local_path) = location.as_path() else {
         return Err(unsupported_location(&path));
-    }
-    fs_service::read_optional_file(&path)
+    };
+    fs_service::read_optional_file(&local_path.to_string_lossy())
         .await
         .map_err(|err| err.to_string())
 }
