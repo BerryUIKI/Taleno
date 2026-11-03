@@ -1,6 +1,16 @@
+use crate::services::document_location::DocumentLocation;
 use crate::services::{fs_service, parser};
 use crate::state::{ActiveDocument, AppState};
 use tauri::State;
+
+/// Provider URIs (`content://`, `file://`) are resolved by platform APIs.
+/// This build has no provider adapter, so reject them explicitly instead of
+/// treating the URI as a relative path and creating a directory named `content:`.
+fn unsupported_location(path: &str) -> String {
+    format!(
+        "PROVIDER_LOCATION_UNSUPPORTED: provider documents are not available in this build ({path})"
+    )
+}
 
 /// Response returned when a file is successfully opened.
 #[derive(serde::Serialize)]
@@ -20,6 +30,10 @@ pub async fn open_file(
     state: State<'_, AppState>,
     app: tauri::AppHandle,
 ) -> Result<OpenFileResponse, String> {
+    let location = DocumentLocation::parse(&path);
+    if location.is_uri() {
+        return Err(unsupported_location(&path));
+    }
     let _io = state.document_io.lock().await;
     let content = fs_service::read_file(&path)
         .await
@@ -40,9 +54,8 @@ pub async fn open_file(
     let toc = parser::extract_toc(&content);
     let word_count = parser::count_words(&content);
 
-    let filename = std::path::Path::new(&path)
-        .file_name()
-        .map(|n| n.to_string_lossy().to_string())
+    let filename = location
+        .display_name()
         .unwrap_or_else(|| "Unknown".to_string());
 
     // Store active document in state
@@ -76,6 +89,10 @@ pub async fn save_file(
     state: State<'_, AppState>,
     app: tauri::AppHandle,
 ) -> Result<OpenFileResponse, String> {
+    let location = DocumentLocation::parse(&path);
+    if location.is_uri() {
+        return Err(unsupported_location(&path));
+    }
     let _io = state.document_io.lock().await;
     fs_service::write_file_checked(&path, &content, expected_content.as_deref())
         .await
@@ -95,9 +112,8 @@ pub async fn save_file(
     let html = parser::markdown_to_html_with_path(&content, Some(&path));
     let toc = parser::extract_toc(&content);
     let word_count = parser::count_words(&content);
-    let filename = std::path::Path::new(&path)
-        .file_name()
-        .map(|n| n.to_string_lossy().to_string())
+    let filename = location
+        .display_name()
         .unwrap_or_else(|| "Unknown".to_string());
 
     // Update cached state
@@ -124,6 +140,10 @@ pub async fn save_file(
 
 #[tauri::command]
 pub async fn read_file_baseline(path: String) -> Result<Option<String>, String> {
+    let location = DocumentLocation::parse(&path);
+    if location.is_uri() {
+        return Err(unsupported_location(&path));
+    }
     fs_service::read_optional_file(&path)
         .await
         .map_err(|err| err.to_string())
@@ -135,9 +155,8 @@ pub fn get_active_document(state: State<'_, AppState>) -> Result<Option<OpenFile
     let doc = state.active_document.lock().map_err(|e| e.to_string())?;
     Ok(doc.as_ref().map(|d| OpenFileResponse {
         path: d.path.clone(),
-        filename: std::path::Path::new(&d.path)
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
+        filename: DocumentLocation::parse(&d.path)
+            .display_name()
             .unwrap_or_else(|| "Unknown".to_string()),
         content: d.content.clone(),
         html: d.html.clone(),
