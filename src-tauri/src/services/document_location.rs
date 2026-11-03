@@ -142,8 +142,9 @@ mod tests {
 
     #[test]
     fn display_names_come_from_paths_and_encoded_uri_ids() {
+        // `/` separates path segments on every supported desktop platform.
         assert_eq!(
-            DocumentLocation::parse(r"C:\notes\today.md").display_name(),
+            DocumentLocation::parse("/home/u/notes/today.md").display_name(),
             Some("today.md".to_string())
         );
         assert_eq!(
@@ -157,6 +158,14 @@ mod tests {
             DocumentLocation::parse("file:///Users/u/My%20Notes/a%20b.md").display_name(),
             Some("a b.md".to_string())
         );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_drive_letters_are_not_uri_schemes() {
+        let location = DocumentLocation::parse(r"C:\notes\today.md");
+        assert!(!location.is_uri());
+        assert_eq!(location.display_name(), Some("today.md".to_string()));
     }
 
     #[test]
