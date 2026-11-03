@@ -108,6 +108,8 @@ fn start_watching_file(
     path: String,
     watcher_state: tauri::State<'_, WatcherState>,
 ) -> Result<(), String> {
+    // Provider documents (content:// on Android, file:// on iOS) are not
+    // filesystem paths and the platform watcher cannot observe them.
     if services::document_location::DocumentLocation::parse(&path).is_uri() {
         return Ok(());
     }
