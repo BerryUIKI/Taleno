@@ -108,6 +108,9 @@ fn start_watching_file(
     path: String,
     watcher_state: tauri::State<'_, WatcherState>,
 ) -> Result<(), String> {
+    if services::document_location::DocumentLocation::parse(&path).is_uri() {
+        return Ok(());
+    }
     let mut watchers = watcher_state._watcher.lock().map_err(|e| e.to_string())?;
     if let std::collections::hash_map::Entry::Vacant(e) = watchers.entry(path.clone()) {
         let watcher = services::watcher::watch_file(app_handle, path)?;

@@ -1,3 +1,4 @@
+pub mod document_location;
 pub mod export;
 pub mod fs_service;
 pub mod highlighter;
