@@ -1,6 +1,6 @@
 # Taleno Mobile Development Guide (iOS & Android)
 
-> Current status (2026-10-21): this is a development/design guide. Shared responsive UI exists; Android SAF and iOS security-scoped bookmark adapters and signed mobile release jobs are not implemented. Commands/examples below describe work needed and do not establish acceptance. Mobile tags fail explicitly before desktop packaging. #84, #96 and #102 await physical-device testing; the owner currently has no devices available.
+> Current status (2026-11-03): this is a development/design guide. Shared responsive UI exists. Document commands now classify `content://` (Android SAF) and `file://` (iOS) picker results and read/write them through `tauri-plugin-fs`, whose platform providers return the file descriptor; provider saves truncate in place and are not atomic. None of this has been validated on a device, and signed mobile release jobs are still not implemented. Commands/examples below describe work needed and do not establish acceptance. Mobile tags fail explicitly before desktop packaging. #84, #96 and #102 await physical-device testing; the owner currently has no devices available.
 
 
 This guide provides technical specifications, architectural constraints, setup instructions, development workflows, and debugging strategies for building and maintaining **Taleno** on mobile platforms (**iOS** and **Android**) using **Tauri 2**, **Rust**, and **SolidJS**.

@@ -1,16 +1,7 @@
 use crate::services::document_location::DocumentLocation;
-use crate::services::{fs_service, parser};
+use crate::services::{document_io, fs_service, parser};
 use crate::state::{ActiveDocument, AppState};
 use tauri::State;
-
-/// Provider URIs (`content://`, `file://`) are resolved by platform APIs.
-/// This build has no provider adapter, so reject them explicitly instead of
-/// treating the URI as a relative path and creating a directory named `content:`.
-fn unsupported_location(path: &str) -> String {
-    format!(
-        "PROVIDER_LOCATION_UNSUPPORTED: provider documents are not available in this build ({path})"
-    )
-}
 
 /// Response returned when a file is successfully opened.
 #[derive(serde::Serialize)]
@@ -31,26 +22,31 @@ pub async fn open_file(
     app: tauri::AppHandle,
 ) -> Result<OpenFileResponse, String> {
     let location = DocumentLocation::parse(&path);
-    let Some(local_path) = location.as_path() else {
-        return Err(unsupported_location(&path));
-    };
     let _io = state.document_io.lock().await;
-    let content = fs_service::read_file(&path)
+    let content = document_io::read_document(&app, &location)
         .await
         .map_err(|e| e.to_string())?;
-    let path = tokio::fs::canonicalize(local_path)
-        .await
-        .map_err(|e| e.to_string())?
-        .to_string_lossy()
-        .into_owned();
+    let path = match location.as_path() {
+        Some(local) => tokio::fs::canonicalize(local)
+            .await
+            .map_err(|e| e.to_string())?
+            .to_string_lossy()
+            .into_owned(),
+        None => path,
+    };
     state
         .disk_baselines
         .lock()
         .map_err(|e| e.to_string())?
         .insert(path.clone(), content.clone());
 
-    parser::grant_document_images(&app, &content, &path)?;
-    let html = parser::markdown_to_html_with_path(&content, Some(&path));
+    // Relative images resolve against a filesystem directory; provider documents
+    // have no such directory, so their images are left to the document itself.
+    let base_path = location.as_path().map(|_| path.as_str());
+    if let Some(base) = base_path {
+        parser::grant_document_images(&app, &content, base)?;
+    }
+    let html = parser::markdown_to_html_with_path(&content, base_path);
     let toc = parser::extract_toc(&content);
     let word_count = parser::count_words(&content);
 
@@ -90,26 +86,29 @@ pub async fn save_file(
     app: tauri::AppHandle,
 ) -> Result<OpenFileResponse, String> {
     let location = DocumentLocation::parse(&path);
-    let Some(local_path) = location.as_path() else {
-        return Err(unsupported_location(&path));
-    };
     let _io = state.document_io.lock().await;
-    fs_service::write_file_checked(&path, &content, expected_content.as_deref())
+    document_io::write_document(&app, &location, &content, expected_content.as_deref())
         .await
         .map_err(|e| e.to_string())?;
-    let path = tokio::fs::canonicalize(local_path)
-        .await
-        .map_err(|e| e.to_string())?
-        .to_string_lossy()
-        .into_owned();
+    let path = match location.as_path() {
+        Some(local) => tokio::fs::canonicalize(local)
+            .await
+            .map_err(|e| e.to_string())?
+            .to_string_lossy()
+            .into_owned(),
+        None => path,
+    };
     state
         .disk_baselines
         .lock()
         .map_err(|e| e.to_string())?
         .insert(path.clone(), content.clone());
 
-    parser::grant_document_images(&app, &content, &path)?;
-    let html = parser::markdown_to_html_with_path(&content, Some(&path));
+    let base_path = location.as_path().map(|_| path.as_str());
+    if let Some(base) = base_path {
+        parser::grant_document_images(&app, &content, base)?;
+    }
+    let html = parser::markdown_to_html_with_path(&content, base_path);
     let toc = parser::extract_toc(&content);
     let word_count = parser::count_words(&content);
     let filename = location
@@ -139,12 +138,12 @@ pub async fn save_file(
 }
 
 #[tauri::command]
-pub async fn read_file_baseline(path: String) -> Result<Option<String>, String> {
+pub async fn read_file_baseline(
+    path: String,
+    app: tauri::AppHandle,
+) -> Result<Option<String>, String> {
     let location = DocumentLocation::parse(&path);
-    let Some(local_path) = location.as_path() else {
-        return Err(unsupported_location(&path));
-    };
-    fs_service::read_optional_file(&local_path.to_string_lossy())
+    document_io::read_baseline(&app, &location)
         .await
         .map_err(|err| err.to_string())
 }
