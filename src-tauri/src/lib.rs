@@ -4,6 +4,7 @@ mod services;
 mod state;
 
 use state::AppState;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
 
@@ -14,6 +15,10 @@ struct WatcherState {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // AppImage's AppRun changes the working directory before starting the app;
+    // put it back so relative CLI paths resolve like the user typed them.
+    restore_launch_directory();
+
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -23,20 +28,15 @@ pub fn run() {
 
     #[cfg(desktop)]
     {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
                 let _ = window.unminimize();
                 let _ = window.set_focus();
             }
-            let files: Vec<String> = args
-                .into_iter()
-                .skip(1)
-                .filter(|arg| {
-                    let p = std::path::Path::new(arg);
-                    p.exists() && p.is_file()
-                })
-                .collect();
+            // The second process reports the directory it was launched from,
+            // which can differ from this process's cwd.
+            let files = collect_file_args(args.into_iter().skip(1), Some(Path::new(&cwd)));
             if !files.is_empty() {
                 let _ = app.emit("single-instance-open", files);
             }
@@ -92,12 +92,34 @@ pub fn run() {
 /// Retrieve command line file arguments passed when opening files from Windows Explorer.
 #[tauri::command]
 fn get_cli_args() -> Vec<String> {
-    std::env::args()
-        .skip(1)
-        .filter(|arg| {
-            let p = std::path::Path::new(arg);
-            p.exists() && p.is_file()
+    collect_file_args(std::env::args().skip(1), None)
+}
+
+/// AppImage's AppRun changes the working directory to `$APPDIR/usr` before
+/// starting the app and leaves the directory the user launched from in `OWD`.
+/// Restore it so relative paths still resolve the way they were typed.
+fn restore_launch_directory() {
+    if let Some(owd) = std::env::var_os("OWD") {
+        let owd = Path::new(&owd);
+        if owd.is_dir() {
+            let _ = std::env::set_current_dir(owd);
+        }
+    }
+}
+
+/// Keep only arguments that name an existing file. Relative paths are resolved
+/// against `base` when given; `Path::join` returns absolute arguments unchanged.
+fn collect_file_args(
+    args: impl IntoIterator<Item = String>,
+    base: Option<&Path>,
+) -> Vec<String> {
+    args.into_iter()
+        .map(|arg| match base {
+            Some(base) => base.join(arg),
+            None => PathBuf::from(arg),
         })
+        .filter(|path| path.is_file())
+        .map(|path| path.to_string_lossy().into_owned())
         .collect()
 }
 
