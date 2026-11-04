@@ -140,8 +140,8 @@ gantt
 
 ### Phase 10 — Mobile Cross-Platform Support (iOS & Android) (~3–4 weeks) :hammer_and_wrench: In Progress
 - [x] **Mobile Toolchain & Initialization**: CI now runs `tauri android init` and `tauri ios init` and compiles `aarch64-linux-android` and `aarch64-apple-ios`; `src-tauri/gen/` stays generated rather than committed.
-- [ ] **Responsive Mobile Shell**: Single-column viewport adapter, collapsible navigation drawer, safe-area inset management (`env(safe-area-inset-top)` / `bottom`).
-- [ ] **Touch-First Markdown Editing**: On-screen bottom quick-action formatting bar, mobile selection gestures, virtual keyboard height listener (`visualViewport`).
+- [x] **Responsive Mobile Shell (device validation pending)**: Single-column `MobileShell`, navigation drawer and safe-area insets are implemented in `src/components/Mobile/`; rotation, cutouts and real-device layout still need hardware.
+- [x] **Touch-First Markdown Editing (device validation pending)**: `MobileFormatBar` and `visualViewport` keyboard tracking are implemented; IME behaviour and touch selection on real devices are unverified.
 - [ ] **Sandboxed File Operations**: `content://` and `file://` documents now read and write through `tauri-plugin-fs` providers, but provider saves truncate in place instead of the atomic tempfile-and-rename path, and nothing has been validated on a device.
 - [ ] **Mobile Capabilities & Permissions**: Strict `capabilities/mobile.json` configuration for iOS and Android webviews.
 - [x] **Packaging & Automated CI/CD (partial)**: Android release APK and AAB are built in CI and signed when keystore secrets are configured; iOS builds and uploads a simulator app. Device IPA export and TestFlight distribution still need Apple credentials.
