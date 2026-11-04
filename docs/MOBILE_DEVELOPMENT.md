@@ -162,6 +162,13 @@ pnpm tauri ios build
 open src-tauri/gen/apple/Taleno.xcodeproj
 ```
 
+The `iOS Package` workflow builds a **simulator** app
+(`pnpm tauri ios build --ci --debug --target aarch64-sim`) and uploads
+`taleno-ios-simulator`. Simulator builds need no Apple certificate. Device
+archives, IPA export and TestFlight distribution need an Apple signing
+certificate, a provisioning profile and App Store Connect credentials, which
+this repository does not hold yet; that path is not implemented.
+
 #### Android (APK & AAB):
 ```bash
 # Build universal APK for local testing / sideloading
