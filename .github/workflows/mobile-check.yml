@@ -41,13 +41,13 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Install Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install Android platform and NDK
         run: |
-          yes | sdkmanager --licenses > /dev/null
-          sdkmanager --install "platforms;android-34" "build-tools;34.0.0" "ndk;${ANDROID_NDK_VERSION}"
+          # GitHub's ubuntu image ships the Android SDK; its command-line tools
+          # live under whichever cmdline-tools version the image installed.
+          SDKMANAGER="$(ls -d "$ANDROID_SDK_ROOT"/cmdline-tools/*/bin/sdkmanager | tail -n 1)"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" --install "platforms;android-34" "build-tools;34.0.0" "ndk;${ANDROID_NDK_VERSION}"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
