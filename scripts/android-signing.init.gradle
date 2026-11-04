@@ -1,0 +1,26 @@
+// Configures Android release signing from environment variables.
+//
+// `tauri android init` regenerates src-tauri/gen/android, so signing is applied
+// here instead of editing generated Gradle files. Gradle loads every
+// ~/.gradle/init.d/*.gradle on each invocation; the packaging workflow copies
+// this file there only when a keystore secret is configured.
+
+def keystorePath = System.getenv('ANDROID_KEYSTORE_PATH')
+if (keystorePath == null || keystorePath.isEmpty()) {
+    return
+}
+
+gradle.beforeProject { project ->
+    project.plugins.withId('com.android.application') {
+        def android = project.extensions.getByName('android')
+        def signingConfig = android.signingConfigs.findByName('release')
+        if (signingConfig == null) {
+            signingConfig = android.signingConfigs.create('release')
+        }
+        signingConfig.storeFile = project.file(keystorePath)
+        signingConfig.storePassword = System.getenv('ANDROID_KEYSTORE_PASSWORD')
+        signingConfig.keyAlias = System.getenv('ANDROID_KEY_ALIAS')
+        signingConfig.keyPassword = System.getenv('ANDROID_KEY_PASSWORD')
+        android.buildTypes.getByName('release').signingConfig = signingConfig
+    }
+}

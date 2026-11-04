@@ -171,6 +171,25 @@ pnpm tauri android build --apk
 pnpm tauri android build --aab
 ```
 
+#### CI signing secrets:
+The `Android Package` workflow signs the release APK and AAB when a keystore is
+configured. Add these repository secrets:
+
+| Secret | Value |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | The `.jks`/`.keystore` file, base64 encoded (`base64 -w0 release.keystore`) |
+| `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
+| `ANDROID_KEY_ALIAS` | Key alias |
+| `ANDROID_KEY_PASSWORD` | Key password |
+
+With no `ANDROID_KEYSTORE_BASE64` secret the workflow still builds, and uploads
+`taleno-android-unsigned`; the AAB then relies on Play Console upload signing.
+When the secret is present, the build applies signing through
+[`scripts/android-signing.init.gradle`](../scripts/android-signing.init.gradle)
+(a Gradle init script, because `tauri android init` regenerates the Android
+project on every run) and fails the job if `apksigner verify` rejects the APK.
+Signing is configured but has not been exercised with a real keystore yet.
+
 ---
 
 ## 5. Mobile Architectural Adaptations

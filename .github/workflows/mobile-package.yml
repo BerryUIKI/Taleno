@@ -73,16 +73,62 @@ jobs:
       - name: Initialize Android project
         run: pnpm tauri android init
 
-      # No TAURI_ANDROID_SIGNING_* secrets are configured, so the release APK is
-      # unsigned and the AAB stays unsigned for Play Console upload signing.
+      # Signing is optional: without these secrets the release artifacts stay
+      # unsigned. When ANDROID_KEYSTORE_BASE64 is present, all four secrets are
+      # required, and the APK is verified after the build.
+      - name: Configure signing
+        id: signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "No ANDROID_KEYSTORE_BASE64 secret; the release artifacts will be unsigned."
+            exit 0
+          fi
+          missing=""
+          for name in ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            eval "value=\${$name}"
+            if [ -z "$value" ]; then missing="$missing $name"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "ANDROID_KEYSTORE_BASE64 is set but these secrets are missing:$missing" >&2
+            exit 1
+          fi
+          KEYSTORE="$RUNNER_TEMP/taleno-release.keystore"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+          echo "ANDROID_KEYSTORE_PATH=$KEYSTORE" >> "$GITHUB_ENV"
+          mkdir -p "$HOME/.gradle/init.d"
+          cp scripts/android-signing.init.gradle "$HOME/.gradle/init.d/taleno-signing.gradle"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+          echo "Keystore configured; the release APK and AAB will be signed."
+
       - name: Build release APK and AAB
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: pnpm tauri android build --ci --apk --aab --target aarch64
+
+      - name: Verify APK signature
+        if: steps.signing.outputs.signed == 'true'
+        run: |
+          APKSIGNER="$(ls -d "$ANDROID_SDK_ROOT"/build-tools/*/apksigner | tail -n 1)"
+          APK="$(find src-tauri/gen/android/app/build/outputs/apk -name '*.apk' | head -n 1)"
+          if [ -z "$APK" ]; then
+            echo "No APK was produced." >&2
+            exit 1
+          fi
+          "$APKSIGNER" verify --print-certs "$APK"
 
       - name: Upload Android artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: taleno-android-unsigned
+          name: taleno-android-${{ steps.signing.outputs.signed == 'true' && 'signed' || 'unsigned' }}
           path: |
             src-tauri/gen/android/app/build/outputs/apk/**/*.apk
             src-tauri/gen/android/app/build/outputs/bundle/**/*.aab
