@@ -5,9 +5,9 @@ export type AppPlatform = "ios" | "android" | "macos" | "windows" | "linux" | "u
  * Detect the host platform from WebView-provided browser metadata.
  */
 export function detectPlatform(
-  platform = typeof navigator === "undefined" ? "" : navigator.platform,
-  userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent,
-  maxTouchPoints = typeof navigator === "undefined" ? 0 : navigator.maxTouchPoints || 0,
+  platform = navigator.platform,
+  userAgent = navigator.userAgent,
+  maxTouchPoints = navigator.maxTouchPoints || 0,
 ): AppPlatform {
   const p = (platform || "").toLowerCase();
   const ua = (userAgent || "").toLowerCase();
@@ -50,8 +50,8 @@ export function detectPlatform(
  * Backward compatible with existing desktop checks.
  */
 export function detectDesktopPlatform(
-  platform = typeof navigator === "undefined" ? "" : navigator.platform,
-  userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent,
+  platform = navigator.platform,
+  userAgent = navigator.userAgent,
 ): DesktopPlatform {
   const resolved = detectPlatform(platform, userAgent, 0);
   if (resolved === "macos" || resolved === "windows" || resolved === "linux") {
@@ -61,9 +61,9 @@ export function detectDesktopPlatform(
 }
 
 export function detectIsMobile(
-  platform = typeof navigator === "undefined" ? "" : navigator.platform,
-  userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent,
-  maxTouchPoints = typeof navigator === "undefined" ? 0 : navigator.maxTouchPoints || 0,
+  platform = navigator.platform,
+  userAgent = navigator.userAgent,
+  maxTouchPoints = navigator.maxTouchPoints || 0,
 ): boolean {
   const p = detectPlatform(platform, userAgent, maxTouchPoints);
   return p === "ios" || p === "android";

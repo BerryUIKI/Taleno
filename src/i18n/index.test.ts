@@ -3,7 +3,6 @@ import {
   SUPPORTED_LOCALES,
   t,
   setLocale,
-  currentLocale,
   detectSystemLocale,
 } from "./index";
 import { compareVersions } from "../lib/updater";

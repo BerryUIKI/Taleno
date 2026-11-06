@@ -12,7 +12,6 @@ import {
 import {
   plugins,
   setPlugins,
-  pluginErrors,
   setPluginErrors,
   setPluginFilterQuery,
   pluginSubTab,
@@ -21,7 +20,6 @@ import {
 import type { PluginManifest } from "../../types/plugin";
 import {
   setInstalledThemes,
-  setActiveTheme,
   setThemeSubTab,
   themeSubTab,
 } from "../../store/customThemes";

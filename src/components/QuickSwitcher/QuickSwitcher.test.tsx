@@ -2,12 +2,10 @@ import { render } from "solid-js/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QuickSwitcher } from "./QuickSwitcher";
 import {
-  openTabs,
   setOpenTabs,
   quickSwitcherOpen,
   setQuickSwitcherOpen,
   setWorkspaceTree,
-  selectTab,
 } from "../../store/files";
 
 describe("QuickSwitcher Component", () => {

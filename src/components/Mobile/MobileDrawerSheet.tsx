@@ -2,7 +2,7 @@ import { Component, Show, For } from "solid-js";
 import { currentDocument, type TocEntry } from "../../store/editor";
 import { navigateToHeading } from "../../lib/headingNavigation";
 import { openTabs, activeTabId, selectTab } from "../../store/files";
-import { theme, setTheme, cycleTheme, fontSize, setFontSize, markdownTheme, setMarkdownTheme } from "../../store/settings";
+import { theme, setTheme, fontSize, setFontSize, markdownTheme, setMarkdownTheme } from "../../store/settings";
 import { Sidebar } from "../Sidebar/Sidebar";
 import { t } from "../../i18n";
 import type { MobileSheetView } from "./MobileBottomNav";

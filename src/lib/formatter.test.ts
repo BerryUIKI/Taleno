@@ -3,7 +3,6 @@ import {
   dispatchFormat,
   registerWritingFormatter,
   registerCodeFormatter,
-  type FormatAction,
 } from "./formatter";
 import { setDisplayMode } from "../store/editor";
 

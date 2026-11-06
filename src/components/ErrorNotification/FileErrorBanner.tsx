@@ -1,12 +1,7 @@
 import { Component, Show } from "solid-js";
 import { fileError, clearFileError } from "../../store/fileErrors";
 
-export interface FileErrorBannerProps {
-  onRetrySave?: () => void;
-  onSaveAs?: () => void;
-}
-
-export const FileErrorBanner: Component<FileErrorBannerProps> = (_props) => {
+export const FileErrorBanner: Component = () => {
   const err = () => fileError();
 
   return (

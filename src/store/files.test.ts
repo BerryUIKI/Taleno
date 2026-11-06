@@ -9,7 +9,7 @@ import {
   closeTab,
   syncCurrentDocumentToTab,
 } from "./files";
-import { currentDocument, setCurrentDocument, updateDocumentContent } from "./editor";
+import { currentDocument, updateDocumentContent } from "./editor";
 
 describe("Files & Tabs Store", () => {
   beforeEach(() => {

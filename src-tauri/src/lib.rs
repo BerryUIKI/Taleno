@@ -49,18 +49,15 @@ pub fn run() {
             _watcher: Mutex::new(std::collections::HashMap::new()),
         })
         .invoke_handler(tauri::generate_handler![
-            commands::greet,
             commands::file::open_file,
             commands::file::save_file,
             commands::file::read_file_baseline,
-            commands::file::get_active_document,
             commands::file::list_directory_tree,
             commands::file::create_entry,
             commands::file::delete_entry,
             commands::file::rename_entry,
             commands::markdown::render_markdown,
             commands::markdown::resolve_document_image,
-            commands::markdown::highlight_code,
             commands::markdown::export_document,
             commands::search::search_workspace,
             commands::window::minimize_window,

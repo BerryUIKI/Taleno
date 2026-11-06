@@ -71,11 +71,9 @@ pub fn get_plugins_dir(app_handle: &tauri::AppHandle) -> Result<PathBuf, String>
 /// Ensure the plugins directory exists and initialize a sample plugin if empty.
 pub async fn ensure_plugins_dir(app_handle: &tauri::AppHandle) -> Result<PathBuf, String> {
     let plugins_dir = get_plugins_dir(app_handle)?;
-    if !plugins_dir.exists() {
-        fs::create_dir_all(&plugins_dir)
-            .await
-            .map_err(|e| format!("Failed to create plugins directory: {}", e))?;
-    }
+    fs::create_dir_all(&plugins_dir)
+        .await
+        .map_err(|e| format!("Failed to create plugins directory: {}", e))?;
 
     package_paths::validate_root(&plugins_dir)?;
     // Check if directory is empty; if so, create the sample starter plugin
@@ -107,9 +105,6 @@ pub async fn list_plugins(app_handle: &tauri::AppHandle) -> Result<Vec<PluginMan
 
 /// Helper function to scan a directory path for plugin manifests.
 pub async fn scan_plugins_in_dir(plugins_dir: &Path) -> Result<Vec<PluginManifest>, String> {
-    if !plugins_dir.exists() {
-        return Ok(Vec::new());
-    }
     package_paths::validate_root(plugins_dir)?;
 
     let mut manifests = Vec::new();
@@ -154,13 +149,6 @@ pub async fn read_plugin_source_from_dir(
     plugin_id: &str,
 ) -> Result<String, String> {
     validate_plugin_id(plugin_id)?;
-    if !plugins_dir.exists() {
-        return Err(format!(
-            "Plugins directory does not exist: {}",
-            plugins_dir.display()
-        ));
-    }
-
     let mut entries = fs::read_dir(plugins_dir)
         .await
         .map_err(|e| format!("Failed to read directory {}: {}", plugins_dir.display(), e))?;
@@ -355,23 +343,14 @@ pub async fn uninstall_plugin(
     let plugins_dir = ensure_plugins_dir(app_handle).await?;
     let target_folder = package_paths::contained(&plugins_dir, plugin_id)?;
 
-    if target_folder.exists() {
-        fs::remove_dir_all(&target_folder)
-            .await
-            .map_err(|e| format!("Failed to uninstall plugin '{}': {}", plugin_id, e))?;
+    match fs::remove_dir_all(&target_folder).await {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(format!(
+            "Failed to uninstall plugin '{}': {}",
+            plugin_id, err
+        )),
     }
-
-    Ok(())
-}
-
-/// Update an existing plugin by re-installing the latest remote files.
-pub async fn update_remote_plugin(
-    app_handle: &tauri::AppHandle,
-    plugin_id: &str,
-    raw_base_url: &str,
-    entry_file: &str,
-) -> Result<PluginManifest, String> {
-    install_remote_plugin(app_handle, plugin_id, raw_base_url, entry_file).await
 }
 
 #[cfg(test)]

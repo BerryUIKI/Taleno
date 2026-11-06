@@ -88,7 +88,7 @@ export async function processFileDrop({
   onOpenFile: (path: string) => Promise<void> | void;
   onInsertLinks: (markdownLinks: string) => void;
 }): Promise<void> {
-  if (!paths || paths.length === 0) return;
+  if (paths.length === 0) return;
 
   if (!hasOpenDocument || isTabBar) {
     // Open the files

@@ -40,7 +40,6 @@ import {
   isPluginInstalled,
   isUpdateAvailable,
   isPluginBusy,
-  getInstalledPlugin,
 } from "../../store/plugins";
 import {
   installedThemes,

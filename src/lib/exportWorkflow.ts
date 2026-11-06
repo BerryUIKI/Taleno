@@ -1,6 +1,7 @@
 import { save } from "@tauri-apps/plugin-dialog";
 import { exportDocument, renderMarkdown } from "./tauri/commands";
 import { currentDocument, flushPendingEdits, type DocumentState } from "../store/editor";
+import { reportFileError } from "../store/fileErrors";
 
 export interface ExportWorkflowResult {
   success: boolean;
@@ -8,20 +9,20 @@ export interface ExportWorkflowResult {
   error?: string;
 }
 
+type ExportSource = Pick<DocumentState, "content" | "filename"> & { path?: string | null };
+
 /**
  * Shared HTML export workflow used by both MenuBar and EditorToolbar (#112).
  */
 export async function exportDocumentWorkflow(
-  doc: Pick<DocumentState, "content" | "filename"> & { path?: string | null } = currentDocument()
+  doc?: ExportSource
 ): Promise<ExportWorkflowResult> {
   try {
-    const active = doc === currentDocument();
     flushPendingEdits();
-    if (active) doc = currentDocument();
     // Capture the source before the asynchronous destination dialog.
-    const snapshot = { ...doc };
-    const baseName = doc.filename
-      ? doc.filename.replace(/\.(md|markdown|mdx|txt)$/i, "")
+    const snapshot = { ...(doc ?? currentDocument()) };
+    const baseName = snapshot.filename
+      ? snapshot.filename.replace(/\.(md|markdown|mdx|txt)$/i, "")
       : "document";
     const selected = await save({
       defaultPath: `${baseName}.html`,
@@ -39,5 +40,20 @@ export async function exportDocumentWorkflow(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return { success: false, error: message };
+  }
+}
+
+/** Run the shared export flow and surface success or failure to the user. */
+export async function exportCurrentDocument(): Promise<void> {
+  const doc = currentDocument();
+  const result = await exportDocumentWorkflow();
+  if (result.success && result.outputPath) {
+    alert(`Exported document successfully to:\n${result.outputPath}`);
+  } else if (result.error) {
+    reportFileError({
+      type: "export",
+      message: `Failed to export document: ${result.error}`,
+      path: doc.filename,
+    });
   }
 }

@@ -1,20 +1,72 @@
+use crate::models::document::FileEntry;
 use crate::services::document_location::DocumentLocation;
 use crate::services::{document_io, fs_service, parser};
-use crate::state::{ActiveDocument, AppState};
+use crate::state::{AppState, TocEntry};
 use tauri::State;
 
-/// Response returned when a file is successfully opened.
+/// Response returned when a document is opened or saved.
 #[derive(serde::Serialize)]
 pub struct OpenFileResponse {
     pub path: String,
     pub filename: String,
     pub content: String,
     pub html: String,
-    pub toc: Vec<crate::state::TocEntry>,
+    pub toc: Vec<TocEntry>,
     pub word_count: usize,
 }
 
-/// Open a file by path: read, parse, cache, and return full render data.
+/// Resolve a filesystem path once; provider URIs stay opaque.
+async fn canonical_path(location: &DocumentLocation, raw_path: String) -> Result<String, String> {
+    match location.as_path() {
+        Some(path) => tokio::fs::canonicalize(path)
+            .await
+            .map(|path| path.to_string_lossy().into_owned())
+            .map_err(|e| e.to_string()),
+        None => Ok(raw_path),
+    }
+}
+
+/// Publish a document snapshot after a successful read or write: record the
+/// conflict baseline, grant local image access, and render the response.
+async fn document_response(
+    app: &tauri::AppHandle,
+    state: &AppState,
+    location: &DocumentLocation,
+    raw_path: String,
+    content: String,
+) -> Result<OpenFileResponse, String> {
+    let path = canonical_path(location, raw_path).await?;
+    state
+        .disk_baselines
+        .lock()
+        .map_err(|e| e.to_string())?
+        .insert(path.clone(), content.clone());
+
+    // Relative images resolve against a filesystem directory; provider documents
+    // have no such directory, so their images are left to the document itself.
+    let base_path = (!location.is_uri()).then_some(path.as_str());
+    if let Some(base) = base_path {
+        parser::grant_document_images(app, &content, base)?;
+    }
+
+    let filename = location
+        .display_name()
+        .unwrap_or_else(|| "Unknown".to_string());
+    let html = parser::markdown_to_html_with_path(&content, base_path);
+    let toc = parser::extract_toc(&content);
+    let word_count = parser::count_words(&content);
+
+    Ok(OpenFileResponse {
+        path,
+        filename,
+        content,
+        html,
+        toc,
+        word_count,
+    })
+}
+
+/// Open a file by path: read, parse, and return full render data.
 #[tauri::command]
 pub async fn open_file(
     path: String,
@@ -26,54 +78,7 @@ pub async fn open_file(
     let content = document_io::read_document(&app, &location)
         .await
         .map_err(|e| e.to_string())?;
-    let path = match location.as_path() {
-        Some(local) => tokio::fs::canonicalize(local)
-            .await
-            .map_err(|e| e.to_string())?
-            .to_string_lossy()
-            .into_owned(),
-        None => path,
-    };
-    state
-        .disk_baselines
-        .lock()
-        .map_err(|e| e.to_string())?
-        .insert(path.clone(), content.clone());
-
-    // Relative images resolve against a filesystem directory; provider documents
-    // have no such directory, so their images are left to the document itself.
-    let base_path = location.as_path().map(|_| path.as_str());
-    if let Some(base) = base_path {
-        parser::grant_document_images(&app, &content, base)?;
-    }
-    let html = parser::markdown_to_html_with_path(&content, base_path);
-    let toc = parser::extract_toc(&content);
-    let word_count = parser::count_words(&content);
-
-    let filename = location
-        .display_name()
-        .unwrap_or_else(|| "Unknown".to_string());
-
-    // Store active document in state
-    if let Ok(mut doc) = state.active_document.lock() {
-        *doc = Some(ActiveDocument {
-            path: path.clone(),
-            content: content.clone(),
-            html: html.clone(),
-            toc: toc.clone(),
-            word_count,
-            externally_modified: false,
-        });
-    }
-
-    Ok(OpenFileResponse {
-        path: path.clone(),
-        filename,
-        content: content.clone(),
-        html: html.clone(),
-        toc,
-        word_count,
-    })
+    document_response(&app, state.inner(), &location, path, content).await
 }
 
 /// Save content to a file using atomic write.
@@ -90,51 +95,7 @@ pub async fn save_file(
     document_io::write_document(&app, &location, &content, expected_content.as_deref())
         .await
         .map_err(|e| e.to_string())?;
-    let path = match location.as_path() {
-        Some(local) => tokio::fs::canonicalize(local)
-            .await
-            .map_err(|e| e.to_string())?
-            .to_string_lossy()
-            .into_owned(),
-        None => path,
-    };
-    state
-        .disk_baselines
-        .lock()
-        .map_err(|e| e.to_string())?
-        .insert(path.clone(), content.clone());
-
-    let base_path = location.as_path().map(|_| path.as_str());
-    if let Some(base) = base_path {
-        parser::grant_document_images(&app, &content, base)?;
-    }
-    let html = parser::markdown_to_html_with_path(&content, base_path);
-    let toc = parser::extract_toc(&content);
-    let word_count = parser::count_words(&content);
-    let filename = location
-        .display_name()
-        .unwrap_or_else(|| "Unknown".to_string());
-
-    // Update cached state
-    if let Ok(mut doc) = state.active_document.lock() {
-        *doc = Some(ActiveDocument {
-            path: path.clone(),
-            content: content.clone(),
-            html: html.clone(),
-            toc: toc.clone(),
-            word_count,
-            externally_modified: false,
-        });
-    }
-
-    Ok(OpenFileResponse {
-        path,
-        filename,
-        content,
-        html,
-        toc,
-        word_count,
-    })
+    document_response(&app, state.inner(), &location, path, content).await
 }
 
 #[tauri::command]
@@ -148,37 +109,12 @@ pub async fn read_file_baseline(
         .map_err(|err| err.to_string())
 }
 
-/// Get the current active document state.
-#[tauri::command]
-pub fn get_active_document(state: State<'_, AppState>) -> Result<Option<OpenFileResponse>, String> {
-    let doc = state.active_document.lock().map_err(|e| e.to_string())?;
-    Ok(doc.as_ref().map(|d| OpenFileResponse {
-        path: d.path.clone(),
-        filename: DocumentLocation::parse(&d.path)
-            .display_name()
-            .unwrap_or_else(|| "Unknown".to_string()),
-        content: d.content.clone(),
-        html: d.html.clone(),
-        toc: d.toc.clone(),
-        word_count: d.word_count,
-    }))
-}
-
 /// Recursively list a workspace directory tree.
 #[tauri::command]
-pub async fn list_directory_tree(
-    path: String,
-    state: State<'_, AppState>,
-) -> Result<crate::models::document::FileEntry, String> {
-    let tree = fs_service::read_dir_tree(&path)
+pub async fn list_directory_tree(path: String) -> Result<FileEntry, String> {
+    fs_service::read_dir_tree(&path)
         .await
-        .map_err(|e| e.to_string())?;
-
-    if let Ok(mut ws) = state.workspace_root.lock() {
-        *ws = Some(path);
-    }
-
-    Ok(tree)
+        .map_err(|e| e.to_string())
 }
 
 /// Create a new file or directory in workspace.

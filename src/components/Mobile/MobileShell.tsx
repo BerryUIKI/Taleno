@@ -24,7 +24,7 @@ export const MobileShell: Component<MobileShellProps> = (props) => {
 
   // Track virtual keyboard visibility and geometry via visualViewport API
   const updateViewportGeometry = () => {
-    if (typeof window !== "undefined" && window.visualViewport) {
+    if (window.visualViewport) {
       const vv = window.visualViewport;
       const isKeyboard = vv.height < window.innerHeight * 0.75;
       setIsKeyboardVisible(isKeyboard);
@@ -34,7 +34,7 @@ export const MobileShell: Component<MobileShellProps> = (props) => {
   };
 
   onMount(() => {
-    if (typeof window !== "undefined" && window.visualViewport) {
+    if (window.visualViewport) {
       updateViewportGeometry();
       window.visualViewport.addEventListener("resize", updateViewportGeometry);
       window.visualViewport.addEventListener("scroll", updateViewportGeometry);
@@ -42,7 +42,7 @@ export const MobileShell: Component<MobileShellProps> = (props) => {
   });
 
   onCleanup(() => {
-    if (typeof window !== "undefined" && window.visualViewport) {
+    if (window.visualViewport) {
       window.visualViewport.removeEventListener("resize", updateViewportGeometry);
       window.visualViewport.removeEventListener("scroll", updateViewportGeometry);
     }
