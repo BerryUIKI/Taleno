@@ -109,10 +109,7 @@ fn restore_launch_directory() {
 
 /// Keep only arguments that name an existing file. Relative paths are resolved
 /// against `base` when given; `Path::join` returns absolute arguments unchanged.
-fn collect_file_args(
-    args: impl IntoIterator<Item = String>,
-    base: Option<&Path>,
-) -> Vec<String> {
+fn collect_file_args(args: impl IntoIterator<Item = String>, base: Option<&Path>) -> Vec<String> {
     args.into_iter()
         .map(|arg| match base {
             Some(base) => base.join(arg),
