@@ -92,17 +92,9 @@ export const MarkdownView: Component<MarkdownViewProps> = (props) => {
       });
   });
 
-  onMount(() => {
-    if (containerRef) {
-      processEnhancements(containerRef);
-    }
-  });
-
   onCleanup(() => {
     renderVersion += 1;
     registerReadingMatchRevealer(null);
-    if (containerRef) {
-    }
   });
 
   const handleContainerClick = async (e: MouseEvent) => {

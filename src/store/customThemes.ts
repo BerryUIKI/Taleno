@@ -16,9 +16,7 @@ export type ThemeSubTabId = "installed" | "marketplace";
 
 export const [installedThemes, setInstalledThemes] = createSignal<ThemeManifest[]>([]);
 export const [activeCustomThemeId, setActiveCustomThemeId] = createSignal<string | null>(
-  typeof localStorage !== "undefined"
-    ? localStorage.getItem(STORAGE_KEY_ACTIVE_THEME)
-    : null
+  localStorage.getItem(STORAGE_KEY_ACTIVE_THEME)
 );
 export const [themeSubTab, setThemeSubTab] = createSignal<ThemeSubTabId>("installed");
 export const [marketplaceThemes, setMarketplaceThemes] = createSignal<RemoteTheme[]>([]);
@@ -47,8 +45,6 @@ export const isThemeInstalled = (id: string): boolean => {
  * Dynamically apply or remove the custom theme stylesheet in the document head.
  */
 export const applyThemeCss = async (themeId: string | null) => {
-  if (typeof document === "undefined") return;
-
   let styleEl = document.getElementById(STYLE_ELEMENT_ID) as HTMLStyleElement | null;
 
   if (!themeId) {

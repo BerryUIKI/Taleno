@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   PluginRuntimeManager,
-  PluginPermissionError,
   PluginExecutionError,
   normalizeShortcut,
   matchesKeyboardEvent,
@@ -11,11 +10,9 @@ import type { PluginManifest } from "../../types/plugin";
 import {
   registerWritingInserter,
   registerCodeInserter,
-  insertTextAtSelection,
 } from "../formatter";
 import {
   currentDocument,
-  updateDocumentContent,
   setCurrentDocument,
   setDisplayMode,
 } from "../../store/editor";
@@ -190,7 +187,6 @@ describe("PluginRuntimeManager", () => {
 
   describe("Command Reachability & Shortcuts (#71)", () => {
     it("exposes registered plugin commands and cleans them up on unload", async () => {
-      const runFn = vi.fn();
       const source = `
         export default {
           onload(ctx) {

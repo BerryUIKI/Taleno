@@ -1,5 +1,6 @@
 import { Component, Show, createMemo } from "solid-js";
 import { currentDocument, displayMode, setDisplayMode } from "../../store/editor";
+import { hasActiveDocument } from "../../store/files";
 import { theme, cycleTheme } from "../../store/settings";
 import {
   checkForUpdatesInPlace,
@@ -78,7 +79,7 @@ const DisplayModeSwitcher: Component = () => (
 
 export const StatusBar: Component = () => {
   const doc = () => currentDocument();
-  const hasDoc = () => doc().path !== null || doc().content.length > 0;
+  const hasDoc = () => hasActiveDocument();
   const charCount = createMemo(() => doc().content.length);
   const lineEnding = createMemo(() => (doc().content.includes("\r\n") ? "CRLF" : "LF"));
 
@@ -88,6 +89,8 @@ export const StatusBar: Component = () => {
     if (currentTheme === "dark") return t("view.darkTheme");
     return t("view.systemTheme");
   };
+  const versionText = () => (appVersion() ? `Taleno v${appVersion()}` : "Taleno");
+  const shortVersion = () => (appVersion() ? `v${appVersion()}` : "Taleno");
 
   return (
     <footer
@@ -122,12 +125,12 @@ export const StatusBar: Component = () => {
             ? t("statusBar.checkingUpdates")
             : inPlaceCheckStatus() === "up_to_date"
             ? t("statusBar.upToDate")
-            : `Taleno v${appVersion()} — ${t("help.checkForUpdates")}`
+            : `${versionText()} — ${t("help.checkForUpdates")}`
         }
         aria-label={
           isUpdateAvailable()
             ? `${t("statusBar.updateAvailable")}: v${updateInfo()?.latestVersion}`
-            : `Taleno v${appVersion()}`
+            : versionText()
         }
         data-status-section="version"
       >
@@ -155,7 +158,7 @@ export const StatusBar: Component = () => {
             ? t("statusBar.upToDate")
             : isUpdateAvailable()
             ? `↑ v${updateInfo()?.latestVersion || appVersion()}`
-            : `v${appVersion()}`}
+            : shortVersion()}
         </span>
       </button>
 

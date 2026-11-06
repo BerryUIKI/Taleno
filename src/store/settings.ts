@@ -13,7 +13,7 @@ export const MARKDOWN_THEME_OPTIONS: ReadonlyArray<{
 ];
 
 function getSystemTheme(): "light" | "dark" {
-  if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+  if (typeof window.matchMedia === "function") {
     return window.matchMedia("(prefers-color-scheme: dark)").matches
       ? "dark"
       : "light";
@@ -22,40 +22,31 @@ function getSystemTheme(): "light" | "dark" {
 }
 
 function getInitialTheme(): Theme {
-  if (typeof localStorage !== "undefined") {
-    const stored = localStorage.getItem("Taleno-theme");
-    if (stored === "light" || stored === "dark" || stored === "system") {
-      return stored;
-    }
+  const stored = localStorage.getItem("Taleno-theme");
+  if (stored === "light" || stored === "dark" || stored === "system") {
+    return stored;
   }
   return "system";
 }
 
 function getInitialMarkdownTheme(): MarkdownTheme {
-  if (typeof localStorage !== "undefined") {
-    const stored = localStorage.getItem("Taleno-markdown-theme");
-    if (stored === "Taleno" || stored === "github" || stored === "solarized") {
-      return stored;
-    }
+  const stored = localStorage.getItem("Taleno-markdown-theme");
+  if (stored === "Taleno" || stored === "github" || stored === "solarized") {
+    return stored;
   }
   return "Taleno";
 }
 
 function getInitialElementShadows(): boolean {
-  return (
-    typeof localStorage !== "undefined" &&
-    localStorage.getItem("Taleno-element-shadows") === "true"
-  );
+  return localStorage.getItem("Taleno-element-shadows") === "true";
 }
 
 function getInitialAutomaticUpdateChecks(): boolean {
-  return (
-    typeof localStorage === "undefined" ||
-    localStorage.getItem("Taleno-automatic-update-checks") !== "false"
-  );
+  return localStorage.getItem("Taleno-automatic-update-checks") !== "false";
 }
 
-const [theme, setTheme] = createSignal<Theme>(getInitialTheme());
+const initialTheme = getInitialTheme();
+const [theme, setTheme] = createSignal<Theme>(initialTheme);
 const [markdownTheme, setMarkdownTheme] = createSignal<MarkdownTheme>(
   getInitialMarkdownTheme()
 );
@@ -66,99 +57,73 @@ const [automaticUpdateChecks, setAutomaticUpdateChecks] = createSignal(
   getInitialAutomaticUpdateChecks()
 );
 const [resolvedTheme, setResolvedTheme] = createSignal<"light" | "dark">(
-  getInitialTheme() === "system" ? getSystemTheme() : (getInitialTheme() as "light" | "dark")
+  initialTheme === "system" ? getSystemTheme() : initialTheme
 );
 
 // React to theme changes
 createEffect(() => {
   const current = theme();
-  if (typeof localStorage !== "undefined") {
-    localStorage.setItem("Taleno-theme", current);
-  }
+  localStorage.setItem("Taleno-theme", current);
 
   const resolved = current === "system" ? getSystemTheme() : current;
   setResolvedTheme(resolved);
-  if (typeof document !== "undefined") {
-    document.documentElement.setAttribute("data-theme", resolved);
-  }
+  document.documentElement.setAttribute("data-theme", resolved);
 });
 
 createEffect(() => {
   const current = markdownTheme();
-  if (typeof localStorage !== "undefined") {
-    localStorage.setItem("Taleno-markdown-theme", current);
-  }
-  if (typeof document !== "undefined") {
-    document.documentElement.setAttribute("data-markdown-theme", current);
-  }
+  localStorage.setItem("Taleno-markdown-theme", current);
+  document.documentElement.setAttribute("data-markdown-theme", current);
 });
 
 createEffect(() => {
   const enabled = elementShadows();
-  if (typeof localStorage !== "undefined") {
-    localStorage.setItem("Taleno-element-shadows", String(enabled));
-  }
-  if (typeof document !== "undefined") {
-    document.documentElement.setAttribute(
-      "data-element-shadows",
-      String(enabled)
-    );
-  }
+  localStorage.setItem("Taleno-element-shadows", String(enabled));
+  document.documentElement.setAttribute("data-element-shadows", String(enabled));
 });
 
 createEffect(() => {
   const enabled = automaticUpdateChecks();
-  if (typeof localStorage !== "undefined") {
-    localStorage.setItem("Taleno-automatic-update-checks", String(enabled));
-  }
+  localStorage.setItem("Taleno-automatic-update-checks", String(enabled));
 });
 
 // Listen for OS theme changes
-if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+if (typeof window.matchMedia === "function") {
   window
     .matchMedia("(prefers-color-scheme: dark)")
     .addEventListener("change", () => {
       if (theme() === "system") {
         const resolved = getSystemTheme();
         setResolvedTheme(resolved);
-        if (typeof document !== "undefined") {
-          document.documentElement.setAttribute("data-theme", resolved);
-        }
+        document.documentElement.setAttribute("data-theme", resolved);
       }
     });
 }
 
 function getInitialFontSize(): number {
-  if (typeof localStorage !== "undefined") {
-    const stored =
-      localStorage.getItem("taleno-font-size") ||
-      localStorage.getItem("Taleno-font-size");
-    if (stored) {
-      const parsed = parseInt(stored, 10);
-      if (!isNaN(parsed) && parsed >= 10 && parsed <= 48) {
-        return parsed;
-      }
+  const stored =
+    localStorage.getItem("taleno-font-size") ||
+    localStorage.getItem("Taleno-font-size");
+  if (stored) {
+    const parsed = parseInt(stored, 10);
+    if (!isNaN(parsed) && parsed >= 10 && parsed <= 48) {
+      return parsed;
     }
   }
   return 16;
 }
 
 const [fontSize, setFontSize] = createSignal(getInitialFontSize());
-const [workspacePath, setWorkspacePath] = createSignal<string | null>(null);
 const [zenMode, setZenMode] = createSignal(false);
 const [focusMode, setFocusMode] = createSignal(false);
 
 createEffect(() => {
   const current = fontSize();
-  if (typeof localStorage !== "undefined") {
-    localStorage.setItem("taleno-font-size", String(current));
-  }
-  if (typeof document !== "undefined") {
-    document.documentElement.style.setProperty(
-      "--editor-font-size",
-      `${current}px`
-    );
-  }
+  localStorage.setItem("taleno-font-size", String(current));
+  document.documentElement.style.setProperty(
+    "--editor-font-size",
+    `${current}px`
+  );
 });
 
 export {
@@ -173,8 +138,6 @@ export {
   setAutomaticUpdateChecks,
   fontSize,
   setFontSize,
-  workspacePath,
-  setWorkspacePath,
   zenMode,
   setZenMode,
   focusMode,

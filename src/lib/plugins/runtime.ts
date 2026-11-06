@@ -129,7 +129,6 @@ interface BoundShortcut {
 
 export class PluginRuntimeManager {
   private activeModules = new Map<string, TalenoPluginModule>();
-  private activeManifests = new Map<string, PluginManifest>();
   private disposables = new Map<string, Array<() => void>>();
   private registeredCommands = new Map<string, PluginCommand>();
   private boundShortcuts = new Map<string, BoundShortcut>();
@@ -141,19 +140,18 @@ export class PluginRuntimeManager {
   }
 
   private attachKeydownListener() {
-    if (typeof window !== "undefined" && !this.keydownListenerAttached) {
+    if (!this.keydownListenerAttached) {
       window.addEventListener("keydown", this.handleKeyDown);
       this.keydownListenerAttached = true;
     }
   }
 
   public destroy() {
-    if (typeof window !== "undefined" && this.keydownListenerAttached) {
+    if (this.keydownListenerAttached) {
       window.removeEventListener("keydown", this.handleKeyDown);
       this.keydownListenerAttached = false;
     }
     this.activeModules.clear();
-    this.activeManifests.clear();
     this.disposables.clear();
     this.registeredCommands.clear();
     this.boundShortcuts.clear();
@@ -176,14 +174,6 @@ export class PluginRuntimeManager {
 
   public getRegisteredCommands(): PluginCommand[] {
     return Array.from(this.registeredCommands.values());
-  }
-
-  public getLoadErrors(): Record<string, string> {
-    const res: Record<string, string> = {};
-    for (const [id, err] of this.loadErrors.entries()) {
-      res[id] = err;
-    }
-    return res;
   }
 
   public getPluginError(id: string): string | undefined {
@@ -320,7 +310,6 @@ export class PluginRuntimeManager {
 
     try {
       this.activeModules.set(pluginId, mod);
-      this.activeManifests.set(pluginId, manifest);
       this.disposables.set(pluginId, []);
 
       const ctx = this.createContext(manifest);
@@ -372,7 +361,6 @@ export class PluginRuntimeManager {
 
     this.disposables.delete(pluginId);
     this.activeModules.delete(pluginId);
-    this.activeManifests.delete(pluginId);
   }
 
   public evaluatePluginSource(source: string): TalenoPluginModule {

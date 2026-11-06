@@ -1,27 +1,9 @@
 import { Component } from "solid-js";
-import { currentDocument } from "../../store/editor";
-import { exportDocumentWorkflow } from "../../lib/exportWorkflow";
-import { reportFileError } from "../../store/fileErrors";
+import { exportCurrentDocument } from "../../lib/exportWorkflow";
 import { dispatchFormat } from "../../lib/formatter";
 import { t } from "../../i18n";
 
 export const EditorToolbar: Component = () => {
-  const doc = () => currentDocument();
-
-  const handleExport = async () => {
-    const current = doc();
-    const result = await exportDocumentWorkflow(current);
-    if (result.success && result.outputPath) {
-      alert(`Exported document successfully to:\n${result.outputPath}`);
-    } else if (result.error) {
-      reportFileError({
-        type: "export",
-        message: `Failed to export document: ${result.error}`,
-        path: current.filename,
-      });
-    }
-  };
-
   return (
     <div
       class="h-8 flex items-center px-3 gap-0.5 border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-xs select-none no-select flex-shrink-0"
@@ -192,7 +174,7 @@ export const EditorToolbar: Component = () => {
       {/* Export Button */}
       <button
         class="px-2 py-0.5 rounded hover:bg-[var(--color-hover)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors flex items-center gap-1.5 font-medium text-[11px]"
-        onClick={handleExport}
+        onClick={exportCurrentDocument}
         title={t("file.exportHtml")}
       >
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

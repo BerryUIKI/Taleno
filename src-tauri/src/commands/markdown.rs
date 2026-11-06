@@ -1,4 +1,4 @@
-use crate::services::{highlighter, parser};
+use crate::services::parser;
 use crate::state::TocEntry;
 
 /// Response from rendering markdown.
@@ -79,15 +79,6 @@ pub async fn resolve_document_image(
     .map_err(|e| e.to_string())?
 }
 
-#[tauri::command]
-pub async fn highlight_code(code: String, language: String) -> Result<String, String> {
-    tokio::task::spawn_blocking(move || {
-        highlighter::highlight(&code, &language).map_err(|e| e.to_string())
-    })
-    .await
-    .map_err(|e| format!("Code highlighting task failed: {e}"))?
-}
-
 /// Export markdown to standalone HTML/PDF document.
 #[tauri::command]
 pub async fn export_document(
@@ -144,20 +135,5 @@ mod tests {
         assert_eq!(res.toc[0].text, "Title");
         assert_eq!(res.toc[1].text, "Subheading");
         assert!(res.word_count > 0);
-    }
-
-    #[tokio::test]
-    async fn test_highlight_code_async() {
-        let code = "fn hello() -> &'static str { \"world\" }";
-        let result = highlight_code(code.to_string(), "rs".to_string()).await;
-        assert!(result.is_ok());
-        let html = result.unwrap();
-        assert!(html.contains("syn-code"));
-    }
-
-    #[tokio::test]
-    async fn test_highlight_code_unsupported_error() {
-        let result = highlight_code("echo 123".to_string(), "invalid_lang_xyz".to_string()).await;
-        assert!(result.is_err());
     }
 }

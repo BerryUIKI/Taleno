@@ -10,21 +10,12 @@ export interface TabBarProps {
 }
 
 export const TabBar: Component<TabBarProps> = (props) => {
-  let lastNewTabTime = 0;
   let tabElements: HTMLDivElement[] = [];
 
   const handleSelectTab = (tabId: string) => {
     if (selectTab(tabId)) {
       props.onSelectTab?.();
     }
-  };
-
-  const handleCreateNewTab = () => {
-    const now = Date.now();
-    // Guard against multiple events in rapid succession (guarantees exactly 1 tab per double click)
-    if (now - lastNewTabTime < 400) return;
-    lastNewTabTime = now;
-    props.onNewTab();
   };
 
   const handleTabKeyDown = (e: KeyboardEvent, currentIdx: number, tabId: string) => {
@@ -78,7 +69,7 @@ export const TabBar: Component<TabBarProps> = (props) => {
       onDblClick={(e) => {
         const target = e.target as HTMLElement;
         if (!target.closest("[data-tab-item]") && !target.closest("button")) {
-          handleCreateNewTab();
+          props.onNewTab();
         }
       }}
     >
@@ -136,7 +127,7 @@ export const TabBar: Component<TabBarProps> = (props) => {
         class="flex-1 h-full cursor-default select-none"
         onDblClick={(e) => {
           e.stopPropagation();
-          handleCreateNewTab();
+          props.onNewTab();
         }}
         title="Double-click to create new document"
       />
