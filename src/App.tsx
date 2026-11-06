@@ -259,13 +259,14 @@ const App: Component = () => {
     const key = `${saveAs}:${overwrite}`;
     if (activeSave?.key === key) return activeSave.promise;
 
-    // Queue a different save (for example Save As during auto-save) instead of
-    // silently returning the in-flight request.
-    const previous = activeSave?.promise ?? Promise.resolve(true);
-    const promise = previous.then(
-      () => saveCurrentFile(saveAs, overwrite),
-      () => saveCurrentFile(saveAs, overwrite)
-    );
+    // Start immediately unless another save is in flight. A different request
+    // (for example Save As during auto-save) waits instead of being swallowed.
+    const promise = activeSave
+      ? activeSave.promise.then(
+          () => saveCurrentFile(saveAs, overwrite),
+          () => saveCurrentFile(saveAs, overwrite)
+        )
+      : saveCurrentFile(saveAs, overwrite);
     const entry = { key, promise };
     activeSave = entry;
     void promise.then(
