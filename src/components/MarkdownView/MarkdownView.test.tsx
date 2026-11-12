@@ -107,7 +107,9 @@ describe("MarkdownView", () => {
     });
   });
 
-  it("renders Mermaid diagrams and handles invalid diagram syntax visibly", async () => {
+  // Mermaid is a lazy dynamic import that is slow to parse on a loaded machine;
+  // the default 5s budget flakes when the whole suite runs in parallel.
+  it("renders Mermaid diagrams and handles invalid diagram syntax visibly", { timeout: 30000 }, async () => {
     const htmlWithInvalidMermaid = `
       <div class="mermaid-diagram">
         <pre class="mermaid">invalid mermaid syntax {{{</pre>

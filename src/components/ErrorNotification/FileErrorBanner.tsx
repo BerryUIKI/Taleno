@@ -2,19 +2,25 @@ import { Component, Show } from "solid-js";
 import { fileError, clearFileError } from "../../store/fileErrors";
 
 export interface FileErrorBannerProps {
+  /** Shown only when the error itself carries no retry action. */
   onRetrySave?: () => void;
+  /** Shown only when the error itself carries no Save As action. */
   onSaveAs?: () => void;
 }
 
-export const FileErrorBanner: Component<FileErrorBannerProps> = (_props) => {
+export const FileErrorBanner: Component<FileErrorBannerProps> = (props) => {
   const err = () => fileError();
+  // The per-error actions carry the originating tab identity and must win;
+  // these props are the fallback for errors reported without one.
+  const retry = () => err()?.retry ?? (err()?.type === "save" ? props.onRetrySave : undefined);
+  const saveAs = () => err()?.saveAs ?? (err()?.type === "save" ? props.onSaveAs : undefined);
 
   return (
     <Show when={err()}>
       {(error) => (
         <div
           role="alert"
-          class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 max-w-lg w-full mx-auto px-4 py-3 rounded-lg shadow-xl border flex items-center justify-between gap-3 text-xs animate-in slide-in-from-bottom-2 duration-200"
+          class="fixed bottom-8 mobile-error-banner left-1/2 -translate-x-1/2 z-50 max-w-lg w-full mx-auto px-4 py-3 rounded-lg shadow-xl border flex items-center justify-between gap-3 text-xs animate-in slide-in-from-bottom-2 duration-200"
           style={{
             background: "var(--color-bg-primary)",
             "border-color": "#ef4444",
@@ -35,25 +41,25 @@ export const FileErrorBanner: Component<FileErrorBannerProps> = (_props) => {
 
           <div class="flex items-center gap-2 flex-shrink-0">
             <Show when={error().type === "save"}>
-              <Show when={error().retry}>
+              <Show when={retry()}>
                 <button
                   class="px-2.5 py-1 rounded bg-[var(--color-accent)] text-white hover:opacity-90 font-medium transition-colors"
                   onClick={() => {
-                    const retry = error().retry;
+                    const action = retry();
                     clearFileError();
-                    retry?.();
+                    action?.();
                   }}
                 >
                   Retry
                 </button>
               </Show>
-              <Show when={error().saveAs}>
+              <Show when={saveAs()}>
                 <button
                   class="px-2.5 py-1 rounded bg-[var(--color-hover)] hover:bg-[var(--color-border)] text-[var(--color-text-primary)] transition-colors"
                   onClick={() => {
-                    const saveAs = error().saveAs;
+                    const action = saveAs();
                     clearFileError();
-                    saveAs?.();
+                    action?.();
                   }}
                 >
                   Save As...
