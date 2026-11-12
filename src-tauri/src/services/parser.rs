@@ -725,8 +725,12 @@ mod tests {
         let md = "<img src=\"relative-test.svg\" alt=\"Local image\">";
         let result = markdown_to_html_with_path(md, Some(doc_path));
         assert!(!result.contains("src=\"relative-test.svg\""), "{result}");
-        assert!(result.contains("asset.localhost"), "{result}");
-        assert!(result.contains("alt=\"Local image\""), "{result}");
+        let expected_prefix = if cfg!(target_os = "windows") {
+            "http://asset.localhost/"
+        } else {
+            "asset://localhost/"
+        };
+        assert!(result.contains(expected_prefix), "{result}");
         // The rest of the tag survives the rewrite.
         assert!(result.contains("alt=\"Local image\""), "{result}");
     }
