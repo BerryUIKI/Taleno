@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-13
+
+### Added
+- **Mobile document providers**: Documents opened through a platform provider are read and written through the Tauri fs plugin, which resolves `content://` through Android SAF and `file://` through iOS security-scoped access. Filesystem destinations keep the atomic tempfile-and-rename path. Because a provider owns the destination, provider saves cannot rename; they verify the same baseline and then truncate, rewrite, flush and sync the descriptor. The watcher ignores provider documents, and relative image resolution is skipped because a provider document has no directory to resolve against.
+- **Mobile CI**: Pull requests compile the Android and iOS targets; separate jobs package unsigned Android APK/AAB and an iOS simulator app, and Android packages are signed when keystore secrets exist.
+
+### Fixed
+- **Linux AppImage startup**: The bundle shipped its own `libwayland-client`, which `AppRun` placed ahead of the host's graphics stack on `LD_LIBRARY_PATH`. On hosts whose Mesa EGL vendor was built against newer Wayland, `dlopen` failed on `wl_fixes_interface` and `WebKitWebProcess` aborted with `EGL_BAD_PARAMETER` before any renderer was selected. `@tauri-apps/cli` now pins a linuxdeploy whose exclusion list skips the Wayland client, with an explicit exclusion list and a bundle assertion as backstops. Changing the Linux runner image alone does not fix this; the Ubuntu 24.04 Wayland release still predates the required symbol.
+- **Relative images**: Android now receives `http://asset.localhost` URLs instead of the desktop Unix `asset://` scheme, `<img src>` inside raw HTML is resolved against the document like Markdown image syntax, and protocol-relative URLs are no longer rewritten into local asset paths.
+- **Mobile viewport**: Added the missing `viewport-fit=cover`, without which every `env(safe-area-inset-*)` resolves to `0px`. Keyboard detection now compares against a recorded height baseline instead of a ratio against `innerHeight`, which never tripped on Android where the layout viewport resizes with the keyboard. Orientation changes reset the baseline, and `100dvh` covers WebViews without `visualViewport`.
+- **Mobile Save As**: The mobile top bar declared a Save As handler but never rendered a control for it. The file error banner also sat over the bottom navigation on phones.
+- **Relative CLI arguments**: Opening a file by relative path from a second launch failed when the launching and running processes had different working directories. The AppImage runtime's recorded original working directory is restored first.
+- **Saves and tab double-click**: Saves start synchronously, and the tab double-click throttle is preserved.
+
+### Changed
+- Removed redundant defensive code and dead paths across the frontend and native command layer.
+- Added [CLAUDE.md](CLAUDE.md) for coding agents, recording verification commands, the two-tier document state model and the persistence invariants.
+- Recorded the merge-commit PR strategy in the collaboration handbook.
+
 ## [0.1.11] - 2026-11-01
 
 ### Changed
