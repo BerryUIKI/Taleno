@@ -44,6 +44,18 @@ gitGraph
 | `docs/<name>` | Documentation updates. | Merged into `dev`. |
 | `refactor/<name>`| Code cleanup or performance optimizations without feature changes. | Merged into `dev`. |
 
+### Merge Strategy
+
+Merge PRs with a **merge commit** (`gh pr merge --merge`), not squash or rebase.
+
+The project deliberately keeps the commits inside a PR. AGENTS.md requires large changes to be split into logical, independently compilable chunks, and each of those chunks carries its own rationale in its message. Squashing collapses them into one commit, so the reasoning behind an individual fix disappears from `git log` and `git blame` the moment the PR lands. Rebase is not used either: it rewrites commit identity, and a PR that has already absorbed `dev` through a merge commit cannot be rebased cleanly.
+
+Practically:
+
+- Commit granularly on the branch, and keep every commit building and passing tests.
+- Keep PR merges to `dev` and `dev` merges to `main` as merge commits; the release workflow and tag history depend on that shape.
+- Delete the head branch after merging.
+
 ---
 
 ## 🌐 Ecosystem Separation: Taleno vs Taleno-Plugins
