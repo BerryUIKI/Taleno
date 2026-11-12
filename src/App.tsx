@@ -957,7 +957,7 @@ const App: Component = () => {
       <Show when={updateModalOpen()}><Suspense fallback={null}><UpdateModal /></Suspense></Show>
 
       {/* Recoverable File Operation Error Banner */}
-      <FileErrorBanner />
+      <FileErrorBanner onRetrySave={handleSaveFile} onSaveAs={saveCurrentFileAs} />
     </div>
   );
 };

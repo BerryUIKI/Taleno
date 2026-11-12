@@ -195,6 +195,14 @@ pub fn markdown_to_html_with_path(markdown: &str, doc_path: Option<&str>) -> Str
                 };
                 heading_events.push(static_ev);
             }
+            Event::Html(html) => {
+                events.push(Event::Html(resolve_raw_html_images(&html, doc_path).into()));
+            }
+            Event::InlineHtml(html) => {
+                events.push(Event::InlineHtml(
+                    resolve_raw_html_images(&html, doc_path).into(),
+                ));
+            }
             _ if !in_code_block => {
                 events.push(event);
             }
@@ -343,6 +351,9 @@ pub fn is_remote_or_special_url(url: &str) -> bool {
     let u = url.trim();
     u.starts_with("http://")
         || u.starts_with("https://")
+        // Protocol-relative URLs inherit the page scheme; joining them against the
+        // document directory would invent a local path that does not exist.
+        || u.starts_with("//")
         || u.starts_with("ftp://")
         || u.starts_with("data:")
         || u.starts_with("blob:")
@@ -375,6 +386,74 @@ pub fn resolve_image_url(url: &str, doc_path: Option<&str>) -> String {
     to_asset_url(&normalized)
 }
 
+/// Rewrite `src` attributes of `<img>` tags inside raw HTML through the same
+/// document-relative resolution as Markdown image syntax. Raw HTML is otherwise
+/// passed through untouched, which left `<img src="relative.png">` broken.
+fn resolve_raw_html_images(html: &str, doc_path: Option<&str>) -> String {
+    if doc_path.is_none() || !html.contains("<img") {
+        return html.to_string();
+    }
+    let mut out = String::with_capacity(html.len());
+    let mut rest = html;
+    while let Some(start) = rest.to_ascii_lowercase().find("<img") {
+        out.push_str(&rest[..start]);
+        let tag = &rest[start..];
+        let Some(end) = tag.find('>') else {
+            out.push_str(tag);
+            return out;
+        };
+        out.push_str(&rewrite_img_src(&tag[..=end], doc_path));
+        rest = &tag[end + 1..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Replace the first `src` value in a single `<img ...>` tag, preserving quoting.
+fn rewrite_img_src(tag: &str, doc_path: Option<&str>) -> String {
+    let lower = tag.to_ascii_lowercase();
+    let Some(src_at) = lower.find("src") else {
+        return tag.to_string();
+    };
+    let after = &tag[src_at + 3..];
+    let Some(eq_offset) = after.find('=') else {
+        return tag.to_string();
+    };
+    let value_start = src_at + 3 + eq_offset + 1;
+    let after_eq = &tag[value_start..];
+    let trimmed = after_eq.trim_start();
+    let quote = trimmed.chars().next();
+    let (offset, quote_len) = match quote {
+        Some('"' | '\'') => (after_eq.len() - trimmed.len() + 1, 1),
+        _ => (after_eq.len() - trimmed.len(), 0),
+    };
+    let value_at = value_start + offset;
+    let value = if quote_len == 1 {
+        let q = quote.unwrap();
+        let remaining = &tag[value_at..];
+        match remaining.find(q) {
+            Some(end) => &remaining[..end],
+            None => return tag.to_string(),
+        }
+    } else {
+        let remaining = &tag[value_at..];
+        let end = remaining
+            .find(|c: char| c.is_whitespace() || c == '>')
+            .unwrap_or(remaining.len());
+        &remaining[..end]
+    };
+
+    let resolved = resolve_image_url(value, doc_path);
+    if resolved == value {
+        return tag.to_string();
+    }
+    let mut out = String::with_capacity(tag.len() + resolved.len());
+    out.push_str(&tag[..value_at]);
+    out.push_str(&resolved);
+    out.push_str(&tag[value_at + value.len()..]);
+    out
+}
+
 /// Normalize Path components resolving `.` and `..` without requiring the file to exist on disk.
 pub fn normalize_path(path: &Path) -> PathBuf {
     let mut normalized = PathBuf::new();
@@ -392,15 +471,21 @@ pub fn normalize_path(path: &Path) -> PathBuf {
 
 /// Convert an absolute path to a WebView-safe asset protocol URL for the current OS.
 pub fn to_asset_url(path: &Path) -> String {
-    to_asset_url_for_os(path, cfg!(target_os = "windows"))
+    to_asset_url_for_os(
+        path,
+        cfg!(target_os = "windows") || cfg!(target_os = "android"),
+    )
 }
 
 /// Convert an absolute path to an asset protocol URL for a specific OS target.
-pub fn to_asset_url_for_os(path: &Path, is_windows: bool) -> String {
+///
+/// Android joins Windows in serving the asset protocol over `http://asset.localhost`;
+/// only desktop Unix-family targets use the `asset://` scheme.
+pub fn to_asset_url_for_os(path: &Path, use_http_scheme: bool) -> String {
     let path_str = path.to_string_lossy();
     let encoded_path =
         percent_encoding::utf8_percent_encode(&path_str, percent_encoding::NON_ALPHANUMERIC);
-    if is_windows {
+    if use_http_scheme {
         format!("http://asset.localhost/{encoded_path}")
     } else {
         format!("asset://localhost/{encoded_path}")
@@ -619,6 +704,70 @@ mod tests {
         let normalized = normalize_path(path);
         let normalized_str = normalized.to_string_lossy().replace('\\', "/");
         assert_eq!(normalized_str, "/workspace/project/shared/logo.png");
+    }
+
+    #[test]
+    fn test_android_uses_http_asset_scheme() {
+        // Tauri serves the asset protocol over http://asset.localhost on Android,
+        // so a bare `asset://` URL would never resolve there.
+        let path = Path::new("/data/user/0/com.berryuiki.taleno/notes/pic.png");
+        let url = to_asset_url_for_os(path, true);
+        assert!(url.starts_with("http://asset.localhost/"), "{url}");
+    }
+
+    #[test]
+    fn test_raw_html_img_is_resolved_against_document_path() {
+        let doc_path = if cfg!(target_os = "windows") {
+            "D:\\workspace\\project\\doc.md"
+        } else {
+            "/workspace/project/doc.md"
+        };
+        let md = "<img src=\"relative-test.svg\" alt=\"Local image\">";
+        let result = markdown_to_html_with_path(md, Some(doc_path));
+        assert!(!result.contains("src=\"relative-test.svg\""), "{result}");
+        let expected_prefix = if cfg!(target_os = "windows") {
+            "http://asset.localhost/"
+        } else {
+            "asset://localhost/"
+        };
+        assert!(result.contains(expected_prefix), "{result}");
+        // The rest of the tag survives the rewrite.
+        assert!(result.contains("alt=\"Local image\""), "{result}");
+    }
+
+    #[test]
+    fn test_raw_html_img_preserves_single_quotes_and_remote_sources() {
+        let doc_path = "/workspace/project/doc.md";
+        let md = "<img src='local.png'><img src=\"https://cdn.example.com/a.png\">";
+        let result = markdown_to_html_with_path(md, Some(doc_path));
+        assert!(result.contains("https://cdn.example.com/a.png"), "{result}");
+        assert!(!result.contains("src='local.png'"), "{result}");
+    }
+
+    #[test]
+    fn test_protocol_relative_and_remote_urls_are_not_localized() {
+        for url in [
+            "//cdn.example.com/a.png",
+            "https://x.test/b.png",
+            "data:image/png;base64,AA",
+        ] {
+            assert!(
+                is_remote_or_special_url(url),
+                "{url} should not be treated as local"
+            );
+        }
+        let html = markdown_to_html_with_path(
+            "![x](//cdn.example.com/a.png)",
+            Some("/workspace/project/doc.md"),
+        );
+        assert!(html.contains("//cdn.example.com/a.png"), "{html}");
+    }
+
+    #[test]
+    fn test_raw_html_without_doc_path_is_untouched() {
+        let md = "<img src=\"relative-test.svg\">";
+        assert_eq!(markdown_to_html(md), markdown_to_html(md));
+        assert!(markdown_to_html(md).contains("src=\"relative-test.svg\""));
     }
 
     #[test]

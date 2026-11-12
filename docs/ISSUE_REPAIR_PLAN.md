@@ -571,3 +571,21 @@ pnpm build
 - 未执行完整原生 GUI 验收、macOS/Linux/Android/iOS 设备验证、断电实验、真实更新安装或签名打包；未发布新版本。
 - 根据用户最新安排，改动按小 PR / conventional atomic commits 交付；AGY 承接剩余批次时保留这些修复，并先读取最新 PR 状态。
 
+## 8. 2026-11-13 复核（剩余 5 个开放 Issue）
+
+基线 `dev 926fbf9`，Node 24.22.2。分支 `feature/remaining-issues`。本轮只做能在无真机条件下完成并有自动回归的部分。
+
+| Issue | 本轮结论 |
+| --- | --- |
+| [#160](https://github.com/BerryUIKI/Taleno/issues/160) | Linux AppImage 崩溃根因在打包层的旧 linuxdeploy。`@tauri-apps/cli` 由 2.11.4 升到 2.12.4，该版本固定使用 2026-09-20 的 linuxdeploy，其内置 excludelist 已含 `libwayland-client.so.0`。同时在 release workflow 增加 `LINUXDEPLOY_EXCLUDED_LIBRARIES`，并新增 `--appimage-extract` 断言，防止 bundle 再次带入宿主图形栈。仅更换 Ubuntu runner 版本不能修复：24.04 的 Wayland 仍低于 1.24.0。 |
+| [#84](https://github.com/BerryUIKI/Taleno/issues/84) | 桌面阅读/写入/Save As 的已知缺陷此前已修复且顺序正确（授权先于 HTML 插入）。本轮修复三处剩余缺口：Android 使用 `http://asset.localhost`（原来只对 Windows 分支，Android 每张本地图都会失败）；原生 HTML `<img src>` 未解析（只处理了 `Tag::Image`）；协议相对 URL `//host/path` 被误当成本地相对路径。 |
+| [#96](https://github.com/BerryUIKI/Taleno/issues/96) | Save 与 Save As 已可触摸访问。本轮补上 `MobileTopBar` 中声明却从未渲染的 `onSaveFileAs`；`FileErrorBanner` 不再丢弃 `onRetrySave`/`onSaveAs`；移动端错误横幅不再压在底部导航上。 |
+| [#102](https://github.com/BerryUIKI/Taleno/issues/102) | 补上缺失的 `viewport-fit=cover`，此前 `env(safe-area-inset-*)` 在所有平台恒为 0。键盘检测改为相对历史高度基线，原先 `vv.height < innerHeight * 0.75` 在 Android 的 `adjustResize` 下永不成立；补 `orientationchange` 重置、捕获 `visualViewport` 引用后清理、`100dvh` 回退。 |
+| [#127](https://github.com/BerryUIKI/Taleno/issues/127) | 保持开放。#84/#96/#102 的真机部分仍然需要设备记录，本轮不声称已验证。 |
+
+验证：Rust 59 项通过（新增 5 项解析器用例）；前端 41 文件 / 206 项通过（新增 3 项移动端用例）；Playwright 12 项通过；`pnpm lint`、`pnpm build`、`cargo fmt --check`、`cargo clippy --all-targets -D warnings` 通过。
+
+顺带修正：`MarkdownView` 的 Mermaid 用例是全量并发下唯一会超时的用例，单独运行约 2.3 秒。该用例依赖一次较慢的动态 import，已把超时放宽到 30 秒，不改变断言语义。
+
+仍未验收：AppImage 修复需要一次真实 tag 构建与 Arch 宿主机启动；Android/iOS 的 SAF、security-scoped bookmark、真机键盘与 cutout 几何仍无设备证据。
+

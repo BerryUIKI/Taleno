@@ -460,6 +460,13 @@ body,
   padding-right: max(env(safe-area-inset-right, 0px), 0px);
 }
 
+/* Keep the error banner clear of the mobile bottom nav (h-14) and its inset. */
+@media (max-width: 767px) {
+  .mobile-error-banner {
+    bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px) + 0.5rem);
+  }
+}
+
 .touch-target {
   min-height: 44px;
   min-width: 44px;

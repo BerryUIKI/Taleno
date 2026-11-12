@@ -16,36 +16,65 @@ interface MobileShellProps {
   onCloseTab?: (id: string) => void;
 }
 
+/**
+ * The keyboard is open when the visual viewport has lost a meaningful amount of
+ * height compared with the tallest height seen while nothing was focused.
+ *
+ * A ratio against `window.innerHeight` cannot work: Android's layout viewport
+ * resizes with the keyboard, so both values shrink together and the comparison
+ * never trips. Comparing against a recorded baseline works in both models,
+ * because the visual viewport always shrinks and never grows past its baseline.
+ */
+const KEYBOARD_MIN_INSET = 80;
+let baselineViewportHeight = 0;
+
+function keyboardVisible(visualHeight: number): boolean {
+  if (visualHeight > baselineViewportHeight) {
+    baselineViewportHeight = visualHeight;
+  }
+  return baselineViewportHeight - visualHeight > KEYBOARD_MIN_INSET;
+}
+
+/** Rotation changes the available height, so the previous maximum no longer applies. */
+export function resetViewportBaseline() {
+  baselineViewportHeight = 0;
+}
+
 export const MobileShell: Component<MobileShellProps> = (props) => {
   const [activeSheet, setActiveSheet] = createSignal<MobileSheetView>(null);
   const [isKeyboardVisible, setIsKeyboardVisible] = createSignal(false);
   const [viewportHeight, setViewportHeight] = createSignal<number | null>(null);
   const [viewportOffsetTop, setViewportOffsetTop] = createSignal<number>(0);
+  let vv: VisualViewport | null = null;
 
   // Track virtual keyboard visibility and geometry via visualViewport API
   const updateViewportGeometry = () => {
-    if (window.visualViewport) {
-      const vv = window.visualViewport;
-      const isKeyboard = vv.height < window.innerHeight * 0.75;
-      setIsKeyboardVisible(isKeyboard);
-      setViewportHeight(vv.height);
-      setViewportOffsetTop(vv.offsetTop || 0);
-    }
+    if (!vv) return;
+    setIsKeyboardVisible(keyboardVisible(vv.height));
+    setViewportHeight(vv.height);
+    setViewportOffsetTop(vv.offsetTop || 0);
   };
 
   onMount(() => {
-    if (window.visualViewport) {
+    vv = window.visualViewport ?? null;
+    if (vv) {
       updateViewportGeometry();
-      window.visualViewport.addEventListener("resize", updateViewportGeometry);
-      window.visualViewport.addEventListener("scroll", updateViewportGeometry);
+      vv.addEventListener("resize", updateViewportGeometry);
+      vv.addEventListener("scroll", updateViewportGeometry);
     }
+    window.addEventListener("orientationchange", handleOrientationChange);
   });
 
+  const handleOrientationChange = () => {
+    resetViewportBaseline();
+    updateViewportGeometry();
+  };
+
   onCleanup(() => {
-    if (window.visualViewport) {
-      window.visualViewport.removeEventListener("resize", updateViewportGeometry);
-      window.visualViewport.removeEventListener("scroll", updateViewportGeometry);
-    }
+    vv?.removeEventListener("resize", updateViewportGeometry);
+    vv?.removeEventListener("scroll", updateViewportGeometry);
+    window.removeEventListener("orientationchange", handleOrientationChange);
+    vv = null;
   });
 
   const handleToggleSheet = (view: MobileSheetView) => {
@@ -61,7 +90,7 @@ export const MobileShell: Component<MobileShellProps> = (props) => {
     <div
       class="w-screen flex flex-col overflow-hidden relative"
       style={{
-        height: viewportHeight() !== null ? `${viewportHeight()}px` : "100vh",
+        height: viewportHeight() !== null ? `${viewportHeight()}px` : "100dvh",
         transform: viewportOffsetTop() > 0 ? `translateY(${viewportOffsetTop()}px)` : undefined,
         background: "var(--color-bg-primary)",
         color: "var(--color-text-primary)",

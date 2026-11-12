@@ -101,6 +101,32 @@ describe("MobileTopBar", () => {
     expect(onSaveFile).toHaveBeenCalledOnce();
   });
 
+  it("renders a touch-accessible Save As button and invokes onSaveFileAs", () => {
+    setLocale("en-US");
+    container = document.createElement("div");
+    document.body.append(container);
+    const onSaveFileAs = vi.fn();
+
+    dispose = render(
+      () => (
+        <MobileTopBar
+          onOpenFiles={vi.fn()}
+          onOpenOutline={vi.fn()}
+          onOpenSettings={vi.fn()}
+          onNewDocument={vi.fn()}
+          onSaveFile={vi.fn()}
+          onSaveFileAs={onSaveFileAs}
+        />
+      ),
+      container
+    );
+
+    const saveAsBtn = container.querySelector('button[aria-label="Save As..."]');
+    expect(saveAsBtn).not.toBeNull();
+    (saveAsBtn as HTMLButtonElement).click();
+    expect(onSaveFileAs).toHaveBeenCalledOnce();
+  });
+
   it("renders desktop window controls on narrow desktop layout and invokes onCloseWindow", () => {
     setLocale("en-US");
     container = document.createElement("div");
