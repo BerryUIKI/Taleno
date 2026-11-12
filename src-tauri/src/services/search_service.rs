@@ -88,14 +88,9 @@ pub async fn search_workspace_with_options(
         return Ok(WorkspaceSearchResult::default());
     }
 
-    let root = Path::new(root_path);
-    if !root.exists() {
-        return Ok(WorkspaceSearchResult::default());
-    }
-
-    let canonical_root = match fs::canonicalize(root).await {
-        Ok(p) => p,
-        Err(err) => return Err(format!("Failed to canonicalize workspace root: {err}")),
+    let canonical_root = match fs::canonicalize(root_path).await {
+        Ok(path) => path,
+        Err(_) => return Ok(WorkspaceSearchResult::default()),
     };
 
     let mut visited_dirs = HashSet::new();
@@ -116,9 +111,16 @@ pub async fn search_workspace_with_options(
         &options,
         &mut truncated,
     )
-    .await?;
+    .await;
 
     Ok(WorkspaceSearchResult { matches, truncated })
+}
+
+fn cancelled(options: &SearchOptions) -> bool {
+    options
+        .cancellation_token
+        .as_ref()
+        .is_some_and(|token| token.load(Ordering::Relaxed))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -132,29 +134,18 @@ async fn search_dir_recursive(
     depth: usize,
     options: &SearchOptions,
     truncated: &mut bool,
-) -> Result<(), String> {
-    // 1. Check global match cap & cancellation
-    if matches.len() >= options.max_matches {
-        *truncated = true;
-        return Ok(());
-    }
-    if let Some(ref token) = options.cancellation_token {
-        if token.load(Ordering::Relaxed) {
-            return Ok(());
-        }
-    }
-    // 2. Check max depth bound
+) {
     if depth >= options.max_depth {
-        return Ok(());
+        return;
     }
 
-    // 3. Gracefully open directory (ignore unreadable / permission denied)
+    // Unreadable directories (e.g. permission denied) are skipped, not fatal.
     let mut read_dir = match fs::read_dir(dir).await {
         Ok(rd) => rd,
-        Err(_) => return Ok(()),
+        Err(_) => return,
     };
 
-    // Collect and sort entries for deterministic traversal order
+    // Collect and sort entries for deterministic traversal order.
     let mut entries = Vec::new();
     while let Ok(Some(entry)) = read_dir.next_entry().await {
         entries.push(entry);
@@ -162,21 +153,16 @@ async fn search_dir_recursive(
     entries.sort_by_key(|e| e.file_name());
 
     for entry in entries {
-        // Stop scanning immediately when cap is reached or cancelled
         if matches.len() >= options.max_matches {
             *truncated = true;
-            return Ok(());
+            return;
         }
-        if let Some(ref token) = options.cancellation_token {
-            if token.load(Ordering::Relaxed) {
-                return Ok(());
-            }
+        if cancelled(options) {
+            return;
         }
 
         let entry_path = entry.path();
         let name = entry.file_name().to_string_lossy().to_string();
-
-        // Skip ignored directories & files
         if name.starts_with('.')
             || name == "node_modules"
             || name == "target"
@@ -192,6 +178,7 @@ async fn search_dir_recursive(
         };
 
         if file_type.is_dir() || file_type.is_symlink() {
+            // Follow links only to decide whether the target is a file or directory.
             let meta = match fs::metadata(&entry_path).await {
                 Ok(m) => m,
                 Err(_) => continue,
@@ -202,18 +189,12 @@ async fn search_dir_recursive(
                     Ok(p) => p,
                     Err(_) => continue,
                 };
-
-                // Root containment: must stay inside the declared workspace root
                 if !canonical_target.starts_with(canonical_root) {
                     continue;
                 }
-
-                // Cycle prevention: do not re-visit previously visited directories
                 if !visited_dirs.insert(canonical_target.clone()) {
                     continue;
                 }
-
-                // Recurse into subdirectory
                 Box::pin(search_dir_recursive(
                     &canonical_target,
                     canonical_root,
@@ -225,12 +206,7 @@ async fn search_dir_recursive(
                     options,
                     truncated,
                 ))
-                .await?;
-
-                if matches.len() >= options.max_matches {
-                    *truncated = true;
-                    return Ok(());
-                }
+                .await;
             } else if meta.is_file() {
                 process_file(
                     &entry_path,
@@ -241,8 +217,9 @@ async fn search_dir_recursive(
                     matches,
                     options,
                     truncated,
+                    true,
                 )
-                .await?;
+                .await;
             }
         } else if file_type.is_file() {
             process_file(
@@ -254,12 +231,11 @@ async fn search_dir_recursive(
                 matches,
                 options,
                 truncated,
+                false,
             )
-            .await?;
+            .await;
         }
     }
-
-    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -272,35 +248,29 @@ async fn process_file(
     matches: &mut Vec<SearchMatch>,
     options: &SearchOptions,
     truncated: &mut bool,
-) -> Result<(), String> {
-    if matches.len() >= options.max_matches {
-        *truncated = true;
-        return Ok(());
-    }
-
-    // Only search Markdown and plain text files
+    symlink: bool,
+) {
+    // Only search Markdown and plain text files.
     if !(name.ends_with(".md") || name.ends_with(".markdown") || name.ends_with(".txt")) {
-        return Ok(());
+        return;
     }
 
-    // Symlink containment check for file symlinks:
-    // Ensure the resolved canonical path is within canonical_root
-    if let Ok(canonical_file) = fs::canonicalize(path).await {
+    // Regular entries already sit under a canonical directory; only links can escape.
+    if symlink {
+        let Ok(canonical_file) = fs::canonicalize(path).await else {
+            return;
+        };
         if !canonical_file.starts_with(canonical_root) {
-            return Ok(());
+            return;
         }
-    } else {
-        return Ok(());
     }
 
-    // Size limit check
     if let Ok(meta) = fs::metadata(path).await {
         if meta.len() > MAX_SEARCH_FILE_SIZE {
-            return Ok(());
+            return;
         }
     }
 
-    // Read content and search line by line
     if let Ok(content) = fs::read_to_string(path).await {
         let display_path = normalize_path(path);
         for (idx, line) in content.lines().enumerate() {
@@ -316,13 +286,11 @@ async fn process_file(
                 });
                 if matches.len() >= options.max_matches {
                     *truncated = true;
-                    return Ok(());
+                    return;
                 }
             }
         }
     }
-
-    Ok(())
 }
 
 #[cfg(test)]

@@ -1,0 +1,73 @@
+name: iOS Package
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*-ios"]
+  pull_request:
+    # Packaging is heavy, so it only runs for changes to this workflow itself.
+    paths: [".github/workflows/mobile-ios-package.yml"]
+
+concurrency:
+  group: ios-package-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: iOS simulator package
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+          key: ios-aarch64
+
+      - name: Initialize iOS project
+        run: pnpm tauri ios init
+
+      # Simulator builds need no Apple certificate or provisioning profile.
+      # Device archives, IPAs and TestFlight need credentials this repository
+      # does not hold; that path is not implemented yet.
+      - name: Build simulator app
+        run: pnpm tauri ios build --ci --debug --target aarch64-sim
+
+      - name: Locate artifacts
+        run: |
+          find src-tauri/gen/apple/build \( -name '*.ipa' -o -name '*.app' \) -print
+          count="$(find src-tauri/gen/apple/build \( -name '*.ipa' -o -name '*.app' \) | wc -l | tr -d ' ')"
+          if [ "$count" -eq 0 ]; then
+            echo "No iOS artifacts were produced." >&2
+            exit 1
+          fi
+
+      - name: Upload iOS artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: taleno-ios-simulator
+          path: |
+            src-tauri/gen/apple/build/**/*.ipa
+            src-tauri/gen/apple/build/**/*.app
+          if-no-files-found: error
+          retention-days: 14

@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   currentDocument,
-  setCurrentDocument,
   displayMode,
   setDisplayMode,
   cycleDisplayMode,
@@ -13,7 +12,6 @@ import {
   clearExternallyModified,
   setLiveOutlineParser,
   processLiveOutline,
-  cancelPendingLiveOutline,
 } from "./editor";
 
 describe("Editor Store", () => {
@@ -127,7 +125,7 @@ describe("Editor Store", () => {
     });
 
     let callCount = 0;
-    setLiveOutlineParser(async (md) => {
+    setLiveOutlineParser(async () => {
       callCount++;
       if (callCount === 1) {
         await firstPromise;

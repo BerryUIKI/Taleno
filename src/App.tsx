@@ -18,7 +18,7 @@ import type { SettingsTabId } from "./types/plugin";
 import { syncPlugins } from "./store/plugins";
 import { syncCustomThemes } from "./store/customThemes";
 import { reportFileError, clearFileError } from "./store/fileErrors";
-import { exportDocumentWorkflow } from "./lib/exportWorkflow";
+import { exportCurrentDocument } from "./lib/exportWorkflow";
 import { openWorkspaceFolderWorkflow } from "./lib/workspaceWorkflow";
 import { updateModalOpen, scheduleAutomaticUpdateCheck } from "./lib/updater";
 import { isMobile } from "./lib/platform";
@@ -44,11 +44,9 @@ const SearchModal = lazyWithRetry(() =>
 
 import {
   currentDocument,
-  setCurrentDocument,
   updateDocumentContent,
   updateDocumentRendering,
   displayMode,
-  setDisplayMode,
   cycleDisplayMode,
   flushPendingEdits,
   documentFromResponse,
@@ -61,10 +59,10 @@ import {
   activeTabId,
   setQuickSwitcherOpen,
   syncCurrentDocumentToTab,
-  setWorkspaceTree,
   applySaveResult,
   replaceTabFromDisk,
   markPathExternallyModified,
+  hasActiveDocument,
 } from "./store/files";
 import {
   zenMode,
@@ -74,15 +72,12 @@ import {
   increaseFontSize,
   decreaseFontSize,
   resetFontSize,
-  fontSize,
 } from "./store/settings";
 import {
   openFile,
   saveFile,
   startWatchingFile,
   stopWatchingFile,
-  exportDocument,
-  listDirectoryTree,
   getCliArgs,
   closeWindow,
   readFileBaseline,
@@ -93,19 +88,18 @@ import { dispatchFormat, type FormatAction } from "./lib/formatter";
 
 const App: Component = () => {
   const [sidebarOpen, setSidebarOpen] = createSignal(
-    typeof window !== "undefined" ? window.innerWidth >= 768 && !isMobile : true
+    window.innerWidth >= 768 && !isMobile
   );
   const [sidebarWidth, setSidebarWidth] = createSignal(240);
   const [isResizing, setIsResizing] = createSignal(false);
   const [isMobileViewport, setIsMobileViewport] = createSignal(
-    typeof window !== "undefined" ? window.innerWidth < 768 || isMobile : false
+    window.innerWidth < 768 || isMobile
   );
   const [findReplaceOpen, setFindReplaceOpen] = createSignal(false);
   const [searchModalOpen, setSearchModalOpen] = createSignal(false);
   const [settingsOpen, setSettingsOpen] = createSignal(false);
   const [settingsTab, setSettingsTab] = createSignal<SettingsTabId>("theme");
   const [homeVisible, setHomeVisible] = createSignal(false);
-  const [fileError, setFileError] = createSignal("");
   const [dragHoverTarget, setDragHoverTarget] = createSignal<
     "window" | "tabbar" | "editor" | null
   >(null);
@@ -163,7 +157,6 @@ const App: Component = () => {
       addOrSwitchTab(documentFromResponse(result));
       setHomeVisible(false);
       clearFileError();
-      await startWatchingFile(path);
 
       if (lineNumber !== undefined && lineNumber > 0) {
         setTimeout(() => {
@@ -181,7 +174,6 @@ const App: Component = () => {
           revealMatchAt(start, end, lineNumber);
         }, 50);
       }
-      setFileError("");
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       reportFileError({
@@ -191,7 +183,6 @@ const App: Component = () => {
         canRetry: false,
       });
       console.error("Failed to open file:", err);
-      setFileError(String(err));
     }
   };
 
@@ -206,14 +197,18 @@ const App: Component = () => {
     const instance = openTabs().find((tab) => tab.id === id)?.instance;
     let doc = currentDocument();
     if (doc.externallyModified && !saveAs && !overwrite) {
-      setFileError("The file changed on disk. Reload, Save As, or explicitly overwrite the disk version.");
+      reportFileError({
+        type: "save",
+        message: "The file changed on disk. Reload, Save As, or explicitly overwrite the disk version.",
+        path: doc.path ?? doc.filename,
+        saveAs: () => { void requestSave(true); },
+      });
       return false;
     }
     try {
       if (doc.path && !saveAs) {
         const baseline = overwrite ? await readFileBaseline(doc.path) : doc.savedContent ?? doc.content;
         const result = await saveFile(doc.path, doc.content, baseline);
-        setFileError("");
         clearFileError();
         return applySaveResult(id, result, instance);
       } else {
@@ -233,7 +228,6 @@ const App: Component = () => {
           if (!tab || tab.instance !== instance) return false;
           doc = tab.document;
           const result = await saveFile(selected, doc.content, baseline);
-          setFileError("");
           clearFileError();
           return applySaveResult(id, result, instance);
         }
@@ -257,15 +251,29 @@ const App: Component = () => {
       });
       console.error("Failed to save file:", err);
       if (String(err).includes("SAVE_CONFLICT") && doc.path) markPathExternallyModified(doc.path);
-      setFileError(String(err));
       return false;
     }
   };
-  let activeSave: Promise<boolean> | null = null;
-  const requestSave = (saveAs = false, overwrite = false) => {
-    if (activeSave) return activeSave;
-    activeSave = saveCurrentFile(saveAs, overwrite).finally(() => { activeSave = null; });
-    return activeSave;
+  let activeSave: { key: string; promise: Promise<boolean> } | null = null;
+  const requestSave = (saveAs = false, overwrite = false): Promise<boolean> => {
+    const key = `${saveAs}:${overwrite}`;
+    if (activeSave?.key === key) return activeSave.promise;
+
+    // Start immediately unless another save is in flight. A different request
+    // (for example Save As during auto-save) waits instead of being swallowed.
+    const promise = activeSave
+      ? activeSave.promise.then(
+          () => saveCurrentFile(saveAs, overwrite),
+          () => saveCurrentFile(saveAs, overwrite)
+        )
+      : saveCurrentFile(saveAs, overwrite);
+    const entry = { key, promise };
+    activeSave = entry;
+    void promise.then(
+      () => { if (activeSave === entry) activeSave = null; },
+      () => { if (activeSave === entry) activeSave = null; }
+    );
+    return promise;
   };
   const handleSaveFile = () => requestSave();
 
@@ -359,22 +367,6 @@ const App: Component = () => {
     void checkNextWindowClose();
   };
 
-  // Handle exporting the current document to standalone HTML
-  const handleExport = async () => {
-    flushPendingEdits();
-    const doc = currentDocument();
-    const result = await exportDocumentWorkflow(doc);
-    if (result.success && result.outputPath) {
-      alert(`Exported document successfully to:\n${result.outputPath}`);
-    } else if (result.error) {
-      reportFileError({
-        type: "export",
-        message: `Failed to export document: ${result.error}`,
-        path: doc.filename,
-      });
-    }
-  };
-
   // Handle creating a new document tab
   const handleNewDocument = () => {
     const newDoc = {
@@ -407,9 +399,22 @@ const App: Component = () => {
         const target = openTabs().find((tab) => tab.id === id);
         if (target && target.instance === instance && target.document.content === doc.content) {
           replaceTabFromDisk(id, result, instance);
-          setFileError("");
-        } else setFileError("The document changed while reloading. Retry Reload to review the latest edits.");
-      } catch (err) { setFileError(String(err)); }
+          clearFileError();
+        } else {
+          reportFileError({
+            type: "open",
+            message: "The document changed while reloading. Retry Reload to review the latest edits.",
+            path: doc.path ?? doc.filename,
+          });
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        reportFileError({
+          type: "open",
+          message: `Failed to reload ${doc.filename}: ${message}`,
+          path: doc.path ?? doc.filename,
+        });
+      }
     }
   };
 
@@ -640,7 +645,7 @@ const App: Component = () => {
       handleSaveFile();
     } else if (isCmd && e.key === "e") {
       e.preventDefault();
-      handleExport();
+      void exportCurrentDocument();
     } else if (isCmd && e.key === "n") {
       e.preventDefault();
       handleNewDocument();
@@ -653,9 +658,6 @@ const App: Component = () => {
     } else if (isCmd && (e.key === "f" || e.key === "h")) {
       e.preventDefault();
       setFindReplaceOpen((prev) => !prev);
-    } else if (isCmd && e.shiftKey && (e.key === "X" || e.key === "x")) {
-      e.preventDefault();
-      handleOpenSettings("plugins");
     } else if (isCmd && e.key === ",") {
       e.preventDefault();
       handleOpenSettings("theme");
@@ -690,15 +692,15 @@ const App: Component = () => {
   createEffect(() => {
     const paths = new Set<string>(JSON.parse(watchedPaths()));
     for (const path of paths) if (!previousPaths.has(path)) {
-      void startWatchingFile(path).catch((err) => setFileError(String(err)));
+      void startWatchingFile(path).catch((err) => console.warn(`Failed to watch ${path}:`, err));
     }
     for (const path of previousPaths) if (!paths.has(path)) {
-      void stopWatchingFile(path).catch((err) => setFileError(String(err)));
+      void stopWatchingFile(path).catch((err) => console.warn(`Failed to stop watching ${path}:`, err));
     }
     previousPaths = paths;
   });
   const hasDocument = () =>
-    doc().path !== null || doc().content.length > 0 || openTabs().length > 0;
+    hasActiveDocument() || openTabs().length > 0;
 
   // Shared Viewport Content (WelcomeHub or Tri-State Reading/Writing/Code View)
   const renderViewport = () => (
@@ -752,17 +754,14 @@ const App: Component = () => {
       class={`flex flex-col h-screen relative ${zenMode() ? "zen-mode" : ""} ${focusMode() ? "focus-mode" : ""}`}
       style={{ background: "var(--color-bg-primary)", color: "var(--color-text-primary)" }}
     >
-      <Show when={fileError() || doc().externallyModified}>
+      <Show when={doc().externallyModified}>
         <div role="alert" class="p-2 flex flex-wrap gap-2 text-sm bg-[var(--color-bg-secondary)]">
-          <span>{fileError() || "This file changed on disk. Auto-save is paused."}</span>
-          <button onClick={() => void handleSaveFile()}>Retry Save</button>
+          <span>This file changed on disk. Auto-save is paused.</span>
           <button onClick={() => void reloadCurrentFile()}>Reload</button>
           <button onClick={() => void requestSave(true)}>Save As…</button>
-          <Show when={doc().externallyModified}>
-            <button onClick={() => {
-              if (confirm("Overwrite the disk version with this document?")) void requestSave(false, true);
-            }}>Overwrite disk version…</button>
-          </Show>
+          <button onClick={() => {
+            if (confirm("Overwrite the disk version with this document?")) void requestSave(false, true);
+          }}>Overwrite disk version…</button>
         </div>
       </Show>
       {/* Floating Exit Button for Zen Mode */}
@@ -805,7 +804,7 @@ const App: Component = () => {
             onOpenFolder={handleOpenFolder}
             onSaveFile={handleSaveFile}
             onSaveFileAs={handleSaveFileAs}
-            onExport={handleExport}
+            onExport={() => void exportCurrentDocument()}
             onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
             onOpenQuickSwitcher={() => setQuickSwitcherOpen(true)}
             onOpenSearchModal={() => setSearchModalOpen(true)}
@@ -958,10 +957,7 @@ const App: Component = () => {
       <Show when={updateModalOpen()}><Suspense fallback={null}><UpdateModal /></Suspense></Show>
 
       {/* Recoverable File Operation Error Banner */}
-      <FileErrorBanner
-        onRetrySave={handleSaveFile}
-        onSaveAs={saveCurrentFileAs}
-      />
+      <FileErrorBanner onRetrySave={handleSaveFile} onSaveAs={saveCurrentFileAs} />
     </div>
   );
 };

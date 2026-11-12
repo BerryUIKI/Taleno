@@ -1,6 +1,6 @@
 # Taleno Mobile Development Guide (iOS & Android)
 
-> Current status (2026-10-21): this is a development/design guide. Shared responsive UI exists; Android SAF and iOS security-scoped bookmark adapters and signed mobile release jobs are not implemented. Commands/examples below describe work needed and do not establish acceptance. Mobile tags fail explicitly before desktop packaging. #84, #96 and #102 await physical-device testing; the owner currently has no devices available.
+> Current status (2026-11-04): this is a development/design guide. Shared responsive UI exists. Document commands classify `content://` (Android SAF) and `file://` (iOS) picker results and read/write them through `tauri-plugin-fs`; provider saves truncate in place and are not atomic. CI compiles both mobile targets, packages a signed-or-unsigned Android release APK/AAB and an iOS simulator app. None of this has been validated on a device, Android signing has not run with a real keystore, and iOS device IPAs and TestFlight are not implemented. Commands/examples below describe work needed and do not establish acceptance. Mobile tags fail explicitly before desktop packaging. #84, #96 and #102 await physical-device testing. The owner has no devices on hand: iOS and macOS validation are being handed to an external Apple developer, while Android hardware validation remains open.
 
 
 This guide provides technical specifications, architectural constraints, setup instructions, development workflows, and debugging strategies for building and maintaining **Taleno** on mobile platforms (**iOS** and **Android**) using **Tauri 2**, **Rust**, and **SolidJS**.
@@ -162,6 +162,13 @@ pnpm tauri ios build
 open src-tauri/gen/apple/Taleno.xcodeproj
 ```
 
+The `iOS Package` workflow builds a **simulator** app
+(`pnpm tauri ios build --ci --debug --target aarch64-sim`) and uploads
+`taleno-ios-simulator`. Simulator builds need no Apple certificate. Device
+archives, IPA export and TestFlight distribution need an Apple signing
+certificate, a provisioning profile and App Store Connect credentials, which
+this repository does not hold yet; that path is not implemented.
+
 #### Android (APK & AAB):
 ```bash
 # Build universal APK for local testing / sideloading
@@ -170,6 +177,25 @@ pnpm tauri android build --apk
 # Build Google Play production Android App Bundle (AAB)
 pnpm tauri android build --aab
 ```
+
+#### CI signing secrets:
+The `Android Package` workflow signs the release APK and AAB when a keystore is
+configured. Add these repository secrets:
+
+| Secret | Value |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | The `.jks`/`.keystore` file, base64 encoded (`base64 -w0 release.keystore`) |
+| `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
+| `ANDROID_KEY_ALIAS` | Key alias |
+| `ANDROID_KEY_PASSWORD` | Key password |
+
+With no `ANDROID_KEYSTORE_BASE64` secret the workflow still builds, and uploads
+`taleno-android-unsigned`; the AAB then relies on Play Console upload signing.
+When the secret is present, the build applies signing through
+[`scripts/android-signing.init.gradle`](../scripts/android-signing.init.gradle)
+(a Gradle init script, because `tauri android init` regenerates the Android
+project on every run) and fails the job if `apksigner verify` rejects the APK.
+Signing is configured but has not been exercised with a real keystore yet.
 
 ---
 

@@ -1,7 +1,7 @@
-import { Component, createSignal, onMount, Show } from "solid-js";
+import { Component, Show } from "solid-js";
 import { open as openUrl } from "@tauri-apps/plugin-shell";
-import { getVersion } from "@tauri-apps/api/app";
 import {
+  appVersion,
   checkForUpdates,
   isCheckingUpdate,
   updateInfo,
@@ -14,12 +14,6 @@ export interface AboutModalProps {
 }
 
 export const AboutModal: Component<AboutModalProps> = (props) => {
-  const [appVersion, setAppVersion] = createSignal("");
-
-  onMount(() => {
-    void getVersion().then(setAppVersion).catch(() => setAppVersion("0.1.6"));
-  });
-
   const handleOpenLink = async (url: string) => {
     try {
       await openUrl(url);

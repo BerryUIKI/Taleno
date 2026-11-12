@@ -17,10 +17,8 @@ pub fn ensure_themes_dir(app_handle: &AppHandle) -> Result<PathBuf, String> {
         .map_err(|e| format!("Failed to resolve app data directory: {}", e))?;
 
     let themes_dir = base_dir.join("themes");
-    if !themes_dir.exists() {
-        fs::create_dir_all(&themes_dir)
-            .map_err(|e| format!("Failed to create themes directory: {}", e))?;
-    }
+    fs::create_dir_all(&themes_dir)
+        .map_err(|e| format!("Failed to create themes directory: {}", e))?;
 
     package_paths::validate_root(&themes_dir)?;
     Ok(themes_dir)
@@ -51,9 +49,6 @@ pub async fn list_installed_themes(app_handle: &AppHandle) -> Result<Vec<ThemeMa
 
 /// Synchronous scanning logic for directory inspection and testing.
 pub fn scan_themes_dir(themes_dir: &Path) -> Result<Vec<ThemeManifest>, String> {
-    if !themes_dir.exists() {
-        return Ok(Vec::new());
-    }
     package_paths::validate_root(themes_dir)?;
 
     let entries =
@@ -92,32 +87,23 @@ pub async fn read_theme_css(app_handle: &AppHandle, theme_id: &str) -> Result<St
 
 fn read_theme_css_from_dir(themes_dir: &Path, theme_id: &str) -> Result<String, String> {
     validate_theme_id(theme_id)?;
-    let theme_dir = package_paths::contained(themes_dir, theme_id)?;
-
-    if !theme_dir.exists() {
-        return Err(format!("Theme '{}' does not exist", theme_id));
-    }
+    package_paths::contained(themes_dir, theme_id)?;
 
     let manifest_path = package_paths::contained(themes_dir, &format!("{theme_id}/theme.json"))?;
-    let entry_file = if manifest_path.exists() {
-        fs::read_to_string(&manifest_path)
-            .ok()
-            .and_then(|content| serde_json::from_str::<ThemeManifest>(&content).ok())
-            .map(|m| m.entry_file)
-            .unwrap_or_else(|| "theme.css".to_string())
-    } else {
-        "theme.css".to_string()
-    };
+    let entry_file = fs::read_to_string(&manifest_path)
+        .ok()
+        .and_then(|content| serde_json::from_str::<ThemeManifest>(&content).ok())
+        .map(|m| m.entry_file)
+        .unwrap_or_else(|| "theme.css".to_string());
 
     let css_path = package_paths::contained(themes_dir, &format!("{theme_id}/{entry_file}"))?;
-    if !css_path.exists() {
-        return Err(format!(
+    fs::read_to_string(&css_path).map_err(|err| match err.kind() {
+        std::io::ErrorKind::NotFound => format!(
             "Stylesheet '{}' not found for theme '{}'",
             entry_file, theme_id
-        ));
-    }
-
-    fs::read_to_string(&css_path).map_err(|e| format!("Failed to read theme CSS file: {}", e))
+        ),
+        _ => format!("Failed to read theme CSS file: {}", err),
+    })
 }
 
 /// Open the native OS file explorer pointing to the themes directory.
@@ -168,7 +154,7 @@ pub async fn fetch_marketplace_themes(app_handle: &AppHandle) -> Result<Vec<Remo
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()
-        .unwrap_or_default();
+        .map_err(|e| e.to_string())?;
 
     let mut response_text = None;
 
@@ -229,7 +215,7 @@ pub async fn install_remote_theme(
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(15))
         .build()
-        .unwrap_or_default();
+        .map_err(|e| e.to_string())?;
 
     let manifest_res = client
         .get(&manifest_url)
@@ -300,11 +286,11 @@ pub async fn uninstall_theme(app_handle: &AppHandle, theme_id: &str) -> Result<(
     let themes_dir = ensure_themes_dir(app_handle)?;
     let target_dir = package_paths::contained(&themes_dir, theme_id)?;
 
-    if !target_dir.exists() {
-        return Ok(());
+    match fs::remove_dir_all(&target_dir) {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(format!("Failed to delete theme directory: {}", err)),
     }
-
-    fs::remove_dir_all(&target_dir).map_err(|e| format!("Failed to delete theme directory: {}", e))
 }
 
 #[cfg(test)]

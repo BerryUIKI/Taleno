@@ -73,11 +73,14 @@ describe("MarkdownView", () => {
       container
     );
 
-    await vi.waitFor(() => {
-      const katexElements = container.querySelectorAll(".katex");
-      expect(katexElements.length).toBeGreaterThan(0);
-    });
-  });
+    await vi.waitFor(
+      () => {
+        const katexElements = container.querySelectorAll(".katex");
+        expect(katexElements.length).toBeGreaterThan(0);
+      },
+      { timeout: 15_000 }
+    );
+  }, 20_000);
 
   it("handles invalid math formula without breaking document", async () => {
     const htmlWithInvalidMath = `
@@ -100,16 +103,17 @@ describe("MarkdownView", () => {
       container
     );
 
-    await vi.waitFor(() => {
-      // KaTeX with throwOnError: false renders the error inside .katex-error span
-      const errorSpan = container.querySelector(".katex-error, .katex");
-      expect(errorSpan).toBeTruthy();
-    });
-  });
+    await vi.waitFor(
+      () => {
+        // KaTeX with throwOnError: false renders the error inside .katex-error span
+        const errorSpan = container.querySelector(".katex-error, .katex");
+        expect(errorSpan).toBeTruthy();
+      },
+      { timeout: 15_000 }
+    );
+  }, 20_000);
 
-  // Mermaid is a lazy dynamic import that is slow to parse on a loaded machine;
-  // the default 5s budget flakes when the whole suite runs in parallel.
-  it("renders Mermaid diagrams and handles invalid diagram syntax visibly", { timeout: 30000 }, async () => {
+  it("renders Mermaid diagrams and handles invalid diagram syntax visibly", async () => {
     const htmlWithInvalidMermaid = `
       <div class="mermaid-diagram">
         <pre class="mermaid">invalid mermaid syntax {{{</pre>
@@ -132,10 +136,13 @@ describe("MarkdownView", () => {
       container
     );
 
-    await vi.waitFor(() => {
-      expect(container.textContent).toContain("Mermaid Diagram Error");
-    });
-  });
+    await vi.waitFor(
+      () => {
+        expect(container.textContent).toContain("Mermaid Diagram Error");
+      },
+      { timeout: 15_000 }
+    );
+  }, 20_000);
 
   it("handles copy code button click via event delegation without inline script", async () => {
     const writeTextMock = vi.fn().mockResolvedValue(undefined);

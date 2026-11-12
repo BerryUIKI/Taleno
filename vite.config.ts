@@ -47,6 +47,8 @@ export default defineConfig(async () => ({
   test: {
     environment: "jsdom",
     setupFiles: ["src/test/setup.ts"],
-    exclude: ["**/node_modules/**", "**/dist/**", "**/e2e/**", "**/test-results/**"],
+    // `.claude` holds agent worktrees, which are full checkouts of this
+    // repository; scanning them runs every test twice and against stale code.
+    exclude: ["**/node_modules/**", "**/dist/**", "**/e2e/**", "**/test-results/**", "**/.claude/**"],
   },
 }));

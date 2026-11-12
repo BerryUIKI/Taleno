@@ -1,4 +1,4 @@
-import { Component, createSignal, createMemo, createEffect, Show, onMount, onCleanup } from "solid-js";
+import { Component, createSignal, createMemo, createEffect, Show, onCleanup } from "solid-js";
 import { currentDocument, updateDocumentContent } from "../../store/editor";
 import { revealMatchAt } from "../../lib/formatter";
 
@@ -124,13 +124,8 @@ export const FindReplace: Component<FindReplaceProps> = (props) => {
     if (!useRegex()) {
       return replPattern;
     }
-    try {
-      const flags = caseSensitive() ? "" : "i";
-      const singleRe = new RegExp(findQuery(), flags);
-      return matchedText.replace(singleRe, replPattern);
-    } catch {
-      return replPattern;
-    }
+    const flags = caseSensitive() ? "" : "i";
+    return matchedText.replace(new RegExp(findQuery(), flags), replPattern);
   };
 
   const handleReplaceOne = () => {

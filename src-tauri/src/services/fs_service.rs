@@ -18,12 +18,13 @@ pub enum FsError {
 
 /// Read a file's contents as a UTF-8 string.
 pub async fn read_file(path: &str) -> Result<String, FsError> {
-    let p = Path::new(path);
-    if !p.exists() {
-        return Err(FsError::NotFound(path.to_string()));
+    match fs::read_to_string(path).await {
+        Ok(content) => Ok(content),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+            Err(FsError::NotFound(path.to_string()))
+        }
+        Err(err) => Err(err.into()),
     }
-    let content = fs::read_to_string(p).await?;
-    Ok(content)
 }
 
 /// Write content to a file using atomic write pattern:
@@ -113,10 +114,6 @@ const MAX_DIR_TREE_DEPTH: usize = 32;
 /// Enforces root containment, max depth bounds, and cycle prevention.
 pub async fn read_dir_tree(path: &str) -> Result<FileEntry, FsError> {
     let root = Path::new(path);
-    if !root.exists() {
-        return Err(FsError::NotFound(path.to_string()));
-    }
-
     let canonical_root = match fs::canonicalize(root).await {
         Ok(c) => c,
         Err(_) => return Err(FsError::NotFound(path.to_string())),
@@ -270,26 +267,27 @@ pub async fn create_child(parent: &str, name: &str, is_dir: bool) -> Result<(), 
 
 /// Delete a file or directory.
 pub async fn delete_file_entry(path: &str) -> Result<(), FsError> {
-    let p = Path::new(path);
-    if !p.exists() {
-        return Err(FsError::NotFound(path.to_string()));
-    }
-    if p.is_dir() {
-        fs::remove_dir_all(p).await?;
+    let metadata = fs::metadata(path).await.map_err(|err| match err.kind() {
+        std::io::ErrorKind::NotFound => FsError::NotFound(path.to_string()),
+        _ => FsError::IoError(err),
+    })?;
+    if metadata.is_dir() {
+        fs::remove_dir_all(path).await?;
     } else {
-        fs::remove_file(p).await?;
+        fs::remove_file(path).await?;
     }
     Ok(())
 }
 
 /// Rename a file or directory.
 pub async fn rename_file_entry(old_path: &str, new_path: &str) -> Result<(), FsError> {
-    let old_p = Path::new(old_path);
-    if !old_p.exists() {
-        return Err(FsError::NotFound(old_path.to_string()));
+    match fs::rename(old_path, new_path).await {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+            Err(FsError::NotFound(old_path.to_string()))
+        }
+        Err(err) => Err(err.into()),
     }
-    fs::rename(old_p, Path::new(new_path)).await?;
-    Ok(())
 }
 
 #[cfg(test)]

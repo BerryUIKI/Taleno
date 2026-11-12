@@ -56,7 +56,7 @@ export const MobileShell: Component<MobileShellProps> = (props) => {
   };
 
   onMount(() => {
-    vv = typeof window !== "undefined" ? window.visualViewport ?? null : null;
+    vv = window.visualViewport ?? null;
     if (vv) {
       updateViewportGeometry();
       vv.addEventListener("resize", updateViewportGeometry);

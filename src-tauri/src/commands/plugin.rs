@@ -56,5 +56,5 @@ pub async fn update_plugin(
     entry_file: Option<String>,
 ) -> Result<PluginManifest, String> {
     let entry = entry_file.unwrap_or_else(|| "main.js".to_string());
-    plugin_service::update_remote_plugin(&app_handle, &plugin_id, &raw_base_url, &entry).await
+    plugin_service::install_remote_plugin(&app_handle, &plugin_id, &raw_base_url, &entry).await
 }

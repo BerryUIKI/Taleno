@@ -7,6 +7,7 @@ import {
 import { relaunch } from "@tauri-apps/plugin-process";
 import { getVersion } from "@tauri-apps/api/app";
 import { ask } from "@tauri-apps/plugin-dialog";
+import packageJson from "../../package.json";
 import { hasUnsavedDocuments, openTabs } from "../store/files";
 import { automaticUpdateChecks } from "../store/settings";
 import { t } from "../i18n";
@@ -40,25 +41,16 @@ const [updateInfo, setUpdateInfo] = createSignal<UpdateInfo | null>(null);
 const [isCheckingUpdate, setIsCheckingUpdate] = createSignal(false);
 const [updatePhase, setUpdatePhase] = createSignal<UpdatePhase>("idle");
 const [downloadProgress, setDownloadProgress] = createSignal(0);
-const [appVersion, setAppVersion] = createSignal("0.1.11");
+const [appVersion, setAppVersion] = createSignal(packageJson.version);
 const [inPlaceCheckStatus, setInPlaceCheckStatus] = createSignal<InPlaceCheckStatus>("idle");
 
-if (typeof window !== "undefined") {
-  try {
-    const verPromise = getVersion();
-    if (verPromise && typeof verPromise.then === "function") {
-      verPromise
-        .then((ver) => {
-          if (ver) setAppVersion(ver);
-        })
-        .catch(() => {
-          // Fallback remains default
-        });
-    }
-  } catch {
-    // Ignore in non-Tauri or test contexts
-  }
-}
+void getVersion()
+  .then((version) => {
+    if (version) setAppVersion(version);
+  })
+  .catch(() => {
+    // The app version is unavailable outside the Tauri runtime.
+  });
 
 let pendingUpdate: Update | null = null;
 
@@ -95,11 +87,7 @@ function recordSuccessfulCheck(): void {
 export function isAutomaticCheckDue(now = Date.now()): boolean {
   if (!automaticUpdateChecks()) return false;
   const lastCheck = Number(localStorage.getItem(LAST_CHECK_KEY) || 0);
-  return (
-    !Number.isFinite(lastCheck) ||
-    lastCheck <= 0 ||
-    now - lastCheck >= ONE_DAY_MS
-  );
+  return lastCheck <= 0 || now - lastCheck >= ONE_DAY_MS;
 }
 
 function showManualCheckingStatus(): void {

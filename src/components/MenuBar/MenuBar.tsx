@@ -4,7 +4,6 @@ import {
   currentDocument,
   displayMode,
   setDisplayMode,
-  cycleDisplayMode,
 } from "../../store/editor";
 import {
   theme,
@@ -18,7 +17,7 @@ import {
   decreaseFontSize,
   resetFontSize,
 } from "../../store/settings";
-import { recentFiles, openTabs, closeTab, activeTabId } from "../../store/files";
+import { recentFiles, openTabs, closeTab, activeTabId, hasActiveDocument } from "../../store/files";
 import { dispatchFormat } from "../../lib/formatter";
 import { checkForUpdates } from "../../lib/updater";
 import { isMacOS } from "../../lib/platform";
@@ -29,7 +28,7 @@ import {
   isWindowMaximized,
   startDrag,
 } from "../../lib/tauri/commands";
-import { t, SUPPORTED_LOCALES, localeSetting, setLocale, currentLocale } from "../../i18n";
+import { t, localeSetting, currentLocale } from "../../i18n";
 import { AboutModal } from "./AboutModal";
 import { LanguageModal } from "./LanguageModal";
 
@@ -77,8 +76,7 @@ export const MenuBar: Component<MenuBarProps> = (props) => {
   };
 
   const doc = () => currentDocument();
-  const hasDoc = () =>
-    !props.homeVisible && (doc().path !== null || doc().content.length > 0);
+  const hasDoc = () => !props.homeVisible && hasActiveDocument();
 
   const closeMenus = () => {
     setActiveMenu(null);
@@ -377,7 +375,6 @@ export const MenuBar: Component<MenuBarProps> = (props) => {
                         }}
                       >
                         <span>{t("settings.pluginsTab")}</span>
-                        <kbd class="text-[10px] text-[var(--color-text-secondary)] font-mono">Ctrl+Shift+X</kbd>
                       </button>
 
                       <button

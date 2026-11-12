@@ -161,6 +161,12 @@ export function hasUnsavedDocuments() {
   return currentDocument().isDirty || openTabs().some((tab) => tab.document.isDirty);
 }
 
+/** Whether the current tab holds a document, regardless of which view is showing. */
+export function hasActiveDocument() {
+  const doc = currentDocument();
+  return doc.path !== null || doc.content.length > 0;
+}
+
 /** Complete a captured save, never replacing newer text or a different tab. */
 export function applySaveResult(id: string, result: OpenFileResponse, instance?: number): boolean {
   flushPendingEdits();

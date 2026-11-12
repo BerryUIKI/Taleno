@@ -21,7 +21,7 @@ export const TabBar: Component<TabBarProps> = (props) => {
 
   const handleCreateNewTab = () => {
     const now = Date.now();
-    // Guard against multiple events in rapid succession (guarantees exactly 1 tab per double click)
+    // Two rapid double-clicks should still create exactly one tab.
     if (now - lastNewTabTime < 400) return;
     lastNewTabTime = now;
     props.onNewTab();
