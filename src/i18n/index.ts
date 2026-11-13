@@ -41,36 +41,30 @@ export type LocaleSetting = "auto" | SupportedLocale;
  * Defaults to "en-US" if unresolvable.
  */
 export function detectSystemLocale(): SupportedLocale {
-  try {
-    const raw = (navigator.language || (navigator.languages && navigator.languages[0]) || "en").toLowerCase();
+  const raw = (navigator.language || (navigator.languages && navigator.languages[0]) || "en").toLowerCase();
 
-    if (raw.startsWith("zh")) {
-      if (raw.includes("tw") || raw.includes("hk") || raw.includes("mo") || raw.includes("hant")) {
-        return "zh-TW";
-      }
-      return "zh-CN";
+  if (raw.startsWith("zh")) {
+    if (raw.includes("tw") || raw.includes("hk") || raw.includes("mo") || raw.includes("hant")) {
+      return "zh-TW";
     }
-    if (raw.startsWith("ja")) return "ja-JP";
-    if (raw.startsWith("ko")) return "ko-KR";
-    if (raw.startsWith("de")) return "de-DE";
-    if (raw.startsWith("fr")) return "fr-FR";
-    if (raw.startsWith("es")) return "es-ES";
-    if (raw.startsWith("ru")) return "ru-RU";
-    if (raw.startsWith("en")) return "en-US";
-  } catch (e) {
-    console.warn("Error detecting system locale:", e);
+    return "zh-CN";
   }
+  if (raw.startsWith("ja")) return "ja-JP";
+  if (raw.startsWith("ko")) return "ko-KR";
+  if (raw.startsWith("de")) return "de-DE";
+  if (raw.startsWith("fr")) return "fr-FR";
+  if (raw.startsWith("es")) return "es-ES";
+  if (raw.startsWith("ru")) return "ru-RU";
+  if (raw.startsWith("en")) return "en-US";
   return "en-US";
 }
 
 const STORAGE_KEY = "Taleno_locale_setting";
 
 function getInitialSetting(): LocaleSetting {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === "auto") return "auto";
-    if (saved && saved in DICTIONARIES) return saved as SupportedLocale;
-  } catch {}
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved === "auto") return "auto";
+  if (saved && saved in DICTIONARIES) return saved as SupportedLocale;
   return "auto";
 }
 
@@ -100,9 +94,7 @@ export const currentDict = createMemo<TranslationDictionary>(() => {
  */
 export function setLocale(setting: LocaleSetting) {
   setLocaleSettingInternal(setting);
-  try {
-    localStorage.setItem(STORAGE_KEY, setting);
-  } catch {}
+  localStorage.setItem(STORAGE_KEY, setting);
 }
 
 export { localeSetting };

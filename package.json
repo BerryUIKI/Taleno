@@ -1,6 +1,6 @@
 {
   "name": "taleno",
-  "version": "0.1.11",
+  "version": "0.2.0",
   "description": "A seamless in-place WYSIWYG Markdown reader-editor built on Tauri + Rust",
   "type": "module",
   "license": "AGPL-3.0-only",
@@ -45,7 +45,7 @@
   "devDependencies": {
     "@playwright/test": "^1.64.1",
     "@tailwindcss/vite": "^4.1.11",
-    "@tauri-apps/cli": "^2.5.0",
+    "@tauri-apps/cli": "^2.12.0",
     "@types/jsdom": "^30.0.0",
     "@types/katex": "^0.16.8",
     "autoprefixer": "^10.4.21",

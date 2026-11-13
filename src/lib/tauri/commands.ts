@@ -48,13 +48,6 @@ export async function readFileBaseline(path: string): Promise<string | null> {
 }
 
 /**
- * Get the currently active document.
- */
-export async function getActiveDocument(): Promise<OpenFileResponse | null> {
-  return invoke<OpenFileResponse | null>("get_active_document");
-}
-
-/**
  * Render markdown string to HTML with TOC and word count, with optional docPath for relative asset resolution.
  */
 export async function renderMarkdown(
@@ -65,16 +58,6 @@ export async function renderMarkdown(
     markdown,
     docPath: docPath ?? null,
   });
-}
-
-/**
- * Highlight a code block.
- */
-export async function highlightCode(
-  code: string,
-  language: string
-): Promise<string> {
-  return invoke<string>("highlight_code", { code, language });
 }
 
 export async function resolveDocumentImage(source: string, docPath: string): Promise<string> {
@@ -155,13 +138,6 @@ export async function startDrag(): Promise<void> {
   } catch {
     await invoke<void>("start_drag");
   }
-}
-
-/**
- * Greet command — used to verify IPC round-trip works.
- */
-export async function greet(name: string): Promise<string> {
-  return invoke<string>("greet", { name });
 }
 
 export interface FileEntry {

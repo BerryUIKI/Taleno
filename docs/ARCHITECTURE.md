@@ -92,16 +92,16 @@ The published desktop baseline is v0.1.11 (2026-11-01). The following describes 
 | Document saves | `services/fs_service.rs` | Unique sibling tempfile, flush, file sync, atomic persist; Unix parent sync. No blanket power-loss guarantee on every filesystem |
 | Plugin runtime | `public/plugin-sandbox.html`, `src/lib/plugins/runtime.ts` | Opaque sandboxed iframe with a permission broker, not an OS process sandbox |
 | Themes | `src/store/customThemes.ts`, Rust theme service | Built-in presets require no installation and cannot be uninstalled. Community themes live in Taleno-Plugins |
-| Native mobile providers | No SAF/bookmark adapter | Pending implementation and physical-device acceptance |
+| Native mobile providers | `tauri-plugin-fs` resolves `content://` and security-scoped `file://` documents in `services/document_io.rs` | Not validated on a device; provider saves truncate in place instead of the atomic replace path; relative images in provider documents stay unresolved |
 
 ### 11.2 Platform evidence
 
 | Platform | Distribution evidence | Remaining limits |
 | :--- | :--- | :--- |
-| Windows x86_64 | v0.1.10 release CI built MSI/NSIS | No claim of Windows ARM or all Windows versions |
-| macOS ARM64 and x86_64 | v0.1.10 release CI built signed app/DMG | Notarization depends on credentials; native interaction requires a Mac |
-| Linux x86_64 | v0.1.10 release CI built packages | No ARM build in the release matrix; native runtime requires matching GTK/WebKit libraries |
-| Android / iOS | Responsive shared shell source | No configured signed mobile release jobs; file access, save and viewport hardware acceptance pending |
+| Windows x86_64 | v0.1.11 release CI built MSI/NSIS | No claim of Windows ARM or all Windows versions |
+| macOS ARM64 and x86_64 | v0.1.11 release CI built signed app/DMG | Notarization depends on credentials; native interaction requires a Mac, and macOS validation is delegated to an external Apple developer |
+| Linux x86_64 | v0.1.11 release CI built AppImage, deb and rpm packages | No ARM build in the release matrix; native runtime requires matching GTK/WebKit libraries |
+| Android / iOS | Android CI compiles `aarch64-linux-android` and packages release APK/AAB (signed when keystore secrets exist); iOS CI compiles `aarch64-apple-ios` and packages a simulator app | Android signing is wired but unverified without a keystore; iOS device IPA and TestFlight need Apple credentials, and iOS validation is delegated to an external Apple developer; mobile file access, save and viewport acceptance remain pending hardware |
 
 ### 11.3 Application data locations
 

@@ -122,8 +122,8 @@ export async function processLiveOutline(
         wordCount: result.word_count,
       };
     });
-  } catch {
-    // Gracefully ignore parse errors in offline/test environments
+  } catch (err) {
+    console.warn("Live outline rendering failed:", err);
   }
 }
 

@@ -1,4 +1,4 @@
-import { Component, createSignal, createEffect, For, Show, onMount, onCleanup } from "solid-js";
+import { Component, createSignal, createEffect, For, Show, onCleanup } from "solid-js";
 import { workspaceTree } from "../../store/files";
 import type { SearchMatch } from "../../lib/tauri/commands";
 import { searchWorkspace } from "../../lib/tauri/commands";
@@ -74,35 +74,25 @@ export const SearchModal: Component<SearchModalProps> = (props) => {
 
     setIsSearching(true);
     debounceTimer = setTimeout(async () => {
-      if (reqId !== currentRequestId || !props.isOpen) return;
-
       try {
         const searchRes = await searchWorkspace(val, ws.path);
-        // Only accept response if request identity matches and dialog is still open
-        if (reqId === currentRequestId && props.isOpen) {
-          setResults(searchRes.matches);
-          setIsTruncated(searchRes.truncated);
-          setSelectedIndex(0);
-        }
+        if (reqId !== currentRequestId || !props.isOpen) return;
+        setResults(searchRes.matches);
+        setIsTruncated(searchRes.truncated);
+        setSelectedIndex(0);
       } catch (err) {
-        if (reqId === currentRequestId) {
-          console.error("Workspace search error:", err);
-          setResults([]);
-          setIsTruncated(false);
-        }
+        if (reqId !== currentRequestId) return;
+        console.error("Workspace search error:", err);
+        setResults([]);
+        setIsTruncated(false);
       } finally {
-        if (reqId === currentRequestId) {
-          setIsSearching(false);
-        }
+        if (reqId === currentRequestId) setIsSearching(false);
       }
     }, 150);
   };
 
   const handleSelectCurrent = () => {
-    const list = results();
-    if (list.length === 0) return;
-    const idx = Math.min(Math.max(0, selectedIndex()), list.length - 1);
-    const item = list[idx];
+    const item = results()[selectedIndex()];
     if (item) {
       props.onSelectResult(item.file_path, item.line_number, item.line_content);
       props.onClose();

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   check: vi.fn(),
   relaunch: vi.fn(),
-  getVersion: vi.fn(),
+  getVersion: vi.fn().mockResolvedValue("0.1.4"),
   downloadAndInstall: vi.fn(),
   install: vi.fn(),
   ask: vi.fn(),

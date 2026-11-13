@@ -167,6 +167,10 @@ jobs:
           APPLE_API_KEY: ${{ steps.prepare_apple_notarization_key.outputs.api_key }}
           APPLE_API_ISSUER: ${{ steps.prepare_apple_notarization_key.outputs.api_issuer }}
           APPLE_API_KEY_PATH: ${{ steps.prepare_apple_notarization_key.outputs.path }}
+          # The AppImage must use the host's Wayland client. A bundled copy shadows
+          # the host's graphics stack through AppRun's LD_LIBRARY_PATH and aborts
+          # WebKitWebProcess with EGL_BAD_PARAMETER on newer Mesa.
+          LINUXDEPLOY_EXCLUDED_LIBRARIES: ${{ matrix.platform == 'ubuntu-22.04' && 'libwayland-client.so.0;libwayland-server.so.0;libwayland-cursor.so.0;libwayland-egl.so.1' || '' }}
         with:
           tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
           releaseName: ${{ inputs.release_name || format('Taleno {0}', inputs.tag_name || github.ref_name) }}
@@ -225,6 +229,34 @@ jobs:
         env:
           APP_PATH: src-tauri/target/${{ matrix.target }}/release/bundle/macos/Taleno.app
         run: spctl --assess --type execute --verbose=4 "$APP_PATH"
+
+      - name: Verify Linux AppImage does not bundle host graphics libraries
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          appimages=(src-tauri/target/release/bundle/appimage/*.AppImage)
+          if (( ${#appimages[@]} != 1 )); then
+            echo "::error::Expected exactly one AppImage, found ${#appimages[@]}."
+            exit 1
+          fi
+
+          extract_dir="$RUNNER_TEMP/appimage-extract"
+          rm -rf "$extract_dir"
+          mkdir -p "$extract_dir"
+          ( cd "$extract_dir" && "${GITHUB_WORKSPACE}/${appimages[0]}" --appimage-extract >/dev/null )
+
+          bundled=()
+          while IFS= read -r lib; do
+            bundled+=("$lib")
+          done < <(find "$extract_dir" -name 'libwayland-client.so*' -print)
+
+          if (( ${#bundled[@]} > 0 )); then
+            printf '::error::The AppImage bundles a Wayland client that shadows the host graphics stack:\n'
+            printf '  %s\n' "${bundled[@]}"
+            exit 1
+          fi
 
   publish-release:
     needs: build-tauri

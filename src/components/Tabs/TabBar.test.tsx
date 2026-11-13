@@ -1,7 +1,7 @@
 import { render } from "solid-js/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TabBar } from "./TabBar";
-import { addOrSwitchTab, openTabs, setOpenTabs, setActiveTabId } from "../../store/files";
+import { addOrSwitchTab, setOpenTabs, setActiveTabId } from "../../store/files";
 
 vi.mock("../../lib/tauri/commands", () => ({
   startDrag: vi.fn(),

@@ -27,6 +27,7 @@ const TreeItem: Component<TreeItemProps> = (props) => {
   const isMd = () =>
     props.entry.name.endsWith(".md") ||
     props.entry.name.endsWith(".markdown") ||
+    props.entry.name.endsWith(".mdx") ||
     props.entry.name.endsWith(".txt");
 
   const handleClick = (e: MouseEvent) => {
@@ -175,7 +176,6 @@ export const FileTree: Component<FileTreeProps> = (props) => {
         path: props.tree.path,
       });
       console.error("Failed to create file:", err);
-      alert(`Could not create file. Choose a different name or check folder permissions.\n${String(err)}`);
     }
   };
 
@@ -193,7 +193,6 @@ export const FileTree: Component<FileTreeProps> = (props) => {
         path: props.tree.path,
       });
       console.error("Failed to create folder:", err);
-      alert(`Could not create folder.\n${String(err)}`);
     }
   };
 

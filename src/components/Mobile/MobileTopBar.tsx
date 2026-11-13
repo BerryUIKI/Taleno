@@ -192,14 +192,39 @@ export const MobileTopBar: Component<MobileTopBarProps> = (props) => {
             </button>
           </Show>
 
+          {/* Touch-Accessible Save As (mobile long-press alternative is unavailable) */}
+          <Show when={props.onSaveFileAs}>
+            <button
+              class="p-2 rounded-lg hover:bg-[var(--color-hover)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors touch-target no-drag"
+              onClick={props.onSaveFileAs}
+              title={t("file.saveAs")}
+              aria-label={t("file.saveAs")}
+            >
+              <svg
+                class="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                <polyline points="17 21 17 13 7 13 7 21" />
+                <polyline points="7 3 7 8 15 8" />
+                <line x1="12" y1="11" x2="12" y2="17" />
+                <line x1="9" y1="14" x2="15" y2="14" />
+              </svg>
+            </button>
+          </Show>
+
           {/* Outline Shortcut */}
           <button
             class="p-2 rounded-lg hover:bg-[var(--color-hover)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors touch-target no-drag"
             onClick={props.onOpenOutline}
             title={t("view.toggleOutline")}
             aria-label={t("sidebar.outline")}
-          >
-            <svg
+          >            <svg
               class="w-4 h-4"
               viewBox="0 0 24 24"
               fill="none"
