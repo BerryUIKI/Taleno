@@ -60,27 +60,6 @@ export function navigateToHeading(entry: TocEntry, index: number): boolean {
       return true;
     }
 
-    // Fallback: scan textarea lines by heading regex and occurrence index
-    const textarea = document.querySelector("textarea");
-    if (textarea) {
-      const lines = textarea.value.split("\n");
-      let headingCount = 0;
-      let charIndex = 0;
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (/^#{1,6}\s+/.test(line)) {
-          if (headingCount === index) {
-            textarea.focus();
-            textarea.setSelectionRange(charIndex, charIndex + line.length);
-            const lineHeight = 24;
-            textarea.scrollTop = Math.max(0, i * lineHeight - 60);
-            return true;
-          }
-          headingCount++;
-        }
-        charIndex += line.length + 1;
-      }
-    }
     return false;
   }
 

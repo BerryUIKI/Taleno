@@ -129,29 +129,11 @@ describe("Heading Navigation Adapter", () => {
       expect(revealerSpy).toHaveBeenCalledWith(entry, 0);
     });
 
-    it("falls back to textarea regex occurrence scanning when revealer is not registered", () => {
-      const textarea = document.createElement("textarea");
-      textarea.value = `# First Heading\nSome text\n\n# Duplicate Heading\nMore text\n\n# Duplicate Heading\nLast line`;
-      document.body.appendChild(textarea);
-
-      const focusSpy = vi.spyOn(textarea, "focus");
-      const setSelectionSpy = vi.spyOn(textarea, "setSelectionRange");
-
+    it("returns false when revealer is not registered", () => {
       const entry: TocEntry = { level: 1, text: "Duplicate Heading", id: "duplicate-heading-1" };
-      // Target the 2nd duplicate (3rd heading overall, index 2)
       const result = navigateToHeading(entry, 2);
 
-      expect(result).toBe(true);
-      expect(focusSpy).toHaveBeenCalled();
-      // Line index calculation:
-      // Line 0: "# First Heading" (15 chars + 1 newline = 16)
-      // Line 1: "Some text" (9 chars + 1 = 10 -> total 26)
-      // Line 2: "" (0 chars + 1 = 1 -> total 27)
-      // Line 3: "# Duplicate Heading" (19 chars + 1 = 20 -> total 47)
-      // Line 4: "More text" (9 chars + 1 = 10 -> total 57)
-      // Line 5: "" (0 chars + 1 = 1 -> total 58)
-      // Line 6: "# Duplicate Heading" (starts at 58, length 19)
-      expect(setSelectionSpy).toHaveBeenCalledWith(58, 58 + 19);
+      expect(result).toBe(false);
     });
   });
 });
