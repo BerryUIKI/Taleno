@@ -89,55 +89,35 @@ export async function getCliArgs(): Promise<string[]> {
  * Minimize the application window.
  */
 export async function minimizeWindow(): Promise<void> {
-  try {
-    await getCurrentWindow().minimize();
-  } catch {
-    await invoke<void>("minimize_window");
-  }
+  await getCurrentWindow().minimize();
 }
 
 /**
  * Toggle maximize / restore for the application window.
  */
 export async function toggleMaximizeWindow(): Promise<void> {
-  try {
-    await getCurrentWindow().toggleMaximize();
-  } catch {
-    await invoke<void>("toggle_maximize_window");
-  }
+  await getCurrentWindow().toggleMaximize();
 }
 
 /**
  * Destroy the application window after the caller has resolved unsaved changes.
  */
 export async function closeWindow(): Promise<void> {
-  try {
-    await getCurrentWindow().destroy();
-  } catch {
-    await invoke<void>("close_window");
-  }
+  await getCurrentWindow().destroy();
 }
 
 /**
  * Check if the application window is currently maximized.
  */
 export async function isWindowMaximized(): Promise<boolean> {
-  try {
-    return await getCurrentWindow().isMaximized();
-  } catch {
-    return await invoke<boolean>("is_window_maximized");
-  }
+  return getCurrentWindow().isMaximized();
 }
 
 /**
  * Start dragging the application window.
  */
 export async function startDrag(): Promise<void> {
-  try {
-    await getCurrentWindow().startDragging();
-  } catch {
-    await invoke<void>("start_drag");
-  }
+  await getCurrentWindow().startDragging();
 }
 
 export interface FileEntry {
