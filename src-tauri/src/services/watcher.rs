@@ -19,11 +19,11 @@ pub fn watch_file(app_handle: AppHandle, file_path: String) -> Result<Recommende
         // Events from our atomic rename can arrive before the save command publishes
         // its baseline. Wait for that publication before classifying the event.
         let _io = state.document_io.blocking_lock();
-        let baseline = state
+        let baselines = state
             .disk_baselines
             .lock()
-            .ok()
-            .and_then(|values| values.get(&baseline_path).cloned());
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let baseline = baselines.get(&baseline_path).cloned();
         if std::fs::read_to_string(&baseline_path).ok().as_ref() == baseline.as_ref() {
             return;
         }
