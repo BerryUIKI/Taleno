@@ -13,6 +13,7 @@ describe("FindReplace Component", () => {
       path: "/test/file.md",
       filename: "file.md",
       content: "Hello world, hello universe. Test 123.",
+      savedContent: "Hello world, hello universe. Test 123.",
       renderedContent: "Hello world, hello universe. Test 123.",
       html: "<p>Hello world, hello universe. Test 123.</p>",
       toc: [],
