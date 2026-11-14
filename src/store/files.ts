@@ -129,7 +129,7 @@ export function closeTab(id: string) {
         setCurrentDocument(nextTab.document);
       } else {
         setActiveTabId(null);
-        setCurrentDocument({ ...emptyDocument });
+        setCurrentDocument(emptyDocument);
       }
     }
   });

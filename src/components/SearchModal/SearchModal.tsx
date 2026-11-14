@@ -15,6 +15,7 @@ export const SearchModal: Component<SearchModalProps> = (props) => {
   const [selectedIndex, setSelectedIndex] = createSignal(0);
   const [isSearching, setIsSearching] = createSignal(false);
   const [isTruncated, setIsTruncated] = createSignal(false);
+  const [searchError, setSearchError] = createSignal<string | null>(null);
 
   let inputRef!: HTMLInputElement;
   let previousActiveElement: HTMLElement | null = null;
@@ -69,6 +70,7 @@ export const SearchModal: Component<SearchModalProps> = (props) => {
       setIsSearching(false);
       setSelectedIndex(0);
       setIsTruncated(false);
+      setSearchError(null);
       return;
     }
 
@@ -79,12 +81,13 @@ export const SearchModal: Component<SearchModalProps> = (props) => {
         if (reqId !== currentRequestId || !props.isOpen) return;
         setResults(searchRes.matches);
         setIsTruncated(searchRes.truncated);
+        setSearchError(null);
         setSelectedIndex(0);
       } catch (err) {
         if (reqId !== currentRequestId) return;
-        console.error("Workspace search error:", err);
         setResults([]);
         setIsTruncated(false);
+        setSearchError(typeof err === "string" ? err : String(err));
       } finally {
         if (reqId === currentRequestId) setIsSearching(false);
       }
@@ -192,11 +195,13 @@ export const SearchModal: Component<SearchModalProps> = (props) => {
               when={results().length > 0}
               fallback={
                 <div class="p-8 text-center text-xs opacity-40">
-                  {query()
-                    ? isSearching()
-                      ? "Searching workspace..."
-                      : "No matching results found in workspace."
-                    : "Type a search keyword to find across files..."}
+                  {searchError()
+                    ? searchError()
+                    : query()
+                      ? isSearching()
+                        ? "Searching workspace..."
+                        : "No matching results found in workspace."
+                      : "Type a search keyword to find across files..."}
                 </div>
               }
             >
