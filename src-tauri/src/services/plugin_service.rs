@@ -116,22 +116,20 @@ pub async fn scan_plugins_in_dir(plugins_dir: &Path) -> Result<Vec<PluginManifes
         let path = entry.path();
         if path.is_dir() && !entry.file_name().to_string_lossy().starts_with('.') {
             let folder = entry.file_name().to_string_lossy().into_owned();
-            let manifest_path =
-                match package_paths::contained(plugins_dir, &format!("{folder}/manifest.json")) {
-                    Ok(path) => path,
-                    Err(_) => continue,
-                };
-            if manifest_path.is_file() {
-                if let Ok(content) = fs::read_to_string(&manifest_path).await {
-                    if let Ok(manifest) = serde_json::from_str::<PluginManifest>(&content) {
-                        manifests.push(manifest);
-                    }
-                }
+            if let Some(manifest) = read_manifest(plugins_dir, &folder).await {
+                manifests.push(manifest);
             }
         }
     }
 
     Ok(manifests)
+}
+
+async fn read_manifest(plugins_dir: &Path, folder: &str) -> Option<PluginManifest> {
+    let manifest_path =
+        package_paths::contained(plugins_dir, &format!("{folder}/manifest.json")).ok()?;
+    let content = fs::read_to_string(&manifest_path).await.ok()?;
+    serde_json::from_str(&content).ok()
 }
 
 /// Read the main JavaScript code for a specific plugin ID.
@@ -157,36 +155,21 @@ pub async fn read_plugin_source_from_dir(
         let path = entry.path();
         if path.is_dir() && !entry.file_name().to_string_lossy().starts_with('.') {
             let folder = entry.file_name().to_string_lossy().into_owned();
-            let manifest_path =
-                match package_paths::contained(plugins_dir, &format!("{folder}/manifest.json")) {
-                    Ok(path) => path,
-                    Err(_) => continue,
-                };
-            if manifest_path.is_file() {
-                if let Ok(content) = fs::read_to_string(&manifest_path).await {
-                    if let Ok(manifest) = serde_json::from_str::<PluginManifest>(&content) {
-                        if manifest.id == plugin_id {
-                            let entry_name = manifest.main.unwrap_or_else(|| "main.js".to_string());
-                            let script_file = package_paths::contained(
-                                plugins_dir,
-                                &format!("{folder}/{entry_name}"),
-                            )?;
-                            if script_file.is_file() {
-                                return fs::read_to_string(&script_file).await.map_err(|e| {
-                                    format!(
-                                        "Failed to read script {}: {}",
-                                        script_file.display(),
-                                        e
-                                    )
-                                });
-                            } else {
-                                return Err(format!(
-                                    "Plugin entry file '{}' not found in {}",
-                                    entry_name,
-                                    path.display()
-                                ));
-                            }
-                        }
+            if let Some(manifest) = read_manifest(plugins_dir, &folder).await {
+                if manifest.id == plugin_id {
+                    let entry_name = manifest.main.unwrap_or_else(|| "main.js".to_string());
+                    let script_file =
+                        package_paths::contained(plugins_dir, &format!("{folder}/{entry_name}"))?;
+                    if script_file.is_file() {
+                        return fs::read_to_string(&script_file).await.map_err(|e| {
+                            format!("Failed to read script {}: {}", script_file.display(), e)
+                        });
+                    } else {
+                        return Err(format!(
+                            "Plugin entry file '{}' not found in {}",
+                            entry_name,
+                            path.display()
+                        ));
                     }
                 }
             }
@@ -287,6 +270,7 @@ pub async fn fetch_marketplace_plugins(
     let registry: PluginRegistryResponse = serde_json::from_str(&json_text)
         .map_err(|e| format!("Failed to parse registry JSON: {}", e))?;
 
+    // Cache registry locally for offline use
     let _ = fs::create_dir_all(&cache_dir).await;
     let _ = fs::write(&cache_file, &json_text).await;
 
