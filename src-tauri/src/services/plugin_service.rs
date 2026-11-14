@@ -255,6 +255,13 @@ async fn download_text(client: &reqwest::Client, url: &str) -> Result<String, St
 pub async fn fetch_marketplace_plugins(
     app_handle: &tauri::AppHandle,
 ) -> Result<Vec<RemotePlugin>, String> {
+    let base_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to resolve app data dir: {}", e))?;
+    let cache_dir = base_dir.join("cache");
+    let cache_file = cache_dir.join("marketplace.json");
+
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(12))
         .build()
@@ -263,18 +270,25 @@ pub async fn fetch_marketplace_plugins(
     // Try primary dev branch first, fallback to main
     let json_text = match download_text(&client, REGISTRY_PRIMARY_URL).await {
         Ok(text) => text,
-        Err(_) => download_text(&client, REGISTRY_FALLBACK_URL).await?,
+        Err(_) => match download_text(&client, REGISTRY_FALLBACK_URL).await {
+            Ok(text) => text,
+            Err(err) => {
+                if let Ok(cached_text) = fs::read_to_string(&cache_file).await {
+                    if let Ok(parsed) = serde_json::from_str::<PluginRegistryResponse>(&cached_text)
+                    {
+                        return Ok(parsed.plugins);
+                    }
+                }
+                return Err(err);
+            }
+        },
     };
 
     let registry: PluginRegistryResponse = serde_json::from_str(&json_text)
         .map_err(|e| format!("Failed to parse registry JSON: {}", e))?;
 
-    // Cache registry locally for offline use
-    if let Ok(base_dir) = app_handle.path().app_data_dir() {
-        let cache_dir = base_dir.join("cache");
-        let _ = fs::create_dir_all(&cache_dir).await;
-        let _ = fs::write(cache_dir.join("marketplace.json"), &json_text).await;
-    }
+    let _ = fs::create_dir_all(&cache_dir).await;
+    let _ = fs::write(&cache_file, &json_text).await;
 
     Ok(registry.plugins)
 }
@@ -317,7 +331,6 @@ pub async fn install_remote_plugin(
     }
 
     let manifest_entry = parsed_manifest.main.as_deref().unwrap_or("main.js");
-    package_paths::validate_entry(manifest_entry)?;
     if manifest_entry != script_name {
         return Err("Manifest entry does not match the downloaded entry".into());
     }
