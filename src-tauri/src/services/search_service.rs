@@ -232,14 +232,25 @@ async fn search_dir_recursive(
     }
 }
 
-/// Lowercase `line` and map every lowercased byte index back to its original byte
-/// index, so match offsets survive folds that change length (e.g. 'İ' -> "i̇").
+/// Lowercase `line` the same way `str::to_lowercase` lowercases the query,
+/// recording for each lowercased byte the original byte index it came from,
+/// so match offsets survive folds that change length (e.g. 'İ' -> "i̇").
 fn fold_with_offsets(line: &str) -> (String, Vec<usize>) {
+    let is_cased = |c: char| c.is_lowercase() || c.is_uppercase();
     let mut lower = String::with_capacity(line.len());
     let mut offsets = Vec::with_capacity(line.len() + 1);
-    for (idx, ch) in line.char_indices() {
-        lower.extend(ch.to_lowercase());
+    let mut chars = line.char_indices().peekable();
+    let mut prev_cased = false;
+    while let Some((idx, ch)) = chars.next() {
+        let next_cased = chars.peek().is_some_and(|&(_, next)| is_cased(next));
+        // str::to_lowercase maps a word-final capital sigma to ς; char::to_lowercase never does.
+        if ch == 'Σ' && prev_cased && !next_cased {
+            lower.push('ς');
+        } else {
+            lower.extend(ch.to_lowercase());
+        }
         offsets.resize(lower.len(), idx);
+        prev_cased = is_cased(ch);
     }
     offsets.push(line.len());
     (lower, offsets)
@@ -320,6 +331,25 @@ mod tests {
         {
             std::os::unix::fs::symlink(target, link).is_ok()
         }
+    }
+
+    #[tokio::test]
+    async fn test_workspace_search_matches_word_final_capital_sigma() {
+        let temp_dir = std::env::temp_dir().join("Taleno_search_service_test_sigma");
+        let _ = fs::create_dir_all(&temp_dir).await;
+        fs::write(temp_dir.join("greek.md"), "ΛΌΓΟΣ x")
+            .await
+            .unwrap();
+
+        let res = search_workspace("λόγος", &temp_dir.to_string_lossy())
+            .await
+            .unwrap();
+
+        assert_eq!(res.matches.len(), 1);
+        assert_eq!(res.matches[0].match_start, 0);
+        assert_eq!(res.matches[0].match_end, "ΛΌΓΟΣ".len());
+
+        let _ = fs::remove_dir_all(&temp_dir).await;
     }
 
     #[tokio::test]
