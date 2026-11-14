@@ -1,7 +1,7 @@
 import { batch, createSignal } from "solid-js";
 import type { DocumentState } from "./editor";
 import type { FileEntry, OpenFileResponse } from "../lib/tauri/commands";
-import { currentDocument, setCurrentDocument, observeDocument, flushPendingEdits, documentFromResponse } from "./editor";
+import { currentDocument, setCurrentDocument, observeDocument, flushPendingEdits, documentFromResponse, emptyDocument } from "./editor";
 
 export interface Tab {
   id: string;
@@ -72,7 +72,6 @@ export function addRecentFile(path: string, filename: string) {
 export function addOrSwitchTab(doc: DocumentState) {
   flushPendingEdits();
   syncCurrentDocumentToTab();
-  doc = { ...doc, savedContent: doc.savedContent ?? (doc.isDirty ? "" : doc.content) };
   if (doc.path) {
     addRecentFile(doc.path, doc.filename);
   }
@@ -130,17 +129,7 @@ export function closeTab(id: string) {
         setCurrentDocument(nextTab.document);
       } else {
         setActiveTabId(null);
-        setCurrentDocument({
-          path: null,
-          filename: "Untitled",
-          content: "",
-          renderedContent: "",
-          html: "",
-          toc: [],
-          wordCount: 0,
-          isDirty: false,
-          externallyModified: false,
-        });
+        setCurrentDocument({ ...emptyDocument });
       }
     }
   });
