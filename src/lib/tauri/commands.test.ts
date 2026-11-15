@@ -15,26 +15,18 @@ describe("closeWindow", () => {
     destroy.mockResolvedValue(undefined);
   });
 
-  it("destroys the window without waiting for a custom command", async () => {
+  it("destroys the window without calling a native command", async () => {
     await closeWindow();
 
     expect(destroy).toHaveBeenCalledOnce();
     expect(invoke).not.toHaveBeenCalled();
   });
 
-  it("falls back to the native command if the window API fails", async () => {
+  it("propagates a rejection from the window API", async () => {
     destroy.mockRejectedValue(new Error("window API unavailable"));
 
-    await closeWindow();
-
-    expect(invoke).toHaveBeenCalledExactlyOnceWith("close_window");
-  });
-
-  it("reports failure when neither close operation succeeds", async () => {
-    destroy.mockRejectedValue(new Error("window API unavailable"));
-    vi.mocked(invoke).mockRejectedValue(new Error("native close failed"));
-
-    await expect(closeWindow()).rejects.toThrow("native close failed");
+    await expect(closeWindow()).rejects.toThrow("window API unavailable");
+    expect(invoke).not.toHaveBeenCalled();
   });
 
   it("passes markdown and docPath to render_markdown", async () => {

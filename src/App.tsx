@@ -50,6 +50,7 @@ import {
   cycleDisplayMode,
   flushPendingEdits,
   documentFromResponse,
+  emptyDocument,
 } from "./store/editor";
 import {
   addOrSwitchTab,
@@ -207,7 +208,7 @@ const App: Component = () => {
     }
     try {
       if (doc.path && !saveAs) {
-        const baseline = overwrite ? await readFileBaseline(doc.path) : doc.savedContent ?? doc.content;
+        const baseline = overwrite ? await readFileBaseline(doc.path) : doc.savedContent;
         const result = await saveFile(doc.path, doc.content, baseline);
         clearFileError();
         return applySaveResult(id, result, instance);
@@ -370,15 +371,8 @@ const App: Component = () => {
   // Handle creating a new document tab
   const handleNewDocument = () => {
     const newDoc = {
-      path: null,
+      ...emptyDocument,
       filename: `Untitled-${openTabs().length + 1}.md`,
-      content: "",
-      renderedContent: "",
-      html: "",
-      toc: [],
-      wordCount: 0,
-      isDirty: false,
-      externallyModified: false,
     };
     addOrSwitchTab(newDoc);
     setHomeVisible(false);

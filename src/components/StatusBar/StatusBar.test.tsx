@@ -21,6 +21,7 @@ describe("StatusBar", () => {
       path: "/tmp/example.md",
       filename: "example.md",
       content: "Hello Taleno",
+      savedContent: "Hello Taleno",
       renderedContent: "Hello Taleno",
       html: "<p>Hello Taleno</p>",
       toc: [],

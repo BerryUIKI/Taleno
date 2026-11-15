@@ -88,10 +88,9 @@ pub async fn search_workspace_with_options(
         return Ok(WorkspaceSearchResult::default());
     }
 
-    let canonical_root = match fs::canonicalize(root_path).await {
-        Ok(path) => path,
-        Err(_) => return Ok(WorkspaceSearchResult::default()),
-    };
+    let canonical_root = fs::canonicalize(root_path)
+        .await
+        .map_err(|_| format!("Cannot search '{root_path}': the folder is unavailable"))?;
 
     let mut visited_dirs = HashSet::new();
     visited_dirs.insert(canonical_root.clone());
@@ -104,7 +103,6 @@ pub async fn search_workspace_with_options(
         &canonical_root,
         &canonical_root,
         &q_lower,
-        query,
         &mut matches,
         &mut visited_dirs,
         0,
@@ -128,7 +126,6 @@ async fn search_dir_recursive(
     dir: &Path,
     canonical_root: &Path,
     q_lower: &str,
-    original_q: &str,
     matches: &mut Vec<SearchMatch>,
     visited_dirs: &mut HashSet<PathBuf>,
     depth: usize,
@@ -199,7 +196,6 @@ async fn search_dir_recursive(
                     &canonical_target,
                     canonical_root,
                     q_lower,
-                    original_q,
                     matches,
                     visited_dirs,
                     depth + 1,
@@ -213,7 +209,6 @@ async fn search_dir_recursive(
                     &name,
                     canonical_root,
                     q_lower,
-                    original_q,
                     matches,
                     options,
                     truncated,
@@ -227,7 +222,6 @@ async fn search_dir_recursive(
                 &name,
                 canonical_root,
                 q_lower,
-                original_q,
                 matches,
                 options,
                 truncated,
@@ -238,13 +232,36 @@ async fn search_dir_recursive(
     }
 }
 
+/// Lowercase `line` the same way `str::to_lowercase` lowercases the query,
+/// recording for each lowercased byte the original byte index it came from,
+/// so match offsets survive folds that change length (e.g. 'İ' -> "i̇").
+fn fold_with_offsets(line: &str) -> (String, Vec<usize>) {
+    let is_cased = |c: char| c.is_lowercase() || c.is_uppercase();
+    let mut lower = String::with_capacity(line.len());
+    let mut offsets = Vec::with_capacity(line.len() + 1);
+    let mut chars = line.char_indices().peekable();
+    let mut prev_cased = false;
+    while let Some((idx, ch)) = chars.next() {
+        let next_cased = chars.peek().is_some_and(|&(_, next)| is_cased(next));
+        // str::to_lowercase maps a word-final capital sigma to ς; char::to_lowercase never does.
+        if ch == 'Σ' && prev_cased && !next_cased {
+            lower.push('ς');
+        } else {
+            lower.extend(ch.to_lowercase());
+        }
+        offsets.resize(lower.len(), idx);
+        prev_cased = is_cased(ch);
+    }
+    offsets.push(line.len());
+    (lower, offsets)
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn process_file(
     path: &Path,
     name: &str,
     canonical_root: &Path,
     q_lower: &str,
-    original_q: &str,
     matches: &mut Vec<SearchMatch>,
     options: &SearchOptions,
     truncated: &mut bool,
@@ -274,15 +291,15 @@ async fn process_file(
     if let Ok(content) = fs::read_to_string(path).await {
         let display_path = normalize_path(path);
         for (idx, line) in content.lines().enumerate() {
-            let line_lower = line.to_lowercase();
+            let (line_lower, offsets) = fold_with_offsets(line);
             if let Some(pos) = line_lower.find(q_lower) {
                 matches.push(SearchMatch {
                     file_path: display_path.clone(),
                     file_name: name.to_string(),
                     line_number: idx + 1,
                     line_content: line.to_string(),
-                    match_start: pos,
-                    match_end: pos + original_q.len(),
+                    match_start: offsets[pos],
+                    match_end: offsets[pos + q_lower.len()],
                 });
                 if matches.len() >= options.max_matches {
                     *truncated = true;
@@ -314,6 +331,25 @@ mod tests {
         {
             std::os::unix::fs::symlink(target, link).is_ok()
         }
+    }
+
+    #[tokio::test]
+    async fn test_workspace_search_matches_word_final_capital_sigma() {
+        let temp_dir = std::env::temp_dir().join("Taleno_search_service_test_sigma");
+        let _ = fs::create_dir_all(&temp_dir).await;
+        fs::write(temp_dir.join("greek.md"), "ΛΌΓΟΣ x")
+            .await
+            .unwrap();
+
+        let res = search_workspace("λόγος", &temp_dir.to_string_lossy())
+            .await
+            .unwrap();
+
+        assert_eq!(res.matches.len(), 1);
+        assert_eq!(res.matches[0].match_start, 0);
+        assert_eq!(res.matches[0].match_end, "ΛΌΓΟΣ".len());
+
+        let _ = fs::remove_dir_all(&temp_dir).await;
     }
 
     #[tokio::test]
@@ -526,6 +562,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_workspace_search_empty_query_and_missing_dir() {
+        // Empty queries return early without touching the filesystem, so a bad root is irrelevant.
         let res = search_workspace("", "non_existent_path").await.unwrap();
         assert_eq!(res.matches.len(), 0);
         assert!(!res.truncated);
@@ -533,9 +570,9 @@ mod tests {
         let res2 = search_workspace("   ", "non_existent_path").await.unwrap();
         assert_eq!(res2.matches.len(), 0);
 
-        let res3 = search_workspace("query", "non_existent_path_xyz_12345")
+        let err = search_workspace("query", "non_existent_path_xyz_12345")
             .await
-            .unwrap();
-        assert_eq!(res3.matches.len(), 0);
+            .unwrap_err();
+        assert!(err.contains("non_existent_path_xyz_12345"), "{err}");
     }
 }

@@ -89,8 +89,8 @@ export const StatusBar: Component = () => {
     if (currentTheme === "dark") return t("view.darkTheme");
     return t("view.systemTheme");
   };
-  const versionText = () => (appVersion() ? `Taleno v${appVersion()}` : "Taleno");
-  const shortVersion = () => (appVersion() ? `v${appVersion()}` : "Taleno");
+  const versionText = () => `Taleno v${appVersion()}`;
+  const shortVersion = () => `v${appVersion()}`;
 
   return (
     <footer

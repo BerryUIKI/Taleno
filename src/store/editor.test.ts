@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   currentDocument,
   displayMode,
@@ -11,13 +11,16 @@ import {
   markExternallyModified,
   clearExternallyModified,
   setLiveOutlineParser,
-  processLiveOutline,
 } from "./editor";
 
 describe("Editor Store", () => {
   beforeEach(() => {
     resetDocument();
     setDisplayMode("reading");
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("should initialize with default empty document state", () => {
@@ -107,7 +110,7 @@ describe("Editor Store", () => {
     }));
 
     updateDocumentContent("Live Header");
-    await processLiveOutline("Live Header");
+    await vi.waitFor(() => expect(currentDocument().toc).toHaveLength(1));
 
     const doc = currentDocument();
     expect(doc.content).toBe("Live Header");
@@ -119,6 +122,7 @@ describe("Editor Store", () => {
   });
 
   it("should discard obsolete parse responses when a newer version has started", async () => {
+    vi.useFakeTimers();
     let resolveFirst: ((val: any) => void) | null = null;
     const firstPromise = new Promise((resolve) => {
       resolveFirst = resolve;
@@ -144,18 +148,17 @@ describe("Editor Store", () => {
 
     // Start first parse
     updateDocumentContent("First Edit");
-    const firstTask = processLiveOutline("First Edit");
-    // Start second parse which increments liveParseVersion and updates document content
+    await vi.advanceTimersByTimeAsync(250);
+    // Start second parse, which bumps the live parse version
     updateDocumentContent("Second Edit");
-    const secondTask = processLiveOutline("Second Edit");
+    await vi.advanceTimersByTimeAsync(250);
 
     // Second completes first
-    await secondTask;
     expect(currentDocument().toc[0]?.text).toBe("Fresh");
 
     // Now resolve first task (which is obsolete)
     resolveFirst!({});
-    await firstTask;
+    await vi.advanceTimersByTimeAsync(0);
 
     // Document state should still reflect the fresh outline, not the stale one
     expect(currentDocument().toc[0]?.text).toBe("Fresh");

@@ -36,6 +36,7 @@ describe("PluginRuntimeManager", () => {
       path: null,
       filename: "Untitled.md",
       content: "Hello World",
+      savedContent: "Hello World",
       renderedContent: "Hello World",
       html: "<p>Hello World</p>",
       toc: [],

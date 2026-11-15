@@ -20,6 +20,7 @@ describe("QuickSwitcher Component", () => {
           path: "/workspace/open-doc.md",
           filename: "open-doc.md",
           content: "Open doc content",
+          savedContent: "Open doc content",
           renderedContent: "Open doc content",
           html: "<p>Open doc content</p>",
           toc: [],

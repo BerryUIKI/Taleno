@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-15
+
+### Fixed
+- **Workspace search on unavailable folders**: A workspace root that could no longer be resolved (folder deleted, moved, or a removable drive unmounted) was reported as "No matching results found in workspace." The root is now surfaced as an error and shown in the search panel, so a missing folder is distinguishable from a search with no hits.
+- **Workspace search match offsets**: Highlight offsets were computed against the lowercased line but applied to the original, and the match end used the original query length. Both were wrong whenever case folding changes byte length (e.g. `İ`), shifting the highlighted span. Offsets are now mapped back through a per-line index, and the redundant second query string is no longer threaded through the traversal.
+- **Workspace search with Greek word-final sigma**: Folding each line character by character disagreed with `str::to_lowercase` on the context-sensitive rule that maps a word-final capital sigma (`Σ`) to `ς`, so case-insensitive Greek searches silently returned nothing for words such as `ΛΌΓΟΣ`. Both sides now fold by the same rule.
+- **Plugin marketplace offline**: The plugin registry response was written to the local cache but never read back, so an offline start failed outright while the theme marketplace already served its cached listing. Both marketplaces now degrade the same way.
+
+### Changed
+- **Package install validation**: Entry paths were validated up to three times on a single install. Validation is consolidated at the install boundary; the manifest/entry consistency comparisons and the guards that run before a value is interpolated into a URL are kept. The duplicated plugin directory-scan loop is now one local helper.
+- **Document state**: `savedContent` is a required field, completed once at the document boundary instead of being re-derived by four separate sentinel expressions. `emptyDocument` is shared rather than hand-copied.
+- **Window controls**: The five window helpers no longer fall back to identically named native commands that fail under the same conditions, and those commands are removed.
+- Removed an error type with no consumer in the highlighter, an unreachable textarea heading fallback in code mode, and two other dead paths.
+
 ## [0.2.0] - 2026-11-13
 
 ### Added

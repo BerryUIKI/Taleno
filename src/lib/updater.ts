@@ -46,7 +46,7 @@ const [inPlaceCheckStatus, setInPlaceCheckStatus] = createSignal<InPlaceCheckSta
 
 void getVersion()
   .then((version) => {
-    if (version) setAppVersion(version);
+    setAppVersion(version);
   })
   .catch(() => {
     // The app version is unavailable outside the Tauri runtime.

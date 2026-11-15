@@ -132,8 +132,11 @@ export const CodeView: Component = () => {
   // the next document, and its state must not be filed under that key.
   let mountedDocKey = "";
 
-  const currentDocKey = () =>
-    `${activeTabId()}:${openTabs().find(tab => tab.id === activeTabId())?.instance ?? 0}:${currentDocument().loadVersion ?? 0}`;
+  const currentDocKey = () => {
+    const id = activeTabId();
+    const tab = openTabs().find(item => item.id === id);
+    return `${id}:${tab?.instance ?? 0}:${currentDocument().loadVersion ?? 0}`;
+  };
 
   const content = () => currentDocument().content;
 

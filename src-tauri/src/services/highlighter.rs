@@ -2,24 +2,14 @@ use std::sync::LazyLock;
 use syntect::html::{ClassStyle, ClassedHTMLGenerator};
 use syntect::parsing::SyntaxSet;
 use syntect::util::LinesWithEndings;
-use thiserror::Error;
 
 /// Global immutable syntax registry loaded once and reused across all highlight requests.
 static SYNTAX_SET: LazyLock<SyntaxSet> = LazyLock::new(SyntaxSet::load_defaults_newlines);
 
-#[derive(Error, Debug)]
-pub enum HighlightError {
-    #[error("Unsupported language: {0}")]
-    UnsupportedLanguage(String),
-    #[error("Highlighting failed: {0}")]
-    SyntectError(#[from] syntect::Error),
-}
-
 /// Highlight a code string for a given language and return styled HTML.
-pub fn highlight(code: &str, language: &str) -> Result<String, HighlightError> {
-    let syntax = SYNTAX_SET
-        .find_syntax_by_token(language)
-        .ok_or_else(|| HighlightError::UnsupportedLanguage(language.to_string()))?;
+/// `None` means the language is unsupported or syntect failed to parse it.
+pub fn highlight(code: &str, language: &str) -> Option<String> {
+    let syntax = SYNTAX_SET.find_syntax_by_token(language)?;
 
     let class_style = ClassStyle::SpacedPrefixed { prefix: "syn-" };
     let mut generator =
@@ -30,13 +20,15 @@ pub fn highlight(code: &str, language: &str) -> Result<String, HighlightError> {
     }
 
     for line in LinesWithEndings::from(&normalized) {
-        generator.parse_html_for_line_which_includes_newline(line)?;
+        generator
+            .parse_html_for_line_which_includes_newline(line)
+            .ok()?;
     }
 
     let tokens = generator.finalize();
     let html = format!(r#"<pre><code class="syn-code">{tokens}</code></pre>"#);
 
-    Ok(html)
+    Some(html)
 }
 
 #[cfg(test)]
@@ -49,7 +41,7 @@ mod tests {
     #[test]
     fn test_highlight_rust() {
         let result = highlight("fn main() {}", "rs");
-        assert!(result.is_ok());
+        assert!(result.is_some());
         let html = result.unwrap();
         assert!(html.contains("class=\"syn-code\""));
         assert!(html.contains("syn-"));
@@ -59,7 +51,7 @@ mod tests {
     #[test]
     fn test_unsupported_language() {
         let result = highlight("code", "nonexistent_lang_xyz");
-        assert!(result.is_err());
+        assert!(result.is_none());
     }
 
     #[test]
@@ -78,7 +70,7 @@ mod tests {
             handles.push(thread::spawn(move || {
                 let (code, lang) = samples[i % samples.len()];
                 let res = highlight(code, lang);
-                assert!(res.is_ok(), "Failed for language {lang}");
+                assert!(res.is_some(), "Failed for language {lang}");
                 let html = res.unwrap();
                 assert!(html.contains("syn-code"));
             }));
@@ -113,7 +105,7 @@ mod tests {
         let start = Instant::now();
         for _ in 0..100 {
             let res = highlight("fn calculate() -> i32 { 1 + 2 }", "rs");
-            assert!(res.is_ok());
+            assert!(res.is_some());
         }
         let elapsed = start.elapsed();
         println!("100 identical small Rust blocks: uncached={baseline:?}, cached={elapsed:?}");

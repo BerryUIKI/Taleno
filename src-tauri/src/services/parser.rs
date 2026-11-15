@@ -57,7 +57,7 @@ pub fn markdown_to_html_with_path(markdown: &str, doc_path: Option<&str>) -> Str
                     )
                 } else {
                     let highlighted = if !lang.is_empty() {
-                        highlighter::highlight(&code_buffer, lang).ok()
+                        highlighter::highlight(&code_buffer, lang)
                     } else {
                         None
                     };

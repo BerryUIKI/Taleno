@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { countWordsFast, currentDocument, flushDeferredStats, processLiveOutline, resetDocument, setCurrentDocument, setLiveOutlineParser, updateDocumentContent } from "./editor";
+import { countWordsFast, currentDocument, flushDeferredStats, resetDocument, setCurrentDocument, setLiveOutlineParser, updateDocumentContent } from "./editor";
 
 describe("deferred document derivations", () => {
   beforeEach(() => { vi.useFakeTimers(); resetDocument(); });
@@ -9,10 +9,10 @@ describe("deferred document derivations", () => {
     updateDocumentContent("# identical");
     let finish!: (value: { html: string; toc: never[]; word_count: number }) => void;
     setLiveOutlineParser(() => new Promise(resolve => { finish = resolve; }));
-    const pending = processLiveOutline("# identical");
+    await vi.advanceTimersByTimeAsync(250);
     setCurrentDocument({ ...currentDocument(), path: "/other.md", html: "other" });
     finish({ html: "stale", toc: [], word_count: 99 });
-    await pending;
+    await vi.advanceTimersByTimeAsync(0);
     expect(currentDocument().html).toBe("other");
   });
 

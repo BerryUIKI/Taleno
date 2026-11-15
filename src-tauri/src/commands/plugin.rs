@@ -48,6 +48,7 @@ pub async fn uninstall_plugin(app_handle: AppHandle, plugin_id: String) -> Resul
 }
 
 /// Update an installed plugin from the remote registry.
+/// Semantic alias of `install_plugin`: reinstalling over an existing folder is the update path.
 #[tauri::command]
 pub async fn update_plugin(
     app_handle: AppHandle,

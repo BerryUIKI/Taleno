@@ -87,7 +87,6 @@ pub async fn read_theme_css(app_handle: &AppHandle, theme_id: &str) -> Result<St
 
 fn read_theme_css_from_dir(themes_dir: &Path, theme_id: &str) -> Result<String, String> {
     validate_theme_id(theme_id)?;
-    package_paths::contained(themes_dir, theme_id)?;
 
     let manifest_path = package_paths::contained(themes_dir, &format!("{theme_id}/theme.json"))?;
     let entry_file = fs::read_to_string(&manifest_path)
@@ -264,7 +263,6 @@ pub async fn install_remote_theme(
         .await
         .map_err(|e| format!("Failed to read theme CSS text: {}", e))?;
 
-    package_paths::validate_entry(&parsed_manifest.entry_file)?;
     if parsed_manifest.entry_file != entry_file {
         return Err("Manifest entry does not match the downloaded stylesheet".into());
     }

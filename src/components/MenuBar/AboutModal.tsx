@@ -47,7 +47,7 @@ export const AboutModal: Component<AboutModalProps> = (props) => {
             <div>
               <h2 class="text-2xl font-bold tracking-tight">Taleno</h2>
               <p class="text-xs text-[var(--color-text-secondary)] font-mono mt-0.5">
-                {appVersion() ? `Version ${appVersion()}` : "Taleno"}
+                Version {appVersion()}
               </p>
             </div>
           </div>

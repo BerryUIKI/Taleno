@@ -52,7 +52,6 @@ fn atomic_replace(
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or(Path::new("."));
-    std::fs::create_dir_all(parent)?;
     let mut temp = tempfile::Builder::new()
         .prefix(".taleno-save-")
         .tempfile_in(parent)?;

@@ -12,7 +12,7 @@ export interface TocEntry {
 
 export interface DocumentState {
   /** Last successfully read/written Markdown, used as the save conflict baseline. */
-  savedContent?: string;
+  savedContent: string;
   /** Changes only on explicit disk reload, to reset editor history. */
   loadVersion?: number;
   path: string | null;
@@ -26,10 +26,11 @@ export interface DocumentState {
   externallyModified: boolean;
 }
 
-const emptyDocument: DocumentState = {
+export const emptyDocument: DocumentState = {
   path: null,
   filename: "Untitled",
   content: "",
+  savedContent: "",
   renderedContent: "",
   html: "",
   toc: [],
@@ -101,15 +102,14 @@ export function cancelPendingLiveOutline() {
 
 export async function processLiveOutline(
   markdown: string,
-  docPath?: string | null,
-  version?: number
+  docPath: string | null | undefined,
+  version: number
 ) {
-  const currentVersion = version ?? ++liveParseVersion;
   try {
     const parseFn = customLiveOutlineParser || renderMarkdown;
     const result = await parseFn(markdown, docPath);
     // Discard obsolete parse responses
-    if (currentVersion !== liveParseVersion) {
+    if (version !== liveParseVersion) {
       return;
     }
     setCurrentDocument((prev) => {
@@ -159,7 +159,6 @@ export function countWordsFast(text: string): number {
   return count;
 }
 export function flushDeferredStats() {
-  if (wordCountTimer === null) return;
   cancelDeferredStats();
   setCurrentDocument(prev => ({ ...prev, wordCount: countWordsFast(prev.content) }));
 }
@@ -169,9 +168,8 @@ export function updateDocumentContent(newContent: string, options?: { deferStats
   setCurrentDocument(prev => ({
     ...prev,
     content: newContent,
-    savedContent: prev.savedContent ?? (prev.isDirty ? "" : prev.content),
     wordCount: options?.deferStats ? prev.wordCount : countWordsFast(newContent),
-    isDirty: newContent !== (prev.savedContent ?? (prev.isDirty ? "" : prev.content)),
+    isDirty: newContent !== prev.savedContent,
   }));
   if (options?.deferStats) wordCountTimer = setTimeout(flushDeferredStats, 150);
   scheduleLiveOutline(newContent, docPath);

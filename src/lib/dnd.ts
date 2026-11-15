@@ -20,7 +20,7 @@ export const IMAGE_EXTENSIONS = new Set([
  */
 export function getFileName(filePath: string): string {
   const parts = filePath.split(/[/\\]/);
-  return parts[parts.length - 1] || filePath;
+  return parts[parts.length - 1];
 }
 
 /**
